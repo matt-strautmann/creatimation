@@ -2,7 +2,7 @@
 """
 Layout Intelligence - Smart Aspect Ratio Transformations
 
-Implements Canva-style Magic Resize functionality for intelligent layout adaptation
+Implements intelligent layout adaptation functionality for creative generation
 across different aspect ratios with platform-specific optimizations.
 """
 import logging
@@ -55,7 +55,7 @@ class LayoutIntelligence:
     """
     Smart layout transformation engine for aspect ratio adaptations
 
-    Implements Canva-style Magic Resize with intelligent element repositioning,
+    Implements intelligent layout adaptation with smart element repositioning,
     platform-specific optimizations, and layout rule application.
     """
 

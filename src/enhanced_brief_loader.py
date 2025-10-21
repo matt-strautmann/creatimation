@@ -11,7 +11,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from cache_manager import CacheManager
+# Support both relative imports (when run as module) and direct imports (when run in tests)
+try:
+    from cache_manager import CacheManager  # Direct import for tests
+except ImportError:
+    from .cache_manager import CacheManager  # Relative import for module execution
 
 logger = logging.getLogger(__name__)
 
