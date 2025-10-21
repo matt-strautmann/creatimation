@@ -1,0 +1,112 @@
+{
+  "campaign_id": "spring_refresh_enhanced_2025",
+  "campaign_meta": {
+    "campaign_name": "Spring Clean Everything - Enhanced",
+    "campaign_type": "seasonal_promotional",
+    "start_date": "2025-03-01",
+    "end_date": "2025-05-31",
+    "budget_tier": "premium",
+    "target_platforms": ["instagram_square", "instagram_story", "youtube_thumbnail"]
+  },
+
+  "brand_meta": {
+    "brand_name": "FreshStart",
+    "brand_tone": "confident_family_friendly",
+    "brand_colors": ["#2E8B57", "#4A90E2", "#FFFFFF", "#F0F8F5"],
+    "brand_guidelines_id": "freshstart_2025"
+  },
+
+  "products": [
+    {
+      "name": "Power Dish Soap",
+      "category": "Dish Soap",
+      "product_type": "generated_image",
+      "key_benefits": ["Cuts grease fast", "Gentle on hands", "Fresh scent"],
+      "price_point": "$4.99"
+    },
+    {
+      "name": "Ultra Laundry Detergent",
+      "category": "Laundry Detergent",
+      "product_type": "generated_image",
+      "key_benefits": ["10x cleaning power", "Safe for all fabrics", "Removes tough stains"],
+      "price_point": "$6.99"
+    }
+  ],
+
+  "regional_context": {
+    "region_code": "US",
+    "target_audience": "Busy families with children",
+    "cultural_considerations": "American family values, efficiency, quality",
+    "seasonal_context": "Spring cleaning motivation, fresh start energy"
+  },
+
+  "visual_concept": {
+    "layout_style": "hero_product",
+    "background_style": "contextual_split_screen",
+    "background_options": {
+      "primary": "contextual",
+      "fallback": "gradient",
+      "variants": ["scene", "split_screen", "objects_only", "gradient", "solid"]
+    },
+    "color_scheme": "brand_primary",
+    "visual_mood": "fresh_confident_premium",
+    "composition_rules": {
+      "product_prominence": "hero",
+      "text_hierarchy": "headline_primary",
+      "visual_balance": "product_left_text_right"
+    }
+  },
+
+  "text_elements": {
+    "headline_text": "Spring Clean Everything!",
+    "message_variants": {
+      "primary": "Spring Clean Everything!",
+      "promotional": "SAVE 30% - Spring Clean Everything!",
+      "benefit_focused": "Spring Clean Everything - 10x Stronger!",
+      "urgency": "Limited Time: Spring Clean Everything!"
+    },
+    "text_style": {
+      "font_category": "system_sans",
+      "text_effects": ["clean_shadow", "stroke_text"],
+      "max_words": 5,
+      "tone": "energetic_confident"
+    }
+  },
+
+  "context_mapping": {
+    "scene": "Modern family home with spring cleaning elements",
+    "placement": "Product naturally positioned in usage context",
+    "placement_rules": "Product positioned naturally in usage context, NOT floating",
+    "props": "Spring cleaning supplies, fresh flowers, organized spaces",
+    "lighting": "Bright natural spring lighting",
+    "regional_aesthetic": "Clean modern American home aesthetic, bright natural lighting",
+    "contextual_elements": {
+      "Dish Soap": "Sparkling clean dishes, soap bubbles, kitchen scene",
+      "Laundry Detergent": "Fresh white clothes, laundry room, cleanliness elements"
+    }
+  },
+
+  "creative_specifications": {
+    "aspect_ratios": ["1x1", "9x16", "16x9"],
+    "variants_per_ratio": 3,
+    "background_generation": {
+      "use_dalle": true,
+      "style_options": ["contextual", "gradient", "split_screen", "objects_only", "solid"],
+      "contextual_mapping": true,
+      "quality": "professional_commercial"
+    },
+    "text_generation": {
+      "use_ai_variants": true,
+      "platform_optimization": true,
+      "accessibility_compliance": "WCAG_AA",
+      "font_size_constraints": "platform_optimized"
+    }
+  },
+
+  "performance_tracking": {
+    "ab_test_enabled": true,
+    "bandit_optimization": true,
+    "success_metrics": ["ctr", "engagement", "conversion"],
+    "template_preferences": ["minimal_blue", "vibrant_red", "lifestyle"]
+  }
+}

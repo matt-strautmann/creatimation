@@ -1,0 +1,476 @@
+"""
+Unit tests for Creative Automation Agent
+
+Tests cover all PRD Task 2 requirements:
+- Monitor incoming campaign briefs
+- Trigger automated generation tasks
+- Track count and diversity of creative variants
+- Flag missing or insufficient assets (< 3 variants)
+- Alert and logging mechanism
+- Model Context Protocol
+"""
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from creative_automation_agent import (
+    AlertSeverity,
+    CreativeAutomationAgent,
+    MCPContext,
+    VariantStatus,
+)
+
+
+class TestBriefMonitoring:
+    """Test brief monitoring and change detection"""
+
+    def test_scan_for_new_briefs(self, temp_dir, sample_brief_file):
+        """Test detection of new brief files"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        new_briefs = agent.scan_for_new_briefs()
+
+        assert len(new_briefs) == 1
+        assert new_briefs[0].name == "test_campaign.json"
+
+    def test_ignore_unchanged_briefs(self, temp_dir, sample_brief_file):
+        """Test that unchanged briefs are not re-processed"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        # First scan - should detect
+        first_scan = agent.scan_for_new_briefs()
+        assert len(first_scan) == 1
+
+        # Process the brief
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Second scan - should not detect (unchanged)
+        second_scan = agent.scan_for_new_briefs()
+        assert len(second_scan) == 0
+
+    def test_detect_modified_briefs(self, temp_dir, sample_brief_file, sample_brief_data):
+        """Test detection of modified brief files"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        # First scan and process
+        first_scan = agent.scan_for_new_briefs()
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Modify brief file
+        sample_brief_data["campaign_message"] = "Modified Message"
+        with open(sample_brief_file, "w") as f:
+            json.dump(sample_brief_data, f)
+
+        # Second scan - should detect modification
+        second_scan = agent.scan_for_new_briefs()
+        assert len(second_scan) == 1
+
+    def test_analyze_campaign_brief(self, temp_dir, sample_brief_file, sample_brief_data):
+        """Test campaign brief analysis"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+
+        assert campaign_id == sample_brief_data["campaign_id"]
+        assert brief_data["products"] == sample_brief_data["products"]
+        assert brief_data["campaign_message"] == sample_brief_data["campaign_message"]
+
+
+class TestTaskTriggering:
+    """Test automated task triggering"""
+
+    def test_trigger_generation_task(self, temp_dir, sample_brief_file, sample_brief_data):
+        """Test generation task triggering"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Verify campaign is now monitored
+        assert campaign_id in agent.monitored_campaigns
+
+        # Verify state initialization
+        state = agent.monitored_campaigns[campaign_id]
+        assert state.campaign_id == campaign_id
+        assert state.status == VariantStatus.IN_PROGRESS
+        assert len(state.products) == 2  # Test Product A & B
+        assert state.total_variants == 0  # No variants generated yet
+
+    def test_state_persistence(self, temp_dir, sample_brief_file):
+        """Test agent state is saved and loaded correctly"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        # Trigger a task
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Save state
+        agent._save_state()
+
+        # Create new agent instance and verify state is loaded
+        agent2 = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+        assert campaign_id in agent2.monitored_campaigns
+        assert agent2.monitored_campaigns[campaign_id].status == VariantStatus.IN_PROGRESS
+
+
+class TestVariantTracking:
+    """Test variant counting and diversity tracking"""
+
+    def test_track_variant_generation(self, temp_dir, sample_brief_file, mock_output_structure):
+        """Test tracking of generated variants"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        # Trigger task
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Track variants
+        agent.track_variant_generation(campaign_id, output_dir=mock_output_structure)
+
+        # Verify counts
+        state = agent.monitored_campaigns[campaign_id]
+
+        # 2 products × 3 ratios × 3 variants = 18 total variants
+        assert state.total_variants == 18
+
+        # Verify per-product counts
+        assert "Test Product A" in state.variants_generated
+        assert "Test Product B" in state.variants_generated
+
+        # Verify per-ratio counts (3 variants each)
+        product_a_variants = state.variants_generated["Test Product A"]
+        assert product_a_variants["1x1"] == 3
+        assert product_a_variants["9x16"] == 3
+        assert product_a_variants["16x9"] == 3
+
+    def test_track_empty_output(self, temp_dir, sample_brief_file):
+        """Test tracking when no variants have been generated"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Track variants with empty output directory
+        empty_output = temp_dir / "empty_output"
+        empty_output.mkdir()
+        agent.track_variant_generation(campaign_id, output_dir=empty_output)
+
+        state = agent.monitored_campaigns[campaign_id]
+        assert state.total_variants == 0
+
+
+class TestVariantSufficiency:
+    """Test validation of variant counts (PRD requirement: flag if < 3 variants)"""
+
+    def test_check_sufficient_variants(self, temp_dir, sample_brief_file, mock_output_structure):
+        """Test detection of sufficient variants"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+        agent.track_variant_generation(campaign_id, output_dir=mock_output_structure)
+
+        # Check sufficiency (should be sufficient: 9 variants per product)
+        insufficient = agent.check_variant_sufficiency(campaign_id)
+
+        assert len(insufficient) == 0  # All products have >= 3 variants
+
+    def test_check_insufficient_variants(self, temp_dir, sample_brief_file):
+        """Test flagging of insufficient variants (< 3)"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Manually set variant counts to simulate insufficient variants
+        state = agent.monitored_campaigns[campaign_id]
+        state.variants_generated = {
+            "Test Product A": {"1x1": 3, "9x16": 3, "16x9": 3},  # 9 total - sufficient
+            "Test Product B": {"1x1": 1, "9x16": 1, "16x9": 0},  # 2 total - insufficient
+        }
+
+        insufficient = agent.check_variant_sufficiency(campaign_id)
+
+        # Product B should be flagged
+        assert len(insufficient) == 1
+        assert "Test Product B" in insufficient
+
+    def test_check_missing_assets(self, temp_dir, sample_brief_file):
+        """Test flagging of products with zero variants"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Manually set variant counts to simulate missing assets
+        state = agent.monitored_campaigns[campaign_id]
+        state.variants_generated = {
+            "Test Product A": {"1x1": 3, "9x16": 3, "16x9": 3},
+            "Test Product B": {"1x1": 0, "9x16": 0, "16x9": 0},  # Missing
+        }
+
+        insufficient = agent.check_variant_sufficiency(campaign_id)
+
+        # Product B should be flagged
+        assert "Test Product B" in insufficient
+
+
+class TestMCPContext:
+    """Test Model Context Protocol data structure and LLM prompt generation"""
+
+    def test_mcp_context_creation(self):
+        """Test MCP context object creation"""
+        mcp = MCPContext(
+            campaign_id="test_campaign",
+            campaign_name="Test Campaign",
+            timestamp="2025-03-15T10:00:00",
+            target_region="US",
+            target_audience="Test audience",
+            total_products=2,
+            products_processed=2,
+            products_pending=[],
+            products_failed=[],
+            total_variants_expected=6,
+            total_variants_generated=6,
+            variants_by_ratio={"1x1": 2, "9x16": 2, "16x9": 2},
+            variants_per_product={"Product A": 3, "Product B": 3},
+            missing_assets=[],
+            insufficient_variants=[],
+            cache_hit_rate=75.0,
+            processing_time=45.2,
+            error_count=0,
+            alert_type="generation_complete",
+            severity="info",
+            issues=[],
+            recommendations=[],
+        )
+
+        assert mcp.campaign_id == "test_campaign"
+        assert mcp.total_variants_expected == 6
+        assert mcp.total_variants_generated == 6
+
+    def test_mcp_to_dict(self):
+        """Test MCP context serialization to dictionary"""
+        mcp = MCPContext(
+            campaign_id="test",
+            campaign_name="Test",
+            timestamp="2025-03-15T10:00:00",
+            target_region="US",
+            target_audience="Test",
+            total_products=1,
+            products_processed=1,
+            products_pending=[],
+            products_failed=[],
+            total_variants_expected=3,
+            total_variants_generated=3,
+            variants_by_ratio={"1x1": 1, "9x16": 1, "16x9": 1},
+            variants_per_product={"Product": 3},
+            missing_assets=[],
+            insufficient_variants=[],
+            cache_hit_rate=0.0,
+            processing_time=10.0,
+            error_count=0,
+            alert_type="test",
+            severity="info",
+            issues=[],
+            recommendations=[],
+        )
+
+        mcp_dict = mcp.to_dict()
+
+        assert isinstance(mcp_dict, dict)
+        assert mcp_dict["campaign_id"] == "test"
+        assert mcp_dict["total_variants_generated"] == 3
+
+    def test_mcp_to_llm_prompt(self):
+        """Test LLM prompt generation from MCP context"""
+        mcp = MCPContext(
+            campaign_id="test_campaign",
+            campaign_name="Test Campaign",
+            timestamp="2025-03-15T10:00:00",
+            target_region="US",
+            target_audience="Families",
+            total_products=2,
+            products_processed=2,
+            products_pending=[],
+            products_failed=[],
+            total_variants_expected=6,
+            total_variants_generated=4,
+            variants_by_ratio={"1x1": 2, "9x16": 1, "16x9": 1},
+            variants_per_product={"Product A": 3, "Product B": 1},
+            missing_assets=[],
+            insufficient_variants=["Product B"],
+            cache_hit_rate=50.0,
+            processing_time=30.0,
+            error_count=0,
+            alert_type="insufficient_variants",
+            severity="warning",
+            issues=["1 product has < 3 variants"],
+            recommendations=["Re-run generation for Product B"],
+        )
+
+        prompt = mcp.to_llm_prompt()
+
+        # Verify prompt contains key information
+        assert "test_campaign" in prompt
+        assert "Test Campaign" in prompt
+        assert "4/6" in prompt  # Variants generated/expected
+        assert "Insufficient Variants (< 3): Product B" in prompt
+        assert "1 product has < 3 variants" in prompt
+        assert "Re-run generation for Product B" in prompt
+        assert "Generate a clear, actionable alert message" in prompt
+
+
+class TestAlertGeneration:
+    """Test alert generation and logging"""
+
+    def test_generate_mcp_alert(self, temp_dir, sample_brief_file):
+        """Test MCP alert generation"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Set variant counts
+        state = agent.monitored_campaigns[campaign_id]
+        state.variants_generated = {
+            "Test Product A": {"1x1": 3, "9x16": 3, "16x9": 3},
+            "Test Product B": {"1x1": 1, "9x16": 1, "16x9": 0},
+        }
+
+        # Generate alert
+        mcp_context = agent.generate_mcp_alert(
+            campaign_id, alert_type="insufficient_variants", severity=AlertSeverity.WARNING
+        )
+
+        assert mcp_context.campaign_id == campaign_id
+        assert mcp_context.alert_type == "insufficient_variants"
+        assert mcp_context.severity == "warning"
+        assert len(mcp_context.insufficient_variants) == 1
+        assert "Test Product B" in mcp_context.insufficient_variants
+
+    def test_log_alert(self, temp_dir, sample_brief_file, caplog):
+        """Test alert logging"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
+        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+
+        # Generate and log alert
+        mcp_context = agent.generate_mcp_alert(
+            campaign_id, alert_type="test_alert", severity=AlertSeverity.INFO
+        )
+
+        agent.log_alert(mcp_context)
+
+        # Verify alert was logged to console
+        assert "ALERT: TEST_ALERT" in caplog.text
+
+        # Verify alert was saved to campaign state
+        state = agent.monitored_campaigns[campaign_id]
+        assert len(state.alerts) == 1
+        assert state.alerts[0]["type"] == "test_alert"
+        assert state.alerts[0]["severity"] == "info"
+
+
+class TestMonitoringCycle:
+    """Test complete monitoring cycle"""
+
+    def test_run_monitoring_cycle(self, temp_dir, sample_brief_file, mock_output_structure):
+        """Test complete monitoring cycle execution"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        # Run monitoring cycle
+        agent.run_monitoring_cycle()
+
+        # Verify campaign was detected and task triggered
+        campaign_id = "test_campaign_2025"
+        assert campaign_id in agent.monitored_campaigns
+
+        # Verify state was initialized
+        state = agent.monitored_campaigns[campaign_id]
+        assert state.status == VariantStatus.IN_PROGRESS
+        assert len(state.products) == 2
+
+    def test_completion_detection(self, temp_dir, sample_brief_file, mock_output_structure):
+        """Test detection of campaign completion"""
+        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+
+        # Run initial cycle
+        agent.run_monitoring_cycle()
+
+        campaign_id = "test_campaign_2025"
+
+        # Manually simulate variant generation
+        state = agent.monitored_campaigns[campaign_id]
+        state.variants_generated = {
+            "Test Product A": {"1x1": 3, "9x16": 3, "16x9": 3},
+            "Test Product B": {"1x1": 3, "9x16": 3, "16x9": 3},
+        }
+        state.total_variants = 18
+
+        # Run another cycle - should detect completion
+        agent.run_monitoring_cycle()
+
+        # Verify status changed to COMPLETED
+        assert state.status == VariantStatus.COMPLETED
+
+        # Verify completion alert was generated
+        assert any(alert["type"] == "generation_complete" for alert in state.alerts)
+
+
+class TestEdgeCases:
+    """Test edge cases and error handling"""
+
+    def test_empty_briefs_directory(self, temp_dir):
+        """Test handling of empty briefs directory"""
+        empty_dir = temp_dir / "empty_briefs"
+        empty_dir.mkdir()
+
+        agent = CreativeAutomationAgent(briefs_dir=str(empty_dir))
+
+        # Should not raise error
+        new_briefs = agent.scan_for_new_briefs()
+        assert len(new_briefs) == 0
+
+    def test_invalid_json_brief(self, temp_dir):
+        """Test handling of invalid JSON brief file"""
+        invalid_brief = temp_dir / "briefs" / "invalid.json"
+        invalid_brief.parent.mkdir(parents=True)
+
+        with open(invalid_brief, "w") as f:
+            f.write("{ invalid json content")
+
+        agent = CreativeAutomationAgent(briefs_dir=str(invalid_brief.parent))
+
+        # Should raise JSONDecodeError
+        with pytest.raises(json.JSONDecodeError):
+            agent.analyze_campaign_brief(invalid_brief)
+
+    def test_missing_campaign_id(self, temp_dir):
+        """Test handling of brief without campaign_id field"""
+        brief_data = {"products": ["Product A"], "target_region": "US"}
+
+        brief_path = temp_dir / "briefs" / "no_id.json"
+        brief_path.parent.mkdir(parents=True)
+
+        with open(brief_path, "w") as f:
+            json.dump(brief_data, f)
+
+        agent = CreativeAutomationAgent(briefs_dir=str(brief_path.parent))
+
+        # Should use filename as fallback campaign_id
+        campaign_id, data = agent.analyze_campaign_brief(brief_path)
+        assert campaign_id == "no_id"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
