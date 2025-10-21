@@ -339,7 +339,7 @@ class CreativeAutomationAgent:
 
         # Log trigger event
         logger.info(f"Generation task triggered for {len(product_names)} products")
-        logger.info(f"Expected variants: {len(product_names) * 3} (3 aspect ratios per product)")
+        logger.info(f"Expected variants: {len(product_names) * 3 * 3} (3 aspect ratios × 3 variant types per product)")
 
     def track_variant_generation(self, campaign_id: str, output_dir: Path = Path("output")):
         """
@@ -369,15 +369,17 @@ class CreativeAutomationAgent:
                 continue
 
             # Count variants by aspect ratio
+            # Try both possible region names (us, US, or from brief metadata)
             ratio_counts = {}
             for ratio in ["1x1", "9x16", "16x9"]:
-                ratio_dir = (
-                    product_dir / "hero-product" / campaign_state.campaign_id.split("_")[0] / ratio
-                )
-                if ratio_dir.exists():
-                    variant_files = list(ratio_dir.glob("*.jpg")) + list(ratio_dir.glob("*.png"))
-                    ratio_counts[ratio] = len(variant_files)
-                    total_variants += len(variant_files)
+                # Check common path patterns for region
+                for region in ["us", "US", "default"]:
+                    ratio_dir = product_dir / "hero-product" / region / ratio
+                    if ratio_dir.exists():
+                        variant_files = list(ratio_dir.glob("*.jpg")) + list(ratio_dir.glob("*.png"))
+                        ratio_counts[ratio] = len(variant_files)
+                        total_variants += len(variant_files)
+                        break
                 else:
                     ratio_counts[ratio] = 0
 
@@ -410,10 +412,11 @@ class CreativeAutomationAgent:
 
         for product_name, ratio_counts in campaign_state.variants_generated.items():
             total_for_product = sum(ratio_counts.values())
-            if total_for_product < 3:
+            # Each product should have 9 variants (3 aspect ratios × 3 variant types)
+            if total_for_product < 9:
                 insufficient_products.append(product_name)
                 logger.warning(
-                    f"Product '{product_name}' has insufficient variants: {total_for_product}/3"
+                    f"Product '{product_name}' has insufficient variants: {total_for_product}/9"
                 )
 
         return insufficient_products
@@ -467,8 +470,8 @@ class CreativeAutomationAgent:
         recommendations = []
 
         if insufficient_variants:
-            issues.append(f"{len(insufficient_variants)} products have < 3 variants")
-            recommendations.append("Re-run generation with increased variant count")
+            issues.append(f"{len(insufficient_variants)} products have < 9 variants (3 ratios × 3 variant types)")
+            recommendations.append("Re-run generation to complete all variant types (base, color_shift, text_style)")
 
         if missing_assets:
             issues.append(f"{len(missing_assets)} products have no generated assets")
@@ -489,7 +492,7 @@ class CreativeAutomationAgent:
             products_processed=products_processed,
             products_pending=products_pending,
             products_failed=[],  # TODO: Track failed products
-            total_variants_expected=total_products * 3,  # 3 aspect ratios
+            total_variants_expected=total_products * 3 * 3,  # 3 aspect ratios × 3 variant types
             total_variants_generated=campaign_state.total_variants,
             variants_by_ratio=variants_by_ratio,
             variants_per_product=variants_per_product,

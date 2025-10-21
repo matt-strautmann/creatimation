@@ -1,0 +1,644 @@
+"""
+Test Suite for S3 Storage Integration
+
+Comprehensive tests for S3 storage manager, migration utilities,
+and hybrid cache management.
+
+Test Coverage:
+1. S3 Storage Manager - Upload, download, metadata operations
+2. S3 Migration - Local to S3 migration, validation
+3. Hybrid Cache Manager - Transparent local/S3 operations
+4. Folder Structure - Semantic path generation
+5. Error Handling - Network failures, permission issues
+6. Performance - Batch uploads, parallel operations
+"""
+import json
+import shutil
+import sys
+import tempfile
+import time
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from PIL import Image
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from cache_manager import AssetType, CacheManager, ProductCategory, Season, SemanticMetadata, VisualStyle
+from s3_storage_manager import S3Config, S3FolderStructure, S3StorageManager, UploadProgress, UploadResult
+
+
+# ============================================================================
+# TEST FIXTURES
+# ============================================================================
+
+
+@pytest.fixture
+def temp_cache_dir():
+    """Create temporary cache directory"""
+    temp_path = Path(tempfile.mkdtemp())
+    yield temp_path
+    shutil.rmtree(temp_path, ignore_errors=True)
+
+
+@pytest.fixture
+def mock_s3_config():
+    """Mock S3 configuration"""
+    return S3Config(
+        bucket_name="test-bucket",
+        region="us-east-1",
+        prefix="test-assets",
+        enable_encryption=True,
+        enable_versioning=True,
+    )
+
+
+@pytest.fixture
+def sample_image(temp_cache_dir):
+    """Create sample image file"""
+    img = Image.new("RGB", (512, 512), color=(255, 0, 0))
+    img_path = temp_cache_dir / "test_image.png"
+    img.save(img_path, "PNG")
+    return img_path
+
+
+# ============================================================================
+# S3 FOLDER STRUCTURE TESTS
+# ============================================================================
+
+
+class TestS3FolderStructure:
+    """Test semantic folder structure generation"""
+
+    def test_product_path_generation(self):
+        """Test product asset path generation"""
+        structure = S3FolderStructure(prefix="assets")
+
+        path = structure.get_product_path(
+            product_slug="power-dish-soap",
+            category="dish_soap",
+            asset_type="transparent",
+            filename="product.png",
+        )
+
+        assert path == "assets/products/transparent/dish_soap/power-dish-soap/product.png"
+        assert "transparent" in path
+        assert "dish_soap" in path
+
+    def test_background_path_generation(self):
+        """Test background asset path generation"""
+        structure = S3FolderStructure(prefix="assets")
+
+        # Scene background
+        path = structure.get_background_path(
+            style="scene",
+            region="US",
+            season="spring",
+            filename="background.jpg",
+        )
+
+        assert path == "assets/backgrounds/scene/US/spring/background.jpg"
+        assert "scene" in path
+        assert "US" in path
+        assert "spring" in path
+
+    def test_composite_path_generation(self):
+        """Test composite asset path generation"""
+        structure = S3FolderStructure(prefix="assets")
+
+        path = structure.get_composite_path(
+            campaign_id="spring_2025",
+            product_slug="power-dish-soap",
+            aspect_ratio="1x1",
+            filename="composite.jpg",
+        )
+
+        assert path == "assets/composites/spring_2025/power-dish-soap/1x1/composite.jpg"
+        assert "spring_2025" in path
+        assert "1x1" in path
+
+    def test_metadata_path(self):
+        """Test metadata index path"""
+        structure = S3FolderStructure(prefix="assets")
+        path = structure.get_metadata_path()
+
+        assert path == "assets/metadata/index.json"
+
+    def test_parse_s3_key_product(self):
+        """Test parsing S3 key for product"""
+        structure = S3FolderStructure(prefix="assets")
+
+        key = "assets/products/transparent/dish_soap/power-dish-soap/product.png"
+        parsed = structure.parse_s3_key(key)
+
+        assert parsed["type"] == "product"
+        assert parsed["asset_type"] == "transparent"
+        assert parsed["category"] == "dish_soap"
+        assert parsed["product_slug"] == "power-dish-soap"
+        assert parsed["filename"] == "product.png"
+
+    def test_parse_s3_key_background(self):
+        """Test parsing S3 key for background"""
+        structure = S3FolderStructure(prefix="assets")
+
+        key = "assets/backgrounds/scene/US/spring/background.jpg"
+        parsed = structure.parse_s3_key(key)
+
+        assert parsed["type"] == "background"
+        assert parsed["style"] == "scene"
+        assert parsed["region"] == "US"
+        assert parsed["season"] == "spring"
+
+    def test_parse_s3_key_composite(self):
+        """Test parsing S3 key for composite"""
+        structure = S3FolderStructure(prefix="assets")
+
+        key = "assets/composites/spring_2025/product/1x1/composite.jpg"
+        parsed = structure.parse_s3_key(key)
+
+        assert parsed["type"] == "composite"
+        assert parsed["campaign_id"] == "spring_2025"
+
+
+# ============================================================================
+# S3 STORAGE MANAGER TESTS (MOCKED)
+# ============================================================================
+
+
+class TestS3StorageManagerMocked:
+    """Test S3 storage manager with mocked boto3"""
+
+    @patch("s3_storage_manager.boto3")
+    def test_initialization(self, mock_boto3, mock_s3_config):
+        """Test S3 manager initialization"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+
+        manager = S3StorageManager(config=mock_s3_config)
+
+        assert manager.config.bucket_name == "test-bucket"
+        assert manager.config.region == "us-east-1"
+        mock_boto3.client.assert_called()
+
+    @patch("s3_storage_manager.boto3")
+    def test_upload_file_success(self, mock_boto3, mock_s3_config, sample_image):
+        """Test successful file upload"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+        mock_client.head_object.return_value = {
+            "ETag": "abc123",
+            "ContentLength": 1024,
+        }
+
+        manager = S3StorageManager(config=mock_s3_config)
+
+        result = manager.upload_file(
+            local_path=sample_image,
+            s3_key="test/image.png",
+            metadata={"type": "product"},
+        )
+
+        assert result.success is True
+        assert result.s3_key == "test/image.png"
+        assert result.size_bytes > 0
+        mock_client.upload_file.assert_called_once()
+
+    @patch("s3_storage_manager.boto3")
+    def test_upload_file_not_found(self, mock_boto3, mock_s3_config, temp_cache_dir):
+        """Test upload with missing file"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+
+        manager = S3StorageManager(config=mock_s3_config)
+
+        non_existent = temp_cache_dir / "missing.png"
+        result = manager.upload_file(
+            local_path=non_existent,
+            s3_key="test/missing.png",
+        )
+
+        assert result.success is False
+        assert "not found" in result.error.lower()
+
+    @patch("s3_storage_manager.boto3")
+    def test_batch_upload(self, mock_boto3, mock_s3_config, temp_cache_dir):
+        """Test batch upload operation"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+        mock_client.head_object.return_value = {"ETag": "abc123"}
+
+        manager = S3StorageManager(config=mock_s3_config)
+
+        # Create multiple test files
+        files = []
+        for i in range(5):
+            img_path = temp_cache_dir / f"image_{i}.png"
+            img = Image.new("RGB", (100, 100), color=(i * 50, 0, 0))
+            img.save(img_path, "PNG")
+            files.append((img_path, f"test/image_{i}.png", None))
+
+        results, progress = manager.batch_upload(files)
+
+        assert len(results) == 5
+        assert progress.total_files == 5
+        assert progress.uploaded >= 0
+
+    @patch("s3_storage_manager.boto3")
+    def test_download_file(self, mock_boto3, mock_s3_config, temp_cache_dir):
+        """Test file download"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+
+        manager = S3StorageManager(config=mock_s3_config)
+
+        output_path = temp_cache_dir / "downloaded.png"
+        success = manager.download_file(
+            s3_key="test/image.png",
+            local_path=output_path,
+        )
+
+        mock_client.download_file.assert_called_once()
+
+    @patch("s3_storage_manager.boto3")
+    def test_get_file_metadata(self, mock_boto3, mock_s3_config):
+        """Test retrieving file metadata"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+        mock_client.head_object.return_value = {
+            "ContentLength": 1024,
+            "LastModified": datetime.fromisoformat("2025-01-01T00:00:00+00:00"),
+            "ETag": "abc123",
+            "Metadata": {"type": "product"},
+        }
+
+        manager = S3StorageManager(config=mock_s3_config)
+
+        metadata = manager.get_file_metadata("test/image.png")
+
+        assert metadata is not None
+        assert metadata["size_bytes"] == 1024
+        assert metadata["metadata"]["type"] == "product"
+
+    @patch("s3_storage_manager.boto3")
+    def test_list_objects(self, mock_boto3, mock_s3_config):
+        """Test listing S3 objects"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+
+        # Mock paginator
+        mock_paginator = MagicMock()
+        mock_client.get_paginator.return_value = mock_paginator
+        mock_paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {
+                        "Key": "test/image1.png",
+                        "Size": 1024,
+                        "LastModified": "2025-01-01T00:00:00Z",
+                        "ETag": "abc123",
+                    },
+                    {
+                        "Key": "test/image2.png",
+                        "Size": 2048,
+                        "LastModified": "2025-01-02T00:00:00Z",
+                        "ETag": "def456",
+                    },
+                ]
+            }
+        ]
+
+        manager = S3StorageManager(config=mock_s3_config)
+        objects = manager.list_objects(prefix="test/")
+
+        assert len(objects) == 2
+        assert objects[0]["s3_key"] == "test/image1.png"
+        assert objects[0]["size_bytes"] == 1024
+
+
+# ============================================================================
+# S3 MIGRATION TESTS
+# ============================================================================
+
+
+class TestS3Migration:
+    """Test migration utilities"""
+
+    def test_migration_plan_creation(self, temp_cache_dir):
+        """Test creating migration plan"""
+        from s3_migration import S3MigrationManager
+
+        # Setup cache with sample data
+        cache_manager = CacheManager(cache_dir=str(temp_cache_dir))
+
+        # Create sample asset
+        img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+        img_path = temp_cache_dir / "product.png"
+        img.save(img_path, "PNG")
+
+        # Register product
+        cache_manager.register_product(
+            product_name="Test Product",
+            cache_filename="product.png",
+            campaign_id="test_campaign",
+        )
+
+        # Mock S3 manager
+        with patch("s3_migration.S3StorageManager"):
+            mock_s3_manager = MagicMock()
+            migration_manager = S3MigrationManager(cache_manager, mock_s3_manager)
+
+            plan = migration_manager.create_migration_plan()
+
+            assert plan.total_assets >= 1
+            assert plan.total_size_bytes > 0
+            assert len(plan.products) >= 1
+
+    def test_dry_run_migration(self, temp_cache_dir):
+        """Test migration dry run"""
+        from s3_migration import S3MigrationManager
+
+        cache_manager = CacheManager(cache_dir=str(temp_cache_dir))
+
+        # Create sample asset
+        img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+        img_path = temp_cache_dir / "product.png"
+        img.save(img_path, "PNG")
+
+        cache_manager.register_product(
+            product_name="Test Product",
+            cache_filename="product.png",
+            campaign_id="test_campaign",
+        )
+
+        # Mock S3 manager
+        with patch("s3_migration.S3StorageManager"):
+            mock_s3_manager = MagicMock()
+            migration_manager = S3MigrationManager(cache_manager, mock_s3_manager)
+
+            plan = migration_manager.create_migration_plan()
+            result = migration_manager.execute_migration(plan, dry_run=True)
+
+            assert result.uploaded_count > 0
+            # Verify no actual uploads happened
+            mock_s3_manager.batch_upload.assert_not_called()
+
+
+# ============================================================================
+# HYBRID CACHE MANAGER TESTS
+# ============================================================================
+
+
+class TestHybridCacheManager:
+    """Test S3-enhanced cache manager"""
+
+    @patch.dict("os.environ", {"S3_BUCKET_NAME": ""}, clear=True)
+    def test_initialization_no_s3(self, temp_cache_dir):
+        """Test initialization without S3"""
+        from cache_manager_s3 import S3CacheManager
+
+        manager = S3CacheManager(
+            cache_dir=str(temp_cache_dir),
+            enable_s3=False,
+        )
+
+        assert manager.s3_enabled is False
+        assert manager.s3_manager is None
+
+    @patch("cache_manager_s3.S3StorageManager")
+    @patch.dict("os.environ", {"S3_BUCKET_NAME": "test-bucket"})
+    def test_initialization_with_s3(self, mock_s3_manager_class, temp_cache_dir):
+        """Test initialization with S3 enabled"""
+        from cache_manager_s3 import S3CacheManager
+
+        mock_s3_manager_class.return_value = MagicMock()
+
+        manager = S3CacheManager(
+            cache_dir=str(temp_cache_dir),
+            enable_s3=True,
+        )
+
+        assert manager.s3_enabled is True
+
+    @patch("cache_manager_s3.S3StorageManager")
+    def test_register_semantic_asset_with_upload(
+        self, mock_s3_manager_class, temp_cache_dir, sample_image
+    ):
+        """Test registering asset with S3 upload"""
+        from cache_manager_s3 import S3CacheManager
+
+        mock_s3_manager = MagicMock()
+        mock_s3_manager.config.prefix = "test-assets"
+        mock_s3_manager.folder_structure = MagicMock()
+        mock_s3_manager.upload_file.return_value = UploadResult(
+            s3_key="test/asset.png",
+            local_path=str(sample_image),
+            success=True,
+            size_bytes=1024,
+        )
+        mock_s3_manager_class.return_value = mock_s3_manager
+
+        manager = S3CacheManager(
+            cache_dir=str(temp_cache_dir),
+            s3_config=S3Config(bucket_name="test-bucket"),
+            enable_s3=True,
+        )
+
+        metadata = SemanticMetadata(
+            asset_type=AssetType.PRODUCT_TRANSPARENT,
+            product_category=ProductCategory.DISH_SOAP,
+        )
+
+        manager.register_semantic_asset(
+            cache_key="test_asset",
+            file_path=str(sample_image),
+            metadata=metadata,
+            campaign_id="test_campaign",
+            upload_to_s3=True,
+        )
+
+        # Verify asset registered
+        assert "test_asset" in manager.index.get("semantic_assets", {})
+
+    def test_get_s3_stats(self, temp_cache_dir):
+        """Test S3 statistics"""
+        from cache_manager_s3 import S3CacheManager
+
+        manager = S3CacheManager(
+            cache_dir=str(temp_cache_dir),
+            enable_s3=False,
+        )
+
+        stats = manager.get_s3_stats()
+
+        assert stats["s3_enabled"] is False
+
+
+# ============================================================================
+# UPLOAD PROGRESS TESTS
+# ============================================================================
+
+
+class TestUploadProgress:
+    """Test upload progress tracking"""
+
+    def test_progress_initialization(self):
+        """Test progress object initialization"""
+        progress = UploadProgress(total_files=100, total_bytes=1024000)
+
+        assert progress.total_files == 100
+        assert progress.uploaded == 0
+        assert progress.failed == 0
+        assert progress.percent_complete == 0.0
+
+    def test_progress_calculation(self):
+        """Test progress percentage calculation"""
+        progress = UploadProgress(total_files=100)
+        progress.uploaded = 50
+
+        assert progress.percent_complete == 50.0
+
+    def test_upload_speed_calculation(self):
+        """Test upload speed calculation"""
+        progress = UploadProgress(total_files=10, total_bytes=1024000)
+        progress.uploaded_bytes = 512000
+
+        # Simulate elapsed time
+        time.sleep(0.1)
+
+        speed = progress.upload_speed_mbps
+        assert speed >= 0
+
+
+# ============================================================================
+# INTEGRATION TESTS
+# ============================================================================
+
+
+class TestS3Integration:
+    """End-to-end integration tests"""
+
+    @patch("s3_storage_manager.boto3")
+    def test_end_to_end_migration_workflow(
+        self, mock_boto3, temp_cache_dir, sample_image
+    ):
+        """Test complete migration workflow"""
+        from s3_migration import S3MigrationManager
+
+        # Setup mocks
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+        mock_client.head_object.return_value = {"ETag": "abc123"}
+
+        # Setup cache
+        cache_manager = CacheManager(cache_dir=str(temp_cache_dir))
+        cache_manager.register_product(
+            product_name="Test Product",
+            cache_filename=sample_image.name,
+            campaign_id="test_campaign",
+        )
+
+        # Setup S3 manager
+        s3_config = S3Config(bucket_name="test-bucket")
+        s3_manager = S3StorageManager(config=s3_config)
+
+        # Create migration
+        migration_manager = S3MigrationManager(cache_manager, s3_manager)
+
+        # Create and execute plan
+        plan = migration_manager.create_migration_plan()
+        assert plan.total_assets >= 1
+
+        # Dry run
+        result = migration_manager.execute_migration(plan, dry_run=True)
+        assert result.uploaded_count > 0
+
+
+# ============================================================================
+# ERROR HANDLING TESTS
+# ============================================================================
+
+
+class TestS3ErrorHandling:
+    """Test error handling and edge cases"""
+
+    @patch("s3_storage_manager.boto3")
+    def test_bucket_not_found(self, mock_boto3):
+        """Test handling missing bucket"""
+        from botocore.exceptions import ClientError
+
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.side_effect = ClientError(
+            {"Error": {"Code": "404"}}, "head_bucket"
+        )
+
+        config = S3Config(bucket_name="nonexistent-bucket")
+
+        with pytest.raises(ValueError, match="does not exist"):
+            S3StorageManager(config=config)
+
+    @patch("s3_storage_manager.boto3")
+    def test_permission_denied(self, mock_boto3):
+        """Test handling permission errors"""
+        from botocore.exceptions import ClientError
+
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.side_effect = ClientError(
+            {"Error": {"Code": "403"}}, "head_bucket"
+        )
+
+        config = S3Config(bucket_name="forbidden-bucket")
+
+        with pytest.raises(PermissionError, match="Access denied"):
+            S3StorageManager(config=config)
+
+
+# ============================================================================
+# PERFORMANCE TESTS
+# ============================================================================
+
+
+class TestS3Performance:
+    """Test performance characteristics"""
+
+    @patch("s3_storage_manager.boto3")
+    def test_batch_upload_performance(self, mock_boto3, temp_cache_dir):
+        """Test batch upload handles many files efficiently"""
+        mock_client = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        mock_client.head_bucket.return_value = {}
+        mock_client.head_object.return_value = {"ETag": "abc123"}
+
+        config = S3Config(bucket_name="test-bucket", max_parallel_uploads=10)
+        manager = S3StorageManager(config=config)
+
+        # Create 50 small test files
+        files = []
+        for i in range(50):
+            img_path = temp_cache_dir / f"image_{i}.png"
+            img = Image.new("RGB", (10, 10), color=(i, 0, 0))
+            img.save(img_path, "PNG")
+            files.append((img_path, f"test/image_{i}.png", None))
+
+        start_time = time.time()
+        results, progress = manager.batch_upload(files)
+        duration = time.time() - start_time
+
+        # Should complete reasonably fast with parallel uploads
+        assert duration < 10.0  # Should be much faster than 50 sequential uploads
+        assert len(results) == 50
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])

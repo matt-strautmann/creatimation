@@ -1,0 +1,59 @@
+{
+  "campaign_id": "cleanwave_spring_2025",
+  "campaign_name": "CleanWave Spring Freshness Launch",
+  "products": [
+    {
+      "name": "CleanWave Original Liquid Detergent",
+      "category": "Laundry Care",
+      "description": "Powerful clean with long-lasting freshness",
+      "key_benefits": [
+        "Removes tough stains",
+        "Fresh scent lasts for weeks",
+        "Works in all temperatures"
+      ]
+    },
+    {
+      "name": "CleanWave PODS Spring Meadow",
+      "category": "Laundry Care",
+      "description": "3-in-1 laundry pacs with spring-fresh scent",
+      "key_benefits": [
+        "Pre-measured convenience",
+        "Dissolves quickly",
+        "No measuring, no spills"
+      ]
+    }
+  ],
+  "target_region": "US",
+  "target_audience": "Busy families with active kids and parents aged 25-45",
+  "campaign_message": "Spring Into Freshness",
+  "campaign_context": {
+    "season": "Spring 2025",
+    "promotion": "Save $2 on any CleanWave product",
+    "key_benefit": "Long-lasting freshness that outlasts the competition",
+    "secondary_message": "Trusted by families nationwide",
+    "campaign_duration": "March 1 - May 31, 2025"
+  },
+  "creative_requirements": {
+    "aspect_ratios": ["1x1", "9x16", "16x9"],
+    "variants_per_ratio": 3,
+    "variant_types": ["base", "color_shift", "text_style"],
+    "total_assets_needed": 18
+  },
+  "brand_guide": "brand-guides/cleanwave_blue.yml",
+  "enhanced_context": {
+    "setting": "bright, modern American home",
+    "scene_style_preference": "lifestyle with family context",
+    "mood": "fresh, energetic, trustworthy",
+    "lifestyle_elements": [
+      "Fresh laundry",
+      "Clean bedroom with white linens",
+      "Organized laundry room",
+      "Morning sunlight"
+    ]
+  },
+  "messaging": {
+    "tone": "confident and approachable",
+    "call_to_action": "Try CleanWave Today",
+    "legal_disclaimer": "*Limited time offer. See store for details."
+  }
+}
