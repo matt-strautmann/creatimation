@@ -5,36 +5,35 @@
     "Ultra Laundry Detergent"
   ],
   "target_region": "US",
-  "target_audience": "Value-conscious families and deal seekers",
+  "target_audience": "Tech-savvy professionals and enterprise buyers",
   "campaign_message": "Spring Clean Everything!",
   "brand_meta": {
-    "brand_name": "Vibrant Red",
-    "industry": "Consumer / Retail",
+    "brand_name": "Minimal Blue",
+    "industry": "Technology / SaaS",
     "brand_colors": {
-      "primary": "#FF3D3D",
-      "secondary": "#FFF5F5",
-      "accent": "#FFD700"
+      "primary": "#2E5CFF",
+      "secondary": "#F0F4FF",
+      "accent": "#1A3FCC"
     }
   },
   "enhanced_context": {
-    "layout_style": "vibrant",
-    "scene_style_preference": "lifestyle",
-    "mood": "energetic",
-    "font_family": "Montserrat, Helvetica, Arial, sans-serif"
+    "layout_style": "minimal",
+    "scene_style_preference": "clean studio",
+    "mood": "professional",
+    "font_family": "Inter, Helvetica, Arial, sans-serif"
   },
   "messaging": {
-    "tone": "friendly",
-    "max_headline_length": 35,
+    "tone": "professional",
+    "max_headline_length": 40,
     "avoid_words": [
-      "boring",
-      "ordinary",
-      "plain"
+      "cheap",
+      "discount",
+      "bargain"
     ],
     "preferred_phrases": [
-      "Save big",
-      "Limited time",
-      "Don't miss out",
-      "Amazing value"
+      "Enterprise-grade",
+      "Professional quality",
+      "Trusted by teams"
     ]
   },
   "brand_guide_applied": true
