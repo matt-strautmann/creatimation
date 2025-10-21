@@ -123,7 +123,7 @@ def generate_all(ctx, brief, output, variants, ratios, brand_guide, no_cache, re
         console.print()
 
         # Initialize pipeline
-        pipeline = CreativePipeline(no_cache=no_cache)
+        pipeline = CreativePipeline(no_cache=no_cache, dry_run=dry_run)
 
         # Apply brand guide if specified
         enhanced_brief = brief
@@ -144,7 +144,6 @@ def generate_all(ctx, brief, output, variants, ratios, brand_guide, no_cache, re
         # Run pipeline
         results = pipeline.process_campaign(
             str(enhanced_brief),
-            dry_run=dry_run,
             resume=resume
         )
 
