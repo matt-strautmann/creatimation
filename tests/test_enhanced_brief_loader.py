@@ -23,7 +23,7 @@ class TestEnhancedBriefLoader:
         """Test loading a simple campaign brief"""
         loader = EnhancedBriefLoader()
 
-        brief = loader.load_brief(str(sample_brief_file))
+        brief = loader.load_and_enhance_brief(str(sample_brief_file))
 
         assert brief is not None
         assert "campaign_id" in brief
@@ -47,7 +47,7 @@ class TestEnhancedBriefLoader:
             json.dump(simple_brief, f)
 
         # Load and enhance
-        enhanced = loader.load_brief(str(brief_file))
+        enhanced = loader.load_and_enhance_brief(str(brief_file))
 
         assert enhanced is not None
         assert "brand_meta" in enhanced or "products" in enhanced
@@ -68,7 +68,7 @@ class TestEnhancedBriefLoader:
         with open(brief_file, "w") as f:
             json.dump(brief, f)
 
-        loaded = loader.load_brief(str(brief_file))
+        loaded = loader.load_and_enhance_brief(str(brief_file))
         assert "products" in loaded
         assert len(loaded["products"]) == 2
 
@@ -87,7 +87,7 @@ class TestEnhancedBriefLoader:
             json.dump(invalid_brief, f)
 
         # Should still load but may have defaults
-        loaded = loader.load_brief(str(brief_file))
+        loaded = loader.load_and_enhance_brief(str(brief_file))
         assert loaded is not None
 
     def test_multiple_regions(self, temp_dir):
@@ -106,7 +106,7 @@ class TestEnhancedBriefLoader:
         with open(brief_file, "w") as f:
             json.dump(brief, f)
 
-        loaded = loader.load_brief(str(brief_file))
+        loaded = loader.load_and_enhance_brief(str(brief_file))
         assert loaded["target_region"] == "GLOBAL"
 
 
@@ -132,7 +132,7 @@ class TestCPGSchemaProcessing:
         with open(brief_file, "w") as f:
             json.dump(cpg_brief, f)
 
-        loaded = loader.load_brief(str(brief_file))
+        loaded = loader.load_and_enhance_brief(str(brief_file))
         assert loaded is not None
         if "brand_meta" in loaded:
             assert loaded["brand_meta"]["brand_name"] == "TestBrand"
@@ -156,7 +156,7 @@ class TestCPGSchemaProcessing:
         with open(brief_file, "w") as f:
             json.dump(brief, f)
 
-        loaded = loader.load_brief(str(brief_file))
+        loaded = loader.load_and_enhance_brief(str(brief_file))
         assert loaded is not None
 
 
@@ -180,7 +180,7 @@ class TestCacheIntegration:
         with open(brief_file, "w") as f:
             json.dump(brief, f)
 
-        loaded = loader.load_brief(str(brief_file))
+        loaded = loader.load_and_enhance_brief(str(brief_file))
         assert loaded is not None
 
 

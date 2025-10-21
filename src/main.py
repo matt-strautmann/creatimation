@@ -23,15 +23,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import pipeline components
-from background_remover import BackgroundRemover
-from cache_manager import CacheManager
-from compositor import CreativeCompositor
-from enhanced_brief_loader import EnhancedBriefLoader
-from image_generator import ImageGenerator
-from image_processor import ImageProcessor
-from layout_intelligence import LayoutIntelligence
-from output_manager import OutputManager
-from state_tracker import StateTracker
+from .background_remover import BackgroundRemover
+from .cache_manager import CacheManager
+from .compositor import CreativeCompositor
+from .enhanced_brief_loader import EnhancedBriefLoader
+from .image_generator import ImageGenerator
+from .image_processor import ImageProcessor
+from .layout_intelligence import LayoutIntelligence
+from .output_manager import OutputManager
+from .state_tracker import StateTracker
 
 # Configure logging
 logging.basicConfig(
@@ -192,7 +192,7 @@ class CreativePipeline:
 
                 # Step 4-6: Use Layout Intelligence to transform to all ratios with multiple variants
                 for ratio in self.aspect_ratios.keys():
-                    logger.info(f"   📐 Magic Resize transformation to {ratio}...")
+                    logger.info(f"   📐 Intelligent layout adaptation to {ratio}...")
 
                     # Generate multiple text variants per ratio for A/B testing
                     num_variants = 3  # Generate 3 variants per ratio for proper A/B testing
@@ -566,7 +566,7 @@ class CreativePipeline:
         print("  1. Generate product on white background (DALL-E 3)")
         print("  2. Remove background (rembg AI)")
         print("  3. Generate master design (1x1 square)")
-        print("  4. Use Layout Intelligence for Magic Resize transformations")
+        print("  4. Use Layout Intelligence for adaptive layout transformations")
         print("  5. Transform to all aspect ratios (9x16, 16x9)")
         print("  6. Save with semantic naming + metadata")
 

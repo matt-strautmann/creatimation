@@ -1,0 +1,45 @@
+# Vibrant Red Brand Guide
+# Energetic, attention-grabbing aesthetic with red color palette
+
+brand:
+  name: Vibrant Red
+  industry: Consumer / Retail
+  target_audience: Value-conscious families and deal seekers
+  values:
+    - Energy
+    - Value
+    - Excitement
+    - Action
+
+colors:
+  primary: "#FF3D3D"           # Bold red
+  secondary: "#FFF5F5"         # Light pink background
+  accent: "#FFD700"            # Gold for highlights
+  background: "#FFFFFF"        # Clean white
+  text: "#2A2A2A"              # Dark gray for readability
+
+typography:
+  font_family: "Montserrat, Helvetica, Arial, sans-serif"
+  headline_size: 52
+  body_size: 18
+  font_weight: "700"           # Bold for impact
+
+visual:
+  layout_style: "vibrant"
+  text_positioning: "bottom"
+  scene_style: "lifestyle"
+  mood: "energetic"
+
+messaging:
+  tone: "friendly"
+  max_headline_length: 35
+  max_subheadline_length: 70
+  avoid_words:
+    - "boring"
+    - "ordinary"
+    - "plain"
+  preferred_phrases:
+    - "Save big"
+    - "Limited time"
+    - "Don't miss out"
+    - "Amazing value"

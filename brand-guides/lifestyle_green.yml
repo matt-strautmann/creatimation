@@ -1,0 +1,45 @@
+# Lifestyle Green Brand Guide
+# Natural, eco-friendly aesthetic with green color palette
+
+brand:
+  name: Lifestyle Green
+  industry: Home & Garden / Wellness
+  target_audience: Eco-conscious consumers and wellness enthusiasts
+  values:
+    - Sustainability
+    - Natural
+    - Wellness
+    - Authenticity
+
+colors:
+  primary: "#2E7D32"           # Forest green
+  secondary: "#F1F8E9"         # Light green background
+  accent: "#8BC34A"            # Bright green for highlights
+  background: "#FFFFFF"        # Clean white
+  text: "#1B3A1D"              # Deep green-black
+
+typography:
+  font_family: "Lato, Georgia, serif"
+  headline_size: 46
+  body_size: 17
+  font_weight: "normal"        # Regular weight for approachability
+
+visual:
+  layout_style: "lifestyle"
+  text_positioning: "center"
+  scene_style: "natural environment"
+  mood: "calm"
+
+messaging:
+  tone: "warm"
+  max_headline_length: 45
+  max_subheadline_length: 90
+  avoid_words:
+    - "artificial"
+    - "synthetic"
+    - "chemical"
+  preferred_phrases:
+    - "Naturally effective"
+    - "Eco-friendly"
+    - "Sustainable choice"
+    - "Plant-based"

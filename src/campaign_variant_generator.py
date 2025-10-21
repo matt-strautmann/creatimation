@@ -79,7 +79,7 @@ class CampaignVariantGenerator:
             "variant_options": self._generate_variant_options(simple_brief),
             # Background and scene specifications
             "background_specifications": self._generate_background_specs(simple_brief),
-            # Layout specifications for Magic Resize
+            # Layout specifications for intelligent adaptation
             "layout_specifications": self._generate_layout_specs(simple_brief),
             # Generation parameters
             "generation_parameters": self._generate_generation_params(simple_brief, cached_assets),
@@ -380,7 +380,7 @@ class CampaignVariantGenerator:
         }
 
     def _generate_layout_specs(self, brief: dict[str, Any]) -> dict[str, Any]:
-        """Generate layout specifications for Magic Resize from external config"""
+        """Generate layout specifications for intelligent adaptation from external config"""
         # Load layout rules from external file
         layout_rules_path = self.cache_dir / "layouts" / "layout_rules.json"
 
@@ -442,7 +442,7 @@ class CampaignVariantGenerator:
             "generation_quality": {
                 "image_quality": "high",
                 "resolution": "1024x1024_minimum",
-                "aspect_ratio_handling": "magic_resize",
+                "aspect_ratio_handling": "intelligent_adaptation",
                 "text_rendering": "high_contrast",
             },
             "performance_targets": {

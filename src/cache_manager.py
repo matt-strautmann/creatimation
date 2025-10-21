@@ -179,7 +179,12 @@ class CacheManager:
         """
         entries_to_remove = []
 
-        for cache_key, entry in self.index.items():
+        # Ensure cache_entries section exists
+        if "cache_entries" not in self.index:
+            self.index["cache_entries"] = {}
+
+        # Only iterate over cache_entries, not the special sections like "products"
+        for cache_key, entry in self.index.get("cache_entries", {}).items():
             if cache_type is None or entry.get("metadata", {}).get("type") == cache_type:
                 # Delete file
                 file_path = Path(entry.get("file_path", ""))
@@ -192,9 +197,9 @@ class CacheManager:
 
                 entries_to_remove.append(cache_key)
 
-        # Remove from index
+        # Remove from cache_entries section
         for cache_key in entries_to_remove:
-            del self.index[cache_key]
+            del self.index["cache_entries"][cache_key]
 
         self._save_index()
 
