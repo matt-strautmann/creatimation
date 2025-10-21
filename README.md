@@ -377,7 +377,7 @@ open htmlcov/index.html
 - `enhanced_brief_loader.py`: 53% (CPG schema processing)
 - Overall: 30% (lower due to image modules being thin API wrappers)
 
-**Testing Strategy**: We focus coverage on **business logic** (82%) over API wrappers (17%). Testing DALL-E integration comprehensively would cost $20-50 in API calls for minimal value - we're testing OpenAI's API, not our logic. See [TESTING_STRATEGY.md](TESTING_STRATEGY.md) for detailed rationale.
+**Testing Strategy**: We focus coverage on **business logic** (82%) over API wrappers (17%). Testing DALL-E integration comprehensively would cost $20-50 in API calls for minimal value - we're testing OpenAI's API, not our logic.
 
 **CI/CD**: GitHub Actions runs lint (Black, Ruff), type checking (MyPy), tests across Python 3.10-3.12, and security scans (Bandit) on every push. Test suite runs in 3 seconds for fast feedback.
 
