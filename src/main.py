@@ -172,14 +172,19 @@ class CreativePipeline:
                 campaign_message = brief.get("campaign_message", "Discover Quality")
                 enhanced_context = brief.get("enhanced_context", {})
                 template = enhanced_context.get("layout_style", "hero-product")
-                region = brief.get("target_region", "US")
+
+                # Multi-region support: handle both target_region (legacy) and target_regions (new)
+                if "target_regions" in brief:
+                    regions = brief["target_regions"]
+                else:
+                    regions = [brief.get("target_region", "US")]
 
                 # Build scene description from brief context
                 scene_description = self._build_scene_description(brief)
                 theme = enhanced_context.get("brand_tone", None)
-                color_scheme = self._get_color_scheme(enhanced_context)
+                color_scheme = self._get_color_scheme(brief)
 
-                # STEP 1: Generate product-only image (cache for reuse)
+                # STEP 1: Generate product-only image (cache for reuse across ALL regions)
                 product_image = self._get_or_generate_product_image(
                     product_name=product_name,
                     product_slug=product_slug,
@@ -188,70 +193,82 @@ class CreativePipeline:
                 # Use creative requirements from brief or default to PRD specs
                 creative_reqs = brief.get("creative_requirements", {})
                 aspect_ratios = creative_reqs.get("aspect_ratios", self.default_aspect_ratios)
-                variant_types = creative_reqs.get("variant_types", ["base", "color_shift", "text_style"])
+                variant_types = creative_reqs.get("variant_types", [])
+                variant_themes = creative_reqs.get("variant_themes", {})
+                variant_color_rules = creative_reqs.get("variant_color_rules", {})
 
-                # STEP 2: Generate variants by composing product into scenes
-                for ratio in aspect_ratios:
-                    logger.info(f"   🎨 Generating {ratio} creatives...")
+                # STEP 2: Generate variants by composing product into scenes (MULTI-REGION)
+                total_regions = len(regions)
+                for region_idx, region in enumerate(regions, 1):
+                    logger.info(f"   🌍 Region {region_idx}/{total_regions}: {region}")
 
-                    for variant_type in variant_types:
-                        logger.info(f"      📐 {variant_type}...")
+                    # Get regional adaptations for this region
+                    regional_adaptations = brief.get("regional_adaptations", {})
+                    region_config = regional_adaptations.get(region, {})
 
-                        # Apply variant-specific transformations
-                        variant_theme = theme
-                        variant_color = color_scheme
+                    # Use region-specific messaging if available
+                    region_cta = region_config.get("call_to_action", campaign_message)
+                    region_disclaimer = region_config.get("legal_disclaimer", "")
 
-                        if variant_type == "color_shift" and brand_guide:
-                            # Use accent colors for variant
-                            accent = brand_guide.get("colors", {}).get("accent")
-                            if accent:
-                                variant_color = f"Accent color {accent} palette with complementary tones"
+                    for ratio in aspect_ratios:
+                        logger.info(f"      🎨 Generating {ratio} creatives...")
 
-                        elif variant_type == "text_style":
-                            # Use different typography weight
-                            variant_theme = "elegant premium style"
+                        for variant_type in variant_types:
+                            logger.info(f"         📐 {variant_type}...")
 
-                        # FUSION: Compose product into scene with text
-                        final_image = self.gemini_generator.generate_product_creative(
-                            product_name=product_name,  # For metadata only
-                            campaign_message=campaign_message,
-                            scene_description=scene_description,
-                            aspect_ratio=ratio,
-                            theme=variant_theme,
-                            color_scheme=variant_color,
-                            region=region,
-                            variant_id=variant_type,
-                            product_image=product_image,  # KEY: Reuse product
-                            brand_guide=brand_guide,
-                        )
+                            # Apply variant-specific transformations (from brief configuration)
+                            variant_theme = variant_themes.get(variant_type, theme or "clean modern style")
+                            variant_color = color_scheme
 
-                        # Build metadata
-                        metadata = {
-                            "campaign_id": campaign_id,
-                            "product": product_name,
-                            "product_slug": product_slug,
-                            "ratio": ratio,
-                            "variant_id": variant_type,
-                            "campaign_message": campaign_message,
-                            "generation_method": "gemini_fusion",
-                            "theme": variant_theme,
-                            "color_scheme": variant_color,
-                            "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        }
+                            # Apply color rules from brief configuration
+                            color_rule = variant_color_rules.get(variant_type, "use_primary")
+                            if color_rule == "use_accent" and brand_guide:
+                                accent = brand_guide.get("colors", {}).get("accent")
+                                if accent:
+                                    variant_color = f"Accent color {accent} palette with complementary tones"
 
-                        # Save output
-                        output_path = self.output_manager.save_creative(
-                            final_image,
-                            product_name,
-                            ratio,
-                            metadata,
-                            template,
-                            region,
-                            variant_id=variant_type,
-                        )
+                            # FUSION: Compose product into scene with text (REGION-SPECIFIC)
+                            final_image = self.gemini_generator.generate_product_creative(
+                                product_name=product_name,  # For metadata only
+                                campaign_message=region_cta,  # Use region-specific CTA
+                                scene_description=scene_description,
+                                aspect_ratio=ratio,
+                                theme=variant_theme,
+                                color_scheme=variant_color,
+                                region=region,
+                                variant_id=variant_type,
+                                product_image=product_image,  # KEY: Reuse product
+                                brand_guide=brand_guide,
+                            )
 
-                        logger.info(f"         ✓ Saved: {Path(output_path).name}")
-                        results["total_creatives"] += 1
+                            # Build metadata (REGION-SPECIFIC)
+                            metadata = {
+                                "campaign_id": campaign_id,
+                                "product": product_name,
+                                "product_slug": product_slug,
+                                "ratio": ratio,
+                                "variant_id": variant_type,
+                                "campaign_message": region_cta,  # Use region-specific CTA
+                                "generation_method": "gemini_fusion",
+                                "theme": variant_theme,
+                                "color_scheme": variant_color,
+                                "region": region,  # Add region to metadata
+                                "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            }
+
+                            # Save output with regional path structure
+                            output_path = self.output_manager.save_creative(
+                                final_image,
+                                product_name,
+                                ratio,
+                                metadata,
+                                template,
+                                region,
+                                variant_id=variant_type,
+                            )
+
+                            logger.info(f"            ✓ Saved: {Path(output_path).name}")
+                            results["total_creatives"] += 1
 
                 # Update state
                 product_category = self.brief_loader._infer_product_category(product_name).lower()
@@ -261,6 +278,7 @@ class CreativePipeline:
                     {
                         "product_name": product_name,
                         "processed": True,
+                        "regions_generated": regions,
                         "ratios_generated": aspect_ratios,
                         "variants_generated": variant_types,
                     },
@@ -378,23 +396,34 @@ class CreativePipeline:
 
         return f"{setting}, {aesthetic}"
 
-    def _get_color_scheme(self, enhanced_context: dict) -> str | None:
+    def _get_color_scheme(self, brief: dict) -> str | None:
         """
-        Extract color scheme from enhanced context.
+        Extract color scheme from brief brand metadata.
 
         Args:
-            enhanced_context: Enhanced context dict from brief
+            brief: Full brief dict containing brand_meta
 
         Returns:
             Color scheme string or None
         """
-        brand_colors = enhanced_context.get("brand_colors", [])
-        if not brand_colors:
-            return None
+        # Check brand_meta for color information
+        brand_meta = brief.get("brand_meta", {})
+        brand_colors = brand_meta.get("brand_colors", {})
 
-        # Analyze brand colors to suggest scheme
-        # Simple heuristic based on first color
-        primary_color = brand_colors[0] if brand_colors else None
+        if not brand_colors:
+            # Fallback to enhanced_context if no brand_meta
+            enhanced_context = brief.get("enhanced_context", {})
+            brand_colors = enhanced_context.get("brand_colors", [])
+            if not brand_colors:
+                return None
+
+        # Extract primary color from brand_colors dict or list
+        primary_color = None
+        if isinstance(brand_colors, dict):
+            primary_color = brand_colors.get("primary")
+        elif isinstance(brand_colors, list) and brand_colors:
+            primary_color = brand_colors[0]
+
         if not primary_color:
             return None
 
