@@ -18,11 +18,13 @@ import time
 from pathlib import Path
 
 from dotenv import load_dotenv
+from PIL import Image
 
 # Load environment variables
 load_dotenv()
 
 # Import pipeline components
+from .brand_guide_loader import BrandGuideLoader
 from .cache_manager import CacheManager
 from .enhanced_brief_loader import EnhancedBriefLoader
 from .gemini_image_generator import GeminiImageGenerator
@@ -68,11 +70,13 @@ class CreativePipeline:
         self.output_manager = OutputManager()
         self.cache_manager = CacheManager()
         self.brief_loader = EnhancedBriefLoader()
+        self.brand_guide_loader = BrandGuideLoader()
 
-        # Use Gemini's native aspect ratios (10 ratios vs 3)
-        self.aspect_ratios = self.gemini_generator.ASPECT_RATIOS
+        # Default to PRD-specified 3 aspect ratios (configurable to all 10)
+        self.default_aspect_ratios = ["1x1", "9x16", "16x9"]  # PRD minimum
+        self.all_aspect_ratios = self.gemini_generator.ASPECT_RATIOS
 
-        logger.info("🚀 CreativePipeline initialized with Gemini Nano Banana (3 components vs 8)")
+        logger.info("🚀 CreativePipeline initialized with Gemini Nano Banana (4 components vs 8)")
 
     # No longer needed - using Gemini's native aspect ratios
     # def _load_aspect_ratios(self) -> dict:
@@ -95,6 +99,24 @@ class CreativePipeline:
         """
         # Load and enhance brief using CPG schema processing
         brief = self.brief_loader.load_and_enhance_brief(brief_path)
+
+        # Load and apply brand guide if specified
+        brand_guide = None
+        brand_guide_path = brief.get("brand_guide")
+        if brand_guide_path:
+            try:
+                brand_guide_obj = self.brand_guide_loader.load(brand_guide_path)
+                brief = self.brand_guide_loader.apply_to_brief(brief, brand_guide_obj)
+                # Convert to dict for passing to Gemini
+                brand_guide = {
+                    "colors": brand_guide_obj.colors.dict(),
+                    "typography": brand_guide_obj.typography.dict(),
+                    "visual": brand_guide_obj.visual.dict(),
+                    "messaging": brand_guide_obj.messaging.dict(),
+                }
+                logger.info(f"✓ Loaded brand guide: {brand_guide_obj.brand.name}")
+            except Exception as e:
+                logger.warning(f"Failed to load brand guide: {e}")
 
         campaign_id = brief.get("campaign_id", Path(brief_path).stem)
         logger.info(f"\n{'='*60}")
@@ -143,8 +165,9 @@ class CreativePipeline:
             logger.info("-" * 60)
 
             try:
-                # SIMPLIFIED GEMINI PIPELINE: ONE API call per variant
-                # Replaces: product gen + bg removal + scene gen + compositing + text overlay
+                # TWO-STEP GEMINI WORKFLOW:
+                # Step 1: Generate product once (or load from cache)
+                # Step 2: Fuse product into scenes with variants
 
                 campaign_message = brief.get("campaign_message", "Discover Quality")
                 enhanced_context = brief.get("enhanced_context", {})
@@ -156,27 +179,50 @@ class CreativePipeline:
                 theme = enhanced_context.get("brand_tone", None)
                 color_scheme = self._get_color_scheme(enhanced_context)
 
-                # Generate creatives for all aspect ratios with multiple variants
-                # Increased from 3 to 5 variants (faster + cheaper with Gemini)
-                num_variants = 5
+                # STEP 1: Generate product-only image (cache for reuse)
+                product_image = self._get_or_generate_product_image(
+                    product_name=product_name,
+                    product_slug=product_slug,
+                )
 
-                for ratio in self.aspect_ratios.keys():
+                # Use creative requirements from brief or default to PRD specs
+                creative_reqs = brief.get("creative_requirements", {})
+                aspect_ratios = creative_reqs.get("aspect_ratios", self.default_aspect_ratios)
+                variant_types = creative_reqs.get("variant_types", ["base", "color_shift", "text_style"])
+
+                # STEP 2: Generate variants by composing product into scenes
+                for ratio in aspect_ratios:
                     logger.info(f"   🎨 Generating {ratio} creatives...")
 
-                    for variant_num in range(1, num_variants + 1):
-                        variant_id = f"variant_{variant_num}"
-                        logger.info(f"      📐 {variant_id}/{num_variants}...")
+                    for variant_type in variant_types:
+                        logger.info(f"      📐 {variant_type}...")
 
-                        # ONE API CALL - replaces entire 5-step pipeline
+                        # Apply variant-specific transformations
+                        variant_theme = theme
+                        variant_color = color_scheme
+
+                        if variant_type == "color_shift" and brand_guide:
+                            # Use accent colors for variant
+                            accent = brand_guide.get("colors", {}).get("accent")
+                            if accent:
+                                variant_color = f"Accent color {accent} palette with complementary tones"
+
+                        elif variant_type == "text_style":
+                            # Use different typography weight
+                            variant_theme = "elegant premium style"
+
+                        # FUSION: Compose product into scene with text
                         final_image = self.gemini_generator.generate_product_creative(
-                            product_name=product_name,
+                            product_name=product_name,  # For metadata only
                             campaign_message=campaign_message,
                             scene_description=scene_description,
                             aspect_ratio=ratio,
-                            theme=theme,
-                            color_scheme=color_scheme,
+                            theme=variant_theme,
+                            color_scheme=variant_color,
                             region=region,
-                            variant_id=variant_id,
+                            variant_id=variant_type,
+                            product_image=product_image,  # KEY: Reuse product
+                            brand_guide=brand_guide,
                         )
 
                         # Build metadata
@@ -185,11 +231,11 @@ class CreativePipeline:
                             "product": product_name,
                             "product_slug": product_slug,
                             "ratio": ratio,
-                            "variant_id": variant_id,
+                            "variant_id": variant_type,
                             "campaign_message": campaign_message,
-                            "generation_method": "gemini_nano_banana",
-                            "theme": theme,
-                            "color_scheme": color_scheme,
+                            "generation_method": "gemini_fusion",
+                            "theme": variant_theme,
+                            "color_scheme": variant_color,
                             "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
                         }
 
@@ -201,13 +247,13 @@ class CreativePipeline:
                             metadata,
                             template,
                             region,
-                            variant_id=variant_id,
+                            variant_id=variant_type,
                         )
 
                         logger.info(f"         ✓ Saved: {Path(output_path).name}")
                         results["total_creatives"] += 1
 
-                # Update state - simplified
+                # Update state
                 product_category = self.brief_loader._infer_product_category(product_name).lower()
 
                 state_tracker.update_product_state(
@@ -215,7 +261,8 @@ class CreativePipeline:
                     {
                         "product_name": product_name,
                         "processed": True,
-                        "ratios_generated": list(self.aspect_ratios.keys()),
+                        "ratios_generated": aspect_ratios,
+                        "variants_generated": variant_types,
                     },
                 )
 
@@ -243,6 +290,55 @@ class CreativePipeline:
         self._display_summary(results)
 
         return results
+
+    def _get_or_generate_product_image(
+        self,
+        product_name: str,
+        product_slug: str,
+    ) -> Image.Image:
+        """
+        Get product image from cache or generate new one.
+
+        Args:
+            product_name: Product name
+            product_slug: Product slug for cache key
+
+        Returns:
+            PIL Image of product
+        """
+        # Check product registry first
+        if not self.no_cache:
+            product_entry = self.cache_manager.lookup_product(product_name)
+            if product_entry and product_entry.get("product_cache_filename"):
+                # Try to load from cache
+                cache_path = Path(product_entry["product_cache_filename"])
+                if cache_path.exists():
+                    logger.info(f"   ✓ Loaded product from cache: {product_name}")
+                    return Image.open(cache_path)
+
+        # Generate new product image
+        logger.info(f"   🎨 Generating product image: {product_name}")
+        product_image = self.gemini_generator.generate_product_only(
+            product_name=product_name,
+            aspect_ratio="1x1",  # Standard square for products
+        )
+
+        # Save to cache/products directory
+        cache_dir = Path("cache/products")
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache_file = cache_dir / f"{product_slug}.png"
+        product_image.save(cache_file, "PNG")
+
+        # Register in product registry
+        self.cache_manager.register_product(
+            product_name=product_name,
+            product_cache_filename=str(cache_file),
+            campaign_id=None,  # Will be set later when used in campaign
+        )
+
+        logger.info(f"   💾 Cached product image: {cache_file.name}")
+
+        return product_image
 
     def _build_scene_description(self, brief: dict) -> str:
         """

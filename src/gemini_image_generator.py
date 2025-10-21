@@ -61,6 +61,61 @@ class GeminiImageGenerator:
         else:
             logger.info("GeminiImageGenerator initialized in dry-run mode (client not initialized)")
 
+    def generate_product_only(
+        self,
+        product_name: str,
+        aspect_ratio: str = "1x1",
+    ) -> Image.Image:
+        """
+        Generate product-only image for caching and reuse.
+
+        Creates clean product photography on neutral background for later
+        composition with scenes using multi-image fusion.
+
+        Args:
+            product_name: Product name/description
+            aspect_ratio: Ratio key (1x1, 9x16, 16x9, etc.)
+
+        Returns:
+            PIL Image object with product on neutral background
+        """
+        prompt = self._build_product_only_prompt(product_name)
+        gemini_ratio = self.ASPECT_RATIOS.get(aspect_ratio, "1:1")
+
+        logger.info(f"Generating product-only image: {product_name} ({aspect_ratio})")
+        start_time = time.time()
+
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash-image",
+                contents=[prompt],
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=types.ImageConfig(
+                        aspect_ratio=gemini_ratio,
+                    ),
+                ),
+            )
+
+            # Extract image from response
+            for part in response.parts:
+                if part.inline_data is not None:
+                    from io import BytesIO
+                    image_data = part.inline_data.data
+                    image = Image.open(BytesIO(image_data))
+
+                    generation_time = time.time() - start_time
+                    logger.info(f"✓ Generated product image in {generation_time:.1f}s")
+                    logger.info(f"   Size: {image.size}")
+
+                    return image
+
+            raise ValueError("No image in response")
+
+        except Exception as e:
+            logger.error(f"Failed to generate product image for {product_name}: {e}")
+            raise
+
     def generate_product_creative(
         self,
         product_name: str,
@@ -71,16 +126,18 @@ class GeminiImageGenerator:
         color_scheme: str | None = None,
         region: str = "US",
         variant_id: str = "variant_1",
+        product_image: Image.Image | None = None,
+        brand_guide: dict | None = None,
     ) -> Image.Image:
         """
-        Generate complete product creative with text in ONE API call.
+        Generate complete product creative with text.
 
-        This replaces the entire pipeline:
-        - Product generation (was DALL-E)
-        - Background removal (was rembg)
-        - Scene generation (was DALL-E)
-        - Compositing (was PIL)
-        - Text overlay (now native, was PIL)
+        If product_image is provided, uses multi-image fusion to compose product
+        into scene. Otherwise generates unified image in one call.
+
+        This method supports two workflows:
+        1. Two-step (recommended): product_image provided → fusion with scene
+        2. One-step (legacy): product_image=None → unified generation
 
         Args:
             product_name: Product name/description
@@ -91,10 +148,27 @@ class GeminiImageGenerator:
             color_scheme: Optional color scheme (e.g., "warm", "cool", "vibrant")
             region: Regional aesthetic (US, LATAM, APAC, EMEA)
             variant_id: Variant identifier for text positioning variety
+            product_image: Pre-generated product image for fusion (optional)
+            brand_guide: Brand guide dict for typography/colors (optional)
 
         Returns:
             PIL Image object with product, scene, and text overlay
         """
+        # Use fusion workflow if product image provided
+        if product_image is not None:
+            return self._generate_with_fusion(
+                product_image=product_image,
+                campaign_message=campaign_message,
+                scene_description=scene_description,
+                aspect_ratio=aspect_ratio,
+                theme=theme,
+                color_scheme=color_scheme,
+                region=region,
+                variant_id=variant_id,
+                brand_guide=brand_guide,
+            )
+
+        # Otherwise use legacy unified generation
         prompt = self._build_unified_prompt(
             product_name=product_name,
             campaign_message=campaign_message,
@@ -103,6 +177,7 @@ class GeminiImageGenerator:
             color_scheme=color_scheme,
             region=region,
             variant_id=variant_id,
+            brand_guide=brand_guide,
         )
 
         gemini_ratio = self.ASPECT_RATIOS.get(aspect_ratio, "1:1")
@@ -202,6 +277,88 @@ class GeminiImageGenerator:
             logger.error(f"Failed to compose images: {e}")
             raise
 
+    def _generate_with_fusion(
+        self,
+        product_image: Image.Image,
+        campaign_message: str,
+        scene_description: str,
+        aspect_ratio: str = "1x1",
+        theme: str | None = None,
+        color_scheme: str | None = None,
+        region: str = "US",
+        variant_id: str = "variant_1",
+        brand_guide: dict | None = None,
+    ) -> Image.Image:
+        """
+        Generate creative using multi-image fusion.
+
+        Composes pre-generated product image into scene with text overlay.
+
+        Args:
+            product_image: Pre-generated product image
+            campaign_message: Text to overlay
+            scene_description: Scene context
+            aspect_ratio: Output aspect ratio
+            theme: Optional theme
+            color_scheme: Optional color scheme
+            region: Regional aesthetic
+            variant_id: Variant identifier
+            brand_guide: Brand guide dict
+
+        Returns:
+            Composed PIL Image
+        """
+        prompt = self._build_fusion_prompt(
+            campaign_message=campaign_message,
+            scene_description=scene_description,
+            theme=theme,
+            color_scheme=color_scheme,
+            region=region,
+            variant_id=variant_id,
+            brand_guide=brand_guide,
+        )
+
+        gemini_ratio = self.ASPECT_RATIOS.get(aspect_ratio, "1:1")
+
+        logger.info(f"Composing {aspect_ratio} creative via fusion")
+        logger.info(f"   Message: {campaign_message}")
+        logger.info(f"   Variant: {variant_id}")
+        start_time = time.time()
+
+        try:
+            # Multi-image fusion: product + prompt
+            contents = [product_image, prompt]
+
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash-image",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["IMAGE"],
+                    image_config=types.ImageConfig(
+                        aspect_ratio=gemini_ratio,
+                    ),
+                ),
+            )
+
+            # Extract image from response
+            for part in response.parts:
+                if part.inline_data is not None:
+                    from io import BytesIO
+                    image_data = part.inline_data.data
+                    image = Image.open(BytesIO(image_data))
+
+                    generation_time = time.time() - start_time
+                    logger.info(f"✓ Composed creative via fusion in {generation_time:.1f}s")
+                    logger.info(f"   Size: {image.size}")
+
+                    return image
+
+            raise ValueError("No image in response")
+
+        except Exception as e:
+            logger.error(f"Failed to compose creative via fusion: {e}")
+            raise
+
     def _build_unified_prompt(
         self,
         product_name: str,
@@ -211,6 +368,7 @@ class GeminiImageGenerator:
         color_scheme: str | None = None,
         region: str = "US",
         variant_id: str = "variant_1",
+        brand_guide: dict | None = None,
     ) -> str:
         """
         Build comprehensive prompt for unified generation.
@@ -256,15 +414,26 @@ class GeminiImageGenerator:
         if color_scheme:
             prompt_parts.append(f"\nColor Scheme: {color_scheme} tones and palette")
 
+        # Get typography from brand guide if available
+        typography_style = "bold modern sans-serif font"
+        if brand_guide and "typography" in brand_guide:
+            font_family = brand_guide["typography"].get("font_family", "").split(",")[0]
+            font_weight = brand_guide["typography"].get("font_weight", "700")
+            if font_family:
+                weight_desc = "bold" if font_weight in ["700", "bold"] else "regular"
+                typography_style = f"{weight_desc} {font_family} font style"
+
         # Critical: Text overlay instructions
         prompt_parts.append(f"""
 \nText Overlay Requirements:
 - Display the text: "{campaign_message}"
 - Position: {text_position}
-- Typography: Bold, modern sans-serif font, highly readable
+- Typography: {typography_style}, clean and professional
 - Size: Large and prominent (12-15% of image height)
-- Color: Bright white with subtle dark outline/shadow for contrast
-- Ensure text is clearly legible against the background
+- Style: Clean, modern advertising typography with crisp edges
+- Color: High contrast against background (white on dark, dark on light)
+- NO heavy outlines, NO thick shadows - use subtle drop shadow only if needed for legibility
+- Professional advertising quality text rendering
 - Text should be perfectly spelled as written above
 
 \nComposition Guidelines:
@@ -283,6 +452,114 @@ class GeminiImageGenerator:
 
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Generated prompt:\n{prompt}")
+
+        return prompt
+
+    def _build_fusion_prompt(
+        self,
+        campaign_message: str,
+        scene_description: str,
+        theme: str | None = None,
+        color_scheme: str | None = None,
+        region: str = "US",
+        variant_id: str = "variant_1",
+        brand_guide: dict | None = None,
+    ) -> str:
+        """
+        Build prompt for multi-image fusion.
+
+        This prompt guides fusion of product image with scene and text overlay.
+
+        Args:
+            campaign_message: Text to overlay
+            scene_description: Scene context
+            theme: Optional theme
+            color_scheme: Optional color scheme
+            region: Regional aesthetic
+            variant_id: Variant identifier
+            brand_guide: Brand guide dict
+
+        Returns:
+            Fusion prompt string
+        """
+        # Regional aesthetic mappings
+        regional_aesthetics = {
+            "US": "clean modern American aesthetic, bright natural lighting, contemporary home setting",
+            "LATAM": "warm vibrant family aesthetic, natural sunlight, tropical warmth, colorful accents",
+            "APAC": "minimalist clean aesthetic, zen organized environment, soft neutral tones",
+            "EMEA": "sophisticated European modern style, premium materials, refined elegance",
+        }
+
+        aesthetic = regional_aesthetics.get(region, regional_aesthetics["US"])
+
+        # Get text positioning from brand guide or variant
+        text_position = "bottom of the image, with product prominently featured above"
+        if brand_guide and "visual" in brand_guide:
+            position = brand_guide["visual"].get("text_positioning", "bottom")
+            position_map = {
+                "top": "top of the image, with product featured below",
+                "bottom": "bottom of the image, with product prominently featured above",
+                "center": "centered, with product balanced around it",
+                "left": "left side, with product on the right",
+                "right": "right side, with product on the left",
+            }
+            text_position = position_map.get(position, text_position)
+
+        # Get typography from brand guide
+        typography_style = "bold modern sans-serif font"
+        if brand_guide and "typography" in brand_guide:
+            font_family = brand_guide["typography"].get("font_family", "").split(",")[0]
+            font_weight = brand_guide["typography"].get("font_weight", "700")
+            if font_family:
+                weight_desc = "bold" if font_weight in ["700", "bold"] else "regular"
+                typography_style = f"{weight_desc} {font_family} font style"
+
+        # Get brand colors
+        color_scheme_text = color_scheme or ""
+        if brand_guide and "colors" in brand_guide:
+            primary = brand_guide["colors"].get("primary", "")
+            accent = brand_guide["colors"].get("accent", "")
+            if primary and accent:
+                color_scheme_text = f"Primary brand color {primary}, accent {accent} for highlights"
+
+        # Build fusion prompt
+        prompt_parts = [
+            f"Compose this product into a professional advertising creative.",
+            f"\nScene & Background: {scene_description}",
+            f"\nAesthetic Style: {aesthetic}",
+        ]
+
+        if theme:
+            prompt_parts.append(f"\nTheme: {theme} style with matching visual elements")
+
+        if color_scheme_text:
+            prompt_parts.append(f"\nColor Scheme: {color_scheme_text}")
+
+        # Text overlay instructions
+        prompt_parts.append(f"""
+\nText Overlay:
+- Display the text: "{campaign_message}"
+- Position: {text_position}
+- Typography: {typography_style}, clean and professional
+- Size: Large and prominent (12-15% of image height)
+- Style: Clean, modern advertising typography with crisp edges
+- Color: High contrast against background
+- NO heavy outlines, NO thick shadows - subtle drop shadow only if needed
+- Professional advertising quality text rendering
+
+\nComposition:
+- Place the product as the hero element (60-70% of frame)
+- Professional product photography lighting
+- Scene elements complement but don't overpower product
+- Natural, realistic rendering with photographic quality
+- Clean, high-end advertising aesthetic for social media
+
+\nQuality: Ultra high resolution, professional advertising photography""")
+
+        prompt = "".join(prompt_parts).strip()
+
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Generated fusion prompt:\n{prompt}")
 
         return prompt
 

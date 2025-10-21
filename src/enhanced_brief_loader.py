@@ -181,7 +181,9 @@ class EnhancedBriefLoader:
         # Add enhanced context for each product
         enhanced_contexts = []
         for product in products:
-            product_category = self._infer_product_category(product)
+            # Handle both string and dict products
+            product_name = product if isinstance(product, str) else product.get("name", str(product))
+            product_category = self._infer_product_category(product_name)
             context = self._generate_product_context(product_category, region)
             enhanced_contexts.append(context)
 
@@ -241,7 +243,10 @@ class EnhancedBriefLoader:
 
         logger.info(f"🔍 Checking cache for {len(products)} products...")
 
-        for product_name in products:
+        for product in products:
+            # Handle both string and dict products
+            product_name = product if isinstance(product, str) else product.get("name", str(product))
+
             # Look up product in cache registry
             cached_product = self.cache_manager.lookup_product(product_name)
 
@@ -249,7 +254,7 @@ class EnhancedBriefLoader:
                 # Generate slug for logging (since we simplified cache structure)
                 product_slug = product_name.lower().replace(" ", "-").replace("&", "-").strip("-")
                 logger.info(f"   ✓ Cache HIT: {product_name} -> {product_slug}")
-                cached_products.append(product_name)
+                cached_products.append(product)
                 cache_info[product_name] = cached_product
 
                 # Update campaign usage tracking
@@ -262,7 +267,7 @@ class EnhancedBriefLoader:
                     )
             else:
                 logger.info(f"   ✗ Cache MISS: {product_name} (will generate)")
-                new_products.append(product_name)
+                new_products.append(product)
 
         return {
             "products": products,  # Keep original product list for pipeline
