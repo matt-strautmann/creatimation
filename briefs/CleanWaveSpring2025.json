@@ -23,7 +23,7 @@
       ]
     }
   ],
-  "target_region": "US",
+  "target_regions": ["US", "LATAM", "APAC", "EMEA"],
   "target_audience": "Busy families with active kids and parents aged 25-45",
   "campaign_message": "Spring Into Freshness",
   "campaign_context": {
@@ -37,7 +37,44 @@
     "aspect_ratios": ["1x1", "9x16", "16x9"],
     "variants_per_ratio": 3,
     "variant_types": ["base", "color_shift", "text_style"],
-    "total_assets_needed": 18
+    "variant_themes": {
+      "base": "clean modern style",
+      "color_shift": "bold dynamic style",
+      "text_style": "elegant premium style"
+    },
+    "variant_color_rules": {
+      "base": "use_primary",
+      "color_shift": "use_accent",
+      "text_style": "use_primary"
+    },
+    "total_assets_needed": 72,
+    "regions_x_ratios_x_variants": "4 regions × 3 ratios × 3 variants × 2 products = 72 total"
+  },
+  "regional_adaptations": {
+    "US": {
+      "currency": "USD",
+      "legal_disclaimer": "*Limited time offer. See store for details.",
+      "call_to_action": "Try CleanWave Today",
+      "cultural_notes": "Emphasize family values and convenience"
+    },
+    "LATAM": {
+      "currency": "varies",
+      "legal_disclaimer": "*Oferta por tiempo limitado. Ver detalles en tienda.",
+      "call_to_action": "Prueba CleanWave Hoy",
+      "cultural_notes": "Focus on family care and proven performance"
+    },
+    "APAC": {
+      "currency": "varies",
+      "legal_disclaimer": "*Limited time offer. Terms and conditions apply.",
+      "call_to_action": "Experience CleanWave",
+      "cultural_notes": "Highlight quality and effectiveness"
+    },
+    "EMEA": {
+      "currency": "EUR/GBP",
+      "legal_disclaimer": "*Limited time offer. See terms and conditions.",
+      "call_to_action": "Choose CleanWave",
+      "cultural_notes": "Emphasize premium quality and environmental consideration"
+    }
   },
   "brand_guide": "brand-guides/cleanwave_blue.yml",
   "enhanced_context": {
