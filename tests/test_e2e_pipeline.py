@@ -248,7 +248,7 @@ class TestE2EDataFlow:
     def test_brief_to_processing_flow(self, temp_workspace):
         """Test complete flow from brief to processing"""
         briefs_dir = temp_workspace / "briefs"
-        output_dir = temp_workspace / "output"
+        temp_workspace / "output"
 
         # Create comprehensive brief
         campaign_brief = {
@@ -547,7 +547,7 @@ class TestE2EWorkflowOrchestration:
         """Test execution of complete workflow from start to finish"""
         # Set up complete environment
         briefs_dir = temp_workspace / "briefs"
-        output_dir = temp_workspace / "output"
+        temp_workspace / "output"
 
         # Create brand guide
         brand_guide_content = """
@@ -668,7 +668,7 @@ cache:
         agent = CreativeAutomationAgent(briefs_dir=str(briefs_dir))
 
         # Test state progression
-        initial_state = len(getattr(agent, "monitored_campaigns", {}))
+        len(getattr(agent, "monitored_campaigns", {}))
 
         # Scan (should detect new brief)
         new_briefs = agent.scan_for_new_briefs()

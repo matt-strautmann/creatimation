@@ -590,7 +590,7 @@ def _collect_cache_statistics(cache_manager) -> dict[str, Any]:
             return stats
 
         # Walk through cache directory
-        for root, dirs, files in os.walk(cache_dir):
+        for root, _dirs, files in os.walk(cache_dir):
             for file in files:
                 file_path = Path(root) / file
                 file_size = file_path.stat().st_size

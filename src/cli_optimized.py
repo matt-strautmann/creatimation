@@ -134,7 +134,7 @@ def generate_all(ctx, brief, brand_guide, output, no_cache, resume, dry_run):
         if brand_guide:
             console.print(f"Brand Guide: {brand_guide}")
 
-        with console.status("[bold green]Processing campaign...") as status:
+        with console.status("[bold green]Processing campaign..."):
             results = pipeline.process_campaign(
                 brief_path=brief, brand_guide_path=brand_guide, resume=resume
             )

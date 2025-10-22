@@ -160,7 +160,7 @@ class BrandGuideLoader:
             self._loaded_guides[str(path)] = brand_guide
             return brand_guide
         except Exception as e:
-            raise ValueError(f"Invalid brand guide YAML: {e}")
+            raise ValueError(f"Invalid brand guide YAML: {e}") from e
 
     def apply_to_brief(self, brief: dict[str, Any], brand_guide: BrandGuide) -> dict[str, Any]:
         """

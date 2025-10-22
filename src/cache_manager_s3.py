@@ -412,7 +412,7 @@ class S3CacheManager(CacheManager):
 
         for asset in s3_assets:
             s3_key = asset["s3_key"]
-            parsed = asset.get("parsed", {})
+            asset.get("parsed", {})
             metadata = asset.get("metadata", {})
 
             cache_key = metadata.get("cache-key") or s3_key.split("/")[-1]
@@ -540,7 +540,7 @@ class S3CacheManager(CacheManager):
         """Calculate total size of local cache"""
         total_size = 0
 
-        for cache_key, asset_entry in self.index.get("semantic_assets", {}).items():
+        for _cache_key, asset_entry in self.index.get("semantic_assets", {}).items():
             local_path = Path(asset_entry.get("file_path", ""))
             if local_path.exists():
                 total_size += local_path.stat().st_size

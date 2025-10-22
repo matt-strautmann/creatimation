@@ -268,7 +268,7 @@ def asset(ctx, product, message, ratio, region, variant, theme, output, brand_gu
         creatimation generate asset -p "Premium Detergent" -m "Premium clean" --theme "luxury" -o custom.jpg
     """
     try:
-        workspace = ctx.ensure_workspace()
+        ctx.ensure_workspace()
 
         # Get configured components
         container = ctx.container
@@ -376,7 +376,7 @@ def batch(ctx, briefs_dir, pattern, parallel, brand_guide, no_cache, dry_run):
     try:
         from glob import glob
 
-        workspace = ctx.ensure_workspace()
+        ctx.ensure_workspace()
 
         # Find brief files
         brief_pattern = Path(briefs_dir) / pattern
@@ -465,7 +465,7 @@ def _extract_campaign_id(brief_path: str) -> str | None:
         with open(brief_path) as f:
             brief_data = json.load(f)
         return brief_data.get("campaign_id")
-    except:
+    except (json.JSONDecodeError, FileNotFoundError, KeyError, OSError):
         # Fallback to filename
         return Path(brief_path).stem
 
@@ -613,7 +613,7 @@ def _auto_update_workspace_config(ctx, brief_path):
             return
 
         with open(brief_file) as f:
-            brief_data = json.load(f)
+            json.load(f)
 
         # Check if workspace config needs update
         workspace_config_file = ctx.workspace_path / ".creatimation.yml"

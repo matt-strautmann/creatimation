@@ -31,7 +31,7 @@ try:
     from botocore.config import Config
     from botocore.exceptions import BotoCoreError, ClientError
 except ImportError:
-    raise ImportError("boto3 is required for S3 storage. Install with: pip install boto3")
+    raise ImportError("boto3 is required for S3 storage. Install with: pip install boto3") from None
 
 logger = logging.getLogger(__name__)
 
@@ -304,11 +304,13 @@ class S3StorageManager:
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code")
             if error_code == "404":
-                raise ValueError(f"S3 bucket '{self.config.bucket_name}' does not exist")
+                raise ValueError(f"S3 bucket '{self.config.bucket_name}' does not exist") from e
             elif error_code == "403":
-                raise PermissionError(f"Access denied to S3 bucket '{self.config.bucket_name}'")
+                raise PermissionError(
+                    f"Access denied to S3 bucket '{self.config.bucket_name}'"
+                ) from e
             else:
-                raise RuntimeError(f"Failed to access S3 bucket: {e}")
+                raise RuntimeError(f"Failed to access S3 bucket: {e}") from e
 
     def _enable_versioning(self) -> None:
         """Enable versioning on S3 bucket"""

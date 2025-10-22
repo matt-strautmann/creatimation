@@ -1167,7 +1167,7 @@ def _display_dynamic_workspace_config(ctx):
     # Generation hints
     console.print(Panel("Quick Commands", style="yellow"))
     if campaigns:
-        example_campaign = campaigns[0]["campaign_id"]
+        campaigns[0]["campaign_id"]
         console.print(
             f"  [cyan]./creatimation generate campaign --brief briefs/{campaigns[0]['_file']}[/cyan]"
         )

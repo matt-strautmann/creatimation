@@ -178,7 +178,7 @@ class EnhancedBriefLoader:
 
         products = simple_brief.get("products", [])
         region = simple_brief.get("target_region", "US")
-        message = simple_brief.get("campaign_message", "Quality Product")
+        simple_brief.get("campaign_message", "Quality Product")
         campaign_id = simple_brief.get(
             "campaign_id", Path(simple_brief.get("_brief_path", "unknown")).stem
         )

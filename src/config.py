@@ -130,15 +130,19 @@ class ConfigManager:
                     file_config = yaml.safe_load(f) or {}
                     config_dict = self._deep_merge(config_dict, file_config)
             except PermissionError as e:
-                raise RuntimeError(f"Permission denied reading config file {self.config_path}: {e}")
+                raise RuntimeError(
+                    f"Permission denied reading config file {self.config_path}: {e}"
+                ) from e
             except yaml.YAMLError as e:
-                raise RuntimeError(f"Invalid YAML in config file {self.config_path}: {e}")
+                raise RuntimeError(f"Invalid YAML in config file {self.config_path}: {e}") from e
             except UnicodeDecodeError as e:
-                raise RuntimeError(f"Encoding error in config file {self.config_path}: {e}")
+                raise RuntimeError(f"Encoding error in config file {self.config_path}: {e}") from e
             except OSError as e:
-                raise RuntimeError(f"Failed to read config file {self.config_path}: {e}")
+                raise RuntimeError(f"Failed to read config file {self.config_path}: {e}") from e
             except Exception as e:
-                raise RuntimeError(f"Unexpected error reading config file {self.config_path}: {e}")
+                raise RuntimeError(
+                    f"Unexpected error reading config file {self.config_path}: {e}"
+                ) from e
 
         # Layer 1: Apply CLI overrides (highest priority)
         if cli_overrides:
@@ -150,9 +154,9 @@ class ConfigManager:
         except Exception as e:
             # Provide helpful validation error messages
             if "validation error" in str(e).lower():
-                raise RuntimeError(f"Configuration validation failed: {e}")
+                raise RuntimeError(f"Configuration validation failed: {e}") from e
             else:
-                raise RuntimeError(f"Failed to create configuration: {e}")
+                raise RuntimeError(f"Failed to create configuration: {e}") from e
 
         # Override OpenAI API key from environment if not in config
         if not self._config.openai.api_key:
@@ -233,11 +237,11 @@ openai:
             with open(template_path, "w", encoding="utf-8") as f:
                 f.write(template)
         except PermissionError as e:
-            raise RuntimeError(f"Permission denied writing template to {template_path}: {e}")
+            raise RuntimeError(f"Permission denied writing template to {template_path}: {e}") from e
         except OSError as e:
-            raise RuntimeError(f"Failed to write template to {template_path}: {e}")
+            raise RuntimeError(f"Failed to write template to {template_path}: {e}") from e
         except Exception as e:
-            raise RuntimeError(f"Unexpected error writing template to {template_path}: {e}")
+            raise RuntimeError(f"Unexpected error writing template to {template_path}: {e}") from e
 
         return template_path
 
