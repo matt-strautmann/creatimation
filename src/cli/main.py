@@ -89,15 +89,16 @@ def main(
     """
     Creative Automation Pipeline - Generate professional creatives at scale.
 
-    A modern CLI inspired by GitHub's developer experience patterns.
     Create, validate, and manage creative campaigns with intelligent automation.
 
+    \b
     Examples:
         creatimation generate campaign --brief campaign.json
         creatimation workspace init my-brand --template cpg
         creatimation validate brief campaign.json --fix
         creatimation config set cache.s3_bucket my-bucket
 
+    \b
     Get started:
         creatimation workspace init          # Create new workspace
         creatimation config init             # Setup configuration
