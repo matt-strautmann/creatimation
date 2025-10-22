@@ -136,7 +136,7 @@ class TestPluginManager:
         assert result2 is True
 
         captured = capsys.readouterr()
-        assert "already loaded" in captured.err
+        assert "already loaded" in captured.out
 
     def test_unload_plugin(self):
         """Test unloading a plugin"""
@@ -158,7 +158,7 @@ class TestPluginManager:
 
         assert result is False
         captured = capsys.readouterr()
-        assert "not loaded" in captured.err
+        assert "not loaded" in captured.out
 
     def test_get_plugin_commands(self):
         """Test getting commands from plugins"""

@@ -98,9 +98,9 @@ def multi_campaign_setup(cache_manager, temp_cache_dir, sample_product_image):
 
             # Register in cache with rich metadata
             cache_manager.register_product(
-                product_name=product_name,
-                cache_filename=cache_filename,
-                campaign_id=campaign_id,
+                product_name,
+                str(cache_path),  # Use full path to the saved file
+                campaign_id,
                 tags=[
                     campaign_data["season"],
                     campaign_data["region"],
