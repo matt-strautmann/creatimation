@@ -449,7 +449,8 @@ class GeminiImageGenerator:
 
         prompt_parts.append("\nText Overlay Requirements:\n" + "\n".join(text_overlay_parts))
 
-        prompt_parts.append("""
+        prompt_parts.append(
+            """
 \nComposition Guidelines:
 - Product should be hero-sized (60-70% of frame) and clearly visible
 - Professional product photography lighting with natural shadows
@@ -460,7 +461,8 @@ class GeminiImageGenerator:
 - Clean, high-end advertising aesthetic suitable for social media
 
 \nQuality: Ultra high resolution, professional advertising photography, magazine-quality output
-""")
+"""
+        )
 
         prompt = "".join(prompt_parts).strip()
 
@@ -588,7 +590,8 @@ class GeminiImageGenerator:
             logger.warning(f"⚠️ No variant composition found for {variant_id} in brand guide")
 
         # Text overlay instructions
-        prompt_parts.append(f"""
+        prompt_parts.append(
+            f"""
 \nText Overlay:
 - Display the text: "{campaign_message}"
 - Position: {text_position}
@@ -606,7 +609,8 @@ class GeminiImageGenerator:
 - Natural, realistic rendering with photographic quality
 - Clean, high-end advertising aesthetic for social media
 
-\nQuality: Ultra high resolution, professional advertising photography""")
+\nQuality: Ultra high resolution, professional advertising photography"""
+        )
 
         prompt = "".join(prompt_parts).strip()
 

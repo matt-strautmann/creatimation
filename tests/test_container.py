@@ -4,14 +4,10 @@ Tests for dependency injection container.
 These tests cover the DIContainer class and service registration/retrieval.
 """
 
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock
-
-import pytest
-
 # Add src to path for imports
 import sys
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
@@ -29,8 +25,8 @@ class TestDIContainer:
         """Test DIContainer initialization"""
         container = DIContainer()
         assert container is not None
-        assert hasattr(container, 'config')
-        assert hasattr(container, '_instances')
+        assert hasattr(container, "config")
+        assert hasattr(container, "_instances")
 
     def test_container_with_config(self):
         """Test DIContainer with configuration"""
@@ -148,10 +144,7 @@ class TestServiceIntegration:
 
     def test_container_with_custom_config(self):
         """Test container with custom configuration"""
-        config = {
-            "cache": {"directory": "custom_cache"},
-            "output": {"directory": "custom_output"}
-        }
+        config = {"cache": {"directory": "custom_cache"}, "output": {"directory": "custom_output"}}
         container = DIContainer(config)
 
         cache_manager = container.get_cache_manager()

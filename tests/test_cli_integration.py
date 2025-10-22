@@ -6,15 +6,15 @@ testing realistic usage scenarios and command interactions.
 """
 
 import json
+
+# Add src to path for imports
+import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
 
-# Add src to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
@@ -22,6 +22,7 @@ try:
 except ImportError:
     # Create a minimal CLI for testing if main is not available
     import click
+
     @click.group()
     def cli():
         """Creative Automation CLI"""
@@ -62,20 +63,20 @@ class TestCLIIntegration:
 
     def test_cli_help_command(self):
         """Test that CLI help works"""
-        result = self.runner.invoke(cli, ['--help'])
+        result = self.runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
         assert "Creative Automation" in result.output or "Usage:" in result.output
 
     def test_cli_version_command(self):
         """Test CLI version display"""
-        result = self.runner.invoke(cli, ['--version'])
+        result = self.runner.invoke(cli, ["--version"])
         # Version command might not be implemented, so allow both success and failure
         assert result.exit_code in [0, 2]  # 0 = success, 2 = no such option
 
     def test_workspace_commands(self):
         """Test workspace-related commands"""
         # Test workspace help
-        result = self.runner.invoke(cli, ['workspace', '--help'])
+        result = self.runner.invoke(cli, ["workspace", "--help"])
         assert result.exit_code in [0, 2]  # Command might not exist
 
         if result.exit_code == 0:
@@ -84,7 +85,7 @@ class TestCLIIntegration:
     def test_config_commands(self):
         """Test configuration commands"""
         # Test config help
-        result = self.runner.invoke(cli, ['config', '--help'])
+        result = self.runner.invoke(cli, ["config", "--help"])
         assert result.exit_code in [0, 2]  # Command might not exist
 
         if result.exit_code == 0:
@@ -93,7 +94,7 @@ class TestCLIIntegration:
     def test_generate_commands(self):
         """Test generation commands"""
         # Test generate help
-        result = self.runner.invoke(cli, ['generate', '--help'])
+        result = self.runner.invoke(cli, ["generate", "--help"])
         assert result.exit_code in [0, 2]  # Command might not exist
 
         if result.exit_code == 0:
@@ -102,7 +103,7 @@ class TestCLIIntegration:
     def test_validate_commands(self):
         """Test validation commands"""
         # Test validate help
-        result = self.runner.invoke(cli, ['validate', '--help'])
+        result = self.runner.invoke(cli, ["validate", "--help"])
         assert result.exit_code in [0, 2]  # Command might not exist
 
         if result.exit_code == 0:
@@ -111,7 +112,7 @@ class TestCLIIntegration:
     def test_cache_commands(self):
         """Test cache management commands"""
         # Test cache help
-        result = self.runner.invoke(cli, ['cache', '--help'])
+        result = self.runner.invoke(cli, ["cache", "--help"])
         assert result.exit_code in [0, 2]  # Command might not exist
 
         if result.exit_code == 0:
@@ -129,12 +130,14 @@ class TestWorkspaceWorkflow:
         """Test complete workspace initialization workflow"""
         with self.runner.isolated_filesystem():
             # Try to initialize workspace
-            result = self.runner.invoke(cli, ['workspace', 'init'])
+            result = self.runner.invoke(cli, ["workspace", "init"])
 
             # Command might not be implemented, so check various outcomes
             if result.exit_code == 0:
                 # If successful, check for expected outputs
-                assert "workspace" in result.output.lower() or "initialized" in result.output.lower()
+                assert (
+                    "workspace" in result.output.lower() or "initialized" in result.output.lower()
+                )
             else:
                 # If command doesn't exist or fails, that's also acceptable for this test
                 assert result.exit_code in [1, 2]
@@ -143,7 +146,7 @@ class TestWorkspaceWorkflow:
         """Test workspace status checking"""
         with self.runner.isolated_filesystem():
             # Try to check workspace status
-            result = self.runner.invoke(cli, ['workspace', 'status'])
+            result = self.runner.invoke(cli, ["workspace", "status"])
 
             # Command might not be implemented
             if result.exit_code == 0:
@@ -163,7 +166,7 @@ class TestConfigurationWorkflow:
         """Test configuration initialization workflow"""
         with self.runner.isolated_filesystem():
             # Try to initialize config
-            result = self.runner.invoke(cli, ['config', 'init'])
+            result = self.runner.invoke(cli, ["config", "init"])
 
             if result.exit_code == 0:
                 # Check for config file creation
@@ -175,7 +178,7 @@ class TestConfigurationWorkflow:
         """Test configuration display workflow"""
         with self.runner.isolated_filesystem():
             # Try to show config
-            result = self.runner.invoke(cli, ['config', 'show'])
+            result = self.runner.invoke(cli, ["config", "show"])
 
             if result.exit_code == 0:
                 assert "config" in result.output.lower()
@@ -198,7 +201,7 @@ generation:
             Path(".creatimation.yml").write_text(config_content)
 
             # Try to validate config
-            result = self.runner.invoke(cli, ['config', 'validate'])
+            result = self.runner.invoke(cli, ["config", "validate"])
 
             if result.exit_code == 0:
                 assert "valid" in result.output.lower() or "config" in result.output.lower()
@@ -226,21 +229,18 @@ class TestGenerationWorkflow:
                 "campaign_id": "test_campaign",
                 "name": "Test Campaign",
                 "products": {
-                    "test_product": {
-                        "name": "Test Product",
-                        "description": "A test product"
-                    }
+                    "test_product": {"name": "Test Product", "description": "A test product"}
                 },
                 "regions": ["us"],
                 "target_audience": "Test audience",
-                "key_message": "Test message"
+                "key_message": "Test message",
             }
 
             with open("briefs/test_campaign.json", "w") as f:
                 json.dump(brief_content, f, indent=2)
 
             # Try dry run generation
-            result = self.runner.invoke(cli, ['generate', 'campaign', 'test_campaign', '--dry-run'])
+            result = self.runner.invoke(cli, ["generate", "campaign", "test_campaign", "--dry-run"])
 
             if result.exit_code == 0:
                 assert "test_campaign" in result.output or "dry" in result.output.lower()
@@ -258,22 +258,17 @@ class TestGenerationWorkflow:
             brief_content = {
                 "campaign_id": "test_validation",
                 "name": "Test Validation Campaign",
-                "products": {
-                    "product1": {
-                        "name": "Product 1",
-                        "description": "First product"
-                    }
-                },
+                "products": {"product1": {"name": "Product 1", "description": "First product"}},
                 "regions": ["us"],
                 "target_audience": "Test audience",
-                "key_message": "Test message"
+                "key_message": "Test message",
             }
 
             with open("briefs/test_validation.json", "w") as f:
                 json.dump(brief_content, f, indent=2)
 
             # Try to validate the brief
-            result = self.runner.invoke(cli, ['validate', 'brief', 'briefs/test_validation.json'])
+            result = self.runner.invoke(cli, ["validate", "brief", "briefs/test_validation.json"])
 
             if result.exit_code == 0:
                 assert "valid" in result.output.lower() or "test_validation" in result.output
@@ -292,7 +287,7 @@ class TestCacheWorkflow:
         """Test cache status checking workflow"""
         with self.runner.isolated_filesystem():
             # Try to check cache status
-            result = self.runner.invoke(cli, ['cache', 'status'])
+            result = self.runner.invoke(cli, ["cache", "status"])
 
             if result.exit_code == 0:
                 assert "cache" in result.output.lower()
@@ -307,7 +302,7 @@ class TestCacheWorkflow:
             (Path("cache") / "dummy_file.json").write_text('{"test": "data"}')
 
             # Try to clear cache
-            result = self.runner.invoke(cli, ['cache', 'clear', '--force'])
+            result = self.runner.invoke(cli, ["cache", "clear", "--force"])
 
             if result.exit_code == 0:
                 assert "cache" in result.output.lower() or "clear" in result.output.lower()
@@ -324,7 +319,7 @@ class TestErrorHandling:
 
     def test_invalid_command_handling(self):
         """Test handling of invalid commands"""
-        result = self.runner.invoke(cli, ['nonexistent-command'])
+        result = self.runner.invoke(cli, ["nonexistent-command"])
 
         # Should fail with error code
         assert result.exit_code != 0
@@ -339,7 +334,7 @@ class TestErrorHandling:
                 f.write("invalid json content")
 
             # Try to validate invalid brief
-            result = self.runner.invoke(cli, ['validate', 'brief', 'briefs/invalid.json'])
+            result = self.runner.invoke(cli, ["validate", "brief", "briefs/invalid.json"])
 
             # Should handle error gracefully (exit code can vary)
             assert isinstance(result.exit_code, int)
@@ -348,7 +343,7 @@ class TestErrorHandling:
         """Test handling when no workspace is found"""
         with self.runner.isolated_filesystem():
             # Try to run commands that might require workspace
-            result = self.runner.invoke(cli, ['generate', 'campaign', 'test'])
+            result = self.runner.invoke(cli, ["generate", "campaign", "test"])
 
             # Should handle missing workspace gracefully
             assert isinstance(result.exit_code, int)
@@ -362,7 +357,7 @@ class TestErrorHandling:
 
             try:
                 # Try to initialize workspace in readonly directory
-                result = self.runner.invoke(cli, ['workspace', 'init', '--path', 'readonly'])
+                result = self.runner.invoke(cli, ["workspace", "init", "--path", "readonly"])
 
                 # Should handle permission errors gracefully
                 assert isinstance(result.exit_code, int)
@@ -381,7 +376,7 @@ class TestCLIUsabilityFeatures:
     def test_command_suggestions(self):
         """Test command suggestion feature"""
         # Try a command that's close to a real command
-        result = self.runner.invoke(cli, ['gener'])  # Close to 'generate'
+        result = self.runner.invoke(cli, ["gener"])  # Close to 'generate'
 
         # Should suggest correct command or show error
         assert result.exit_code != 0
@@ -390,14 +385,14 @@ class TestCLIUsabilityFeatures:
 
     def test_verbose_output(self):
         """Test verbose output mode"""
-        result = self.runner.invoke(cli, ['--verbose', '--help'])
+        result = self.runner.invoke(cli, ["--verbose", "--help"])
 
         # Should work with verbose flag or show option not available
         assert result.exit_code in [0, 2]  # 0 = success, 2 = no such option
 
     def test_quiet_output(self):
         """Test quiet output mode"""
-        result = self.runner.invoke(cli, ['--quiet', '--help'])
+        result = self.runner.invoke(cli, ["--quiet", "--help"])
 
         # Should work with quiet flag or show option not available
         assert result.exit_code in [0, 2]  # 0 = success, 2 = no such option
@@ -405,7 +400,7 @@ class TestCLIUsabilityFeatures:
     def test_output_format_options(self):
         """Test different output format options"""
         # Test JSON output format
-        result = self.runner.invoke(cli, ['--output-format', 'json', '--help'])
+        result = self.runner.invoke(cli, ["--output-format", "json", "--help"])
 
         # Should accept format option
         assert result.exit_code in [0, 2]  # Might not be implemented
@@ -455,22 +450,23 @@ class TestCompleteWorkflows:
         with self.runner.isolated_filesystem():
             # Change to temp workspace
             import os
+
             original_cwd = os.getcwd()
             os.chdir(temp_workspace)
 
             try:
                 # Test workspace status
-                result = self.runner.invoke(cli, ['workspace', 'status'])
+                result = self.runner.invoke(cli, ["workspace", "status"])
                 if result.exit_code == 0:
                     assert "workspace" in result.output.lower()
 
                 # Test config validation
-                result = self.runner.invoke(cli, ['config', 'validate'])
+                result = self.runner.invoke(cli, ["config", "validate"])
                 if result.exit_code == 0:
                     assert "valid" in result.output.lower() or "config" in result.output.lower()
 
                 # Test cache status
-                result = self.runner.invoke(cli, ['cache', 'status'])
+                result = self.runner.invoke(cli, ["cache", "status"])
                 # Accept any exit code since command might not be implemented
                 assert isinstance(result.exit_code, int)
 
@@ -481,6 +477,7 @@ class TestCompleteWorkflows:
         """Test complete generation pipeline workflow"""
         with self.runner.isolated_filesystem():
             import os
+
             original_cwd = os.getcwd()
             os.chdir(temp_workspace)
 
@@ -492,12 +489,12 @@ class TestCompleteWorkflows:
                     "products": {
                         "test_product": {
                             "name": "Test Product",
-                            "description": "Product for integration testing"
+                            "description": "Product for integration testing",
                         }
                     },
                     "regions": ["us"],
                     "target_audience": "Integration testers",
-                    "key_message": "Testing integration"
+                    "key_message": "Testing integration",
                 }
 
                 brief_path = temp_workspace / "briefs" / "integration_test.json"
@@ -505,12 +502,14 @@ class TestCompleteWorkflows:
                     json.dump(brief_content, f, indent=2)
 
                 # Test brief validation
-                result = self.runner.invoke(cli, ['validate', 'brief', str(brief_path)])
+                result = self.runner.invoke(cli, ["validate", "brief", str(brief_path)])
                 if result.exit_code == 0:
                     assert "valid" in result.output.lower() or "integration_test" in result.output
 
                 # Test dry run generation
-                result = self.runner.invoke(cli, ['generate', 'campaign', 'integration_test', '--dry-run'])
+                result = self.runner.invoke(
+                    cli, ["generate", "campaign", "integration_test", "--dry-run"]
+                )
                 # Accept various exit codes since generation might require external dependencies
                 assert isinstance(result.exit_code, int)
 

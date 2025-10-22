@@ -5,15 +5,14 @@ These tests cover the CreatimationContext and CreatimationGroup classes
 that provide the foundation for the CLI experience.
 """
 
+# Add src to path for imports
+import sys
 import tempfile
 from pathlib import Path
 
-import pytest
 import click
-from click.testing import CliRunner
+import pytest
 
-# Add src to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Import the real CLI core components
@@ -23,27 +22,25 @@ except ImportError:
     try:
         # Try importing with absolute path
         import importlib.util
+
         spec = importlib.util.spec_from_file_location(
-            "cli_core",
-            Path(__file__).parent.parent / "src" / "cli" / "core.py"
+            "cli_core", Path(__file__).parent.parent / "src" / "cli" / "core.py"
         )
         cli_core = importlib.util.module_from_spec(spec)
 
         # First import dependencies
         config_spec = importlib.util.spec_from_file_location(
-            "config",
-            Path(__file__).parent.parent / "src" / "config.py"
+            "config", Path(__file__).parent.parent / "src" / "config.py"
         )
         config_module = importlib.util.module_from_spec(config_spec)
-        sys.modules['config'] = config_module
+        sys.modules["config"] = config_module
         config_spec.loader.exec_module(config_module)
 
         container_spec = importlib.util.spec_from_file_location(
-            "container",
-            Path(__file__).parent.parent / "src" / "container.py"
+            "container", Path(__file__).parent.parent / "src" / "container.py"
         )
         container_module = importlib.util.module_from_spec(container_spec)
-        sys.modules['container'] = container_module
+        sys.modules["container"] = container_module
         container_spec.loader.exec_module(container_module)
 
         # Now import CLI core
@@ -80,28 +77,41 @@ except ImportError:
             def _find_workspace(self):
                 current = Path.cwd()
                 while current != current.parent:
-                    if (current / ".creatimation").exists() or (current / ".creatimation.yml").exists():
+                    if (current / ".creatimation").exists() or (
+                        current / ".creatimation.yml"
+                    ).exists():
                         return current
                     if (current / "briefs").exists() and (current / "brand-guides").exists():
                         return current
                     current = current.parent
                 return None
 
-            def debug(self, message): pass
-            def info(self, message): pass
-            def success(self, message): pass
-            def warning(self, message): pass
-            def error(self, message): pass
+            def debug(self, message):
+                pass
+
+            def info(self, message):
+                pass
+
+            def success(self, message):
+                pass
+
+            def warning(self, message):
+                pass
+
+            def error(self, message):
+                pass
 
         class CreatimationGroup(click.Group):
             def list_commands(self, ctx):
                 commands = super().list_commands(ctx)
                 order = ["generate", "validate", "workspace", "config", "cache", "completion"]
+
                 def sort_key(cmd):
                     try:
                         return (order.index(cmd), cmd)
                     except ValueError:
                         return (len(order), cmd)
+
                 return sorted(commands, key=sort_key)
 
             def get_command(self, ctx, cmd_name):
@@ -138,12 +148,7 @@ class TestCreatimationContext:
         """Test context initialization with parameters"""
         ctx = CreatimationContext()
 
-        ctx.initialize(
-            verbose=2,
-            quiet=True,
-            no_color=True,
-            output_format="json"
-        )
+        ctx.initialize(verbose=2, quiet=True, no_color=True, output_format="json")
 
         assert ctx.verbose == 2
         assert ctx.quiet is True
@@ -164,6 +169,7 @@ class TestCreatimationContext:
         original_cwd = Path.cwd()
         try:
             import os
+
             os.chdir(temp_dir)
             workspace_path = ctx._find_workspace()
             # Use resolve() to handle symlinks like /private/var vs /var
@@ -181,6 +187,7 @@ class TestCreatimationContext:
         original_cwd = Path.cwd()
         try:
             import os
+
             os.chdir(temp_dir)
             workspace_path = ctx._find_workspace()
             # Use resolve() to handle symlinks like /private/var vs /var
@@ -195,6 +202,7 @@ class TestCreatimationContext:
         original_cwd = Path.cwd()
         try:
             import os
+
             os.chdir(temp_dir)
             workspace_path = ctx._find_workspace()
             assert workspace_path is None
@@ -217,7 +225,7 @@ class TestCreatimationContext:
         # The mock implementation may not produce output
         ctx.debug("Test debug message")
         # For the mock implementation, just check that the method exists and can be called
-        assert hasattr(ctx, 'debug')
+        assert hasattr(ctx, "debug")
         assert callable(ctx.debug)
 
     def test_debug_message_not_verbose(self, capsys):
@@ -227,7 +235,7 @@ class TestCreatimationContext:
 
         ctx.debug("Test debug message")
         # For the mock implementation, just check that the method exists
-        assert hasattr(ctx, 'debug')
+        assert hasattr(ctx, "debug")
 
     def test_info_message_not_quiet(self, capsys):
         """Test info messages when not quiet"""
@@ -236,7 +244,7 @@ class TestCreatimationContext:
 
         ctx.info("Test info message")
         # For the mock implementation, just check that the method exists
-        assert hasattr(ctx, 'info')
+        assert hasattr(ctx, "info")
         assert callable(ctx.info)
 
     def test_info_message_quiet(self, capsys):
@@ -246,7 +254,7 @@ class TestCreatimationContext:
 
         ctx.info("Test info message")
         # For the mock implementation, just check that the method exists
-        assert hasattr(ctx, 'info')
+        assert hasattr(ctx, "info")
 
     def test_success_message(self, capsys):
         """Test success messages"""
@@ -255,7 +263,7 @@ class TestCreatimationContext:
 
         ctx.success("Operation completed")
         # For the mock implementation, just check that the method exists
-        assert hasattr(ctx, 'success')
+        assert hasattr(ctx, "success")
         assert callable(ctx.success)
 
     def test_warning_message(self, capsys):
@@ -265,7 +273,7 @@ class TestCreatimationContext:
 
         ctx.warning("Something might be wrong")
         # For the mock implementation, just check that the method exists
-        assert hasattr(ctx, 'warning')
+        assert hasattr(ctx, "warning")
         assert callable(ctx.warning)
 
     def test_error_message(self, capsys):
@@ -275,7 +283,7 @@ class TestCreatimationContext:
 
         ctx.error("Something went wrong")
         # For the mock implementation, just check that the method exists
-        assert hasattr(ctx, 'error')
+        assert hasattr(ctx, "error")
         assert callable(ctx.error)
 
 
@@ -361,7 +369,9 @@ class TestCreatimationGroup:
         captured = capsys.readouterr()
         # The mock implementation prints to stdout instead of stderr
         assert "Unknown command: gen" in captured.out
-        assert ("generate" in captured.out and "genconfig" in captured.out) or "Did you mean" in captured.out
+        assert (
+            "generate" in captured.out and "genconfig" in captured.out
+        ) or "Did you mean" in captured.out
 
 
 class TestPassContextDecorator:
@@ -376,7 +386,7 @@ class TestPassContextDecorator:
 
         # Create a mock Click context with CreatimationContext
         creat_ctx = CreatimationContext()
-        click_ctx = click.Context(click.Command('test'))
+        click_ctx = click.Context(click.Command("test"))
         click_ctx.obj = creat_ctx
 
         with click_ctx:
@@ -403,6 +413,7 @@ class TestWorkspaceIntegration:
         original_cwd = Path.cwd()
         try:
             import os
+
             os.chdir(temp_dir)
             workspace_path = ctx._find_workspace()
             # Use resolve() to handle symlinks like /private/var vs /var
@@ -420,7 +431,7 @@ class TestWorkspaceIntegration:
 
         # The mock implementation may not set workspace_path properly
         # So just check that the workspace parameter was accepted
-        assert hasattr(ctx, 'workspace_path')
+        assert hasattr(ctx, "workspace_path")
         # For the mock implementation, this might be None, which is fine
 
 

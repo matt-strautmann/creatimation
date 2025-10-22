@@ -126,7 +126,7 @@ class ConfigManager:
         # Layer 2: Load from .creatimation.yml if exists
         if self.config_path.exists():
             try:
-                with open(self.config_path, encoding='utf-8') as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     file_config = yaml.safe_load(f) or {}
                     config_dict = self._deep_merge(config_dict, file_config)
             except PermissionError as e:
@@ -230,7 +230,7 @@ openai:
 """
 
         try:
-            with open(template_path, "w", encoding='utf-8') as f:
+            with open(template_path, "w", encoding="utf-8") as f:
                 f.write(template)
         except PermissionError as e:
             raise RuntimeError(f"Permission denied writing template to {template_path}: {e}")

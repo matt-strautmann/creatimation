@@ -436,9 +436,9 @@ class S3CacheManager(CacheManager):
                 },
                 "created_at": asset.get("last_modified"),
                 "usage_count": 0,
-                "campaigns_used": [metadata.get("campaign-id")]
-                if metadata.get("campaign-id")
-                else [],
+                "campaigns_used": (
+                    [metadata.get("campaign-id")] if metadata.get("campaign-id") else []
+                ),
             }
 
             self.index["semantic_assets"][cache_key] = asset_entry

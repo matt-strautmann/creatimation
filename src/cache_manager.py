@@ -127,9 +127,9 @@ class SemanticMetadata:
         """Create from dictionary"""
         return cls(
             asset_type=AssetType(data["asset_type"]),
-            product_category=ProductCategory(data["product_category"])
-            if data.get("product_category")
-            else None,
+            product_category=(
+                ProductCategory(data["product_category"]) if data.get("product_category") else None
+            ),
             region=data.get("region"),
             visual_style=VisualStyle(data["visual_style"]) if data.get("visual_style") else None,
             season=Season(data.get("season", "none")),

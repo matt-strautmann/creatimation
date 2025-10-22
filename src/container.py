@@ -129,7 +129,7 @@ class DIContainer:
             raise FileNotFoundError(f"Config file not found: {config_path}")
 
         try:
-            with open(config_file, encoding='utf-8') as f:
+            with open(config_file, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             return DIContainer(config)
         except PermissionError as e:
