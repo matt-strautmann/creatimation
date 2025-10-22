@@ -426,6 +426,9 @@ class CacheManager:
         if "background_library" not in self.index:
             self.index["background_library"] = {}
 
+        # Save the initialized index structure
+        self._save_index()
+
         # Initialize matcher
         self.matcher = AssetMatcher()
 
@@ -503,6 +506,18 @@ class CacheManager:
                 matches.append(entry)
 
         return matches
+
+    def query_cache(self, **kwargs) -> list[dict]:
+        """
+        Query cache entries by metadata (alias for find_by_metadata).
+
+        Args:
+            **kwargs: Metadata key-value pairs to match
+
+        Returns:
+            List of matching cache entries
+        """
+        return self.find_by_metadata(**kwargs)
 
     def build_lineage_metadata(self, cache_hits: dict) -> dict:
         """
