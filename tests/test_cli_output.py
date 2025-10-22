@@ -57,9 +57,9 @@ class TestConsoleSetup:
     def test_console_theme(self):
         """Test that console has custom theme"""
         # Check that console has theme-related functionality
-        assert hasattr(console, 'push_theme')
-        assert hasattr(console, 'pop_theme')
-        assert hasattr(console, 'use_theme')
+        assert hasattr(console, "push_theme")
+        assert hasattr(console, "pop_theme")
+        assert hasattr(console, "use_theme")
 
         # Test that we can get style information
         primary_style = console.get_style("primary")

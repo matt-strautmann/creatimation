@@ -497,7 +497,7 @@ class CacheManager:
         """
         matches = []
 
-        for cache_key, entry in self.index.items():
+        for _cache_key, entry in self.index.items():
             metadata = entry.get("metadata", {})
             if all(metadata.get(k) == v for k, v in kwargs.items()):
                 matches.append(entry)
@@ -647,7 +647,8 @@ class CacheManager:
             "slug": product_slug,
             "file_path": file_path,
             "cache_filename": cache_filename or file_path,  # For backwards compatibility
-            "product_cache_filename": product_cache_filename or file_path,  # For backwards compatibility
+            "product_cache_filename": product_cache_filename
+            or file_path,  # For backwards compatibility
             "created_at": datetime.now().isoformat(),
             "campaigns_used": [campaign_id] if campaign_id else [],
             "status": "ready",
