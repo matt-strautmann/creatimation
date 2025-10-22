@@ -5,6 +5,7 @@ State Tracker - Pipeline state management for error recovery and --resume
 Tracks pipeline execution state, enabling graceful error recovery and
 resume capability after failures or interruptions.
 """
+
 import json
 import logging
 from datetime import datetime

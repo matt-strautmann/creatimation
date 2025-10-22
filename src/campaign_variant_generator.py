@@ -6,6 +6,7 @@ Takes simple campaign briefs and intelligently expands them into comprehensive
 campaign variant specifications with backgrounds, text variants, layouts,
 regional adaptations, and cached asset references.
 """
+
 import json
 import logging
 import time
@@ -141,14 +142,20 @@ class CampaignVariantGenerator:
         products = brief.get("products", [])
         primary_product = products[0] if products else "Unknown Product"
 
+        # Extract product name - handle both string and dict formats
+        if isinstance(primary_product, dict):
+            product_name = primary_product.get("name", "Unknown Product")
+        else:
+            product_name = primary_product if primary_product else "Unknown Product"
+
         # Extract brand name from first product
-        brand_name = primary_product.split()[0] if primary_product else "Brand"
+        brand_name = product_name.split()[0] if product_name else "Brand"
 
         return {
             "brand_name": brand_name,
             "brand_tone": "confident",
             "brand_colors": ["#2E8B57", "#FFFFFF", "#FFD700"],  # Default CPG colors
-            "primary_product_category": self._infer_product_category(primary_product),
+            "primary_product_category": self._infer_product_category(product_name),
             "brand_promise": "Quality products for modern families",
             "brand_values": ["quality", "effectiveness", "family-safe"],
         }
@@ -266,7 +273,13 @@ class CampaignVariantGenerator:
         region = brief.get("target_region", "US")
 
         primary_product = products[0] if products else "Unknown"
-        product_category = self._infer_product_category(primary_product)
+        # Extract product name - handle both string and dict formats
+        if isinstance(primary_product, dict):
+            product_name = primary_product.get("name", "Unknown")
+        else:
+            product_name = primary_product if primary_product else "Unknown"
+
+        product_category = self._infer_product_category(product_name)
         context = self.product_contexts.get(product_category, {})
         regional_colors = self.regional_aesthetics.get(region, {}).get("colors", ["#FFFFFF"])
 
@@ -339,7 +352,13 @@ class CampaignVariantGenerator:
         region = brief.get("target_region", "US")
 
         primary_product = products[0] if products else "Unknown"
-        product_category = self._infer_product_category(primary_product)
+        # Extract product name - handle both string and dict formats
+        if isinstance(primary_product, dict):
+            product_name = primary_product.get("name", "Unknown")
+        else:
+            product_name = primary_product if primary_product else "Unknown"
+
+        product_category = self._infer_product_category(product_name)
         context = self.product_contexts.get(product_category, {})
         regional_colors = self.regional_aesthetics.get(region, {}).get("colors", ["#FFFFFF"])
 

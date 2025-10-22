@@ -14,14 +14,14 @@ Enhanced Features:
 - Learning system for asset reuse pattern tracking
 - Clean API for seamless CLI integration
 """
-import hashlib
+
 import json
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 class AssetType(Enum):
     """Asset type classifications"""
+
     PRODUCT_TRANSPARENT = "product_transparent"  # Background-removed product
     PRODUCT_ORIGINAL = "product_original"  # Original product with background
     SCENE_BACKGROUND = "scene_background"  # Lifestyle/contextual backgrounds
@@ -44,6 +45,7 @@ class AssetType(Enum):
 
 class Season(Enum):
     """Seasonal classifications for adaptive backgrounds"""
+
     SPRING = "spring"
     SUMMER = "summer"
     FALL = "fall"
@@ -55,6 +57,7 @@ class Season(Enum):
 
 class VisualStyle(Enum):
     """Visual style classifications"""
+
     MINIMAL = "minimal"
     VIBRANT = "vibrant"
     ELEGANT = "elegant"
@@ -66,6 +69,7 @@ class VisualStyle(Enum):
 
 class ProductCategory(Enum):
     """Product category classifications"""
+
     LAUNDRY_DETERGENT = "laundry_detergent"
     DISH_SOAP = "dish_soap"
     HAIR_CARE = "hair_care"
@@ -85,14 +89,14 @@ class SemanticMetadata:
     def __init__(
         self,
         asset_type: AssetType,
-        product_category: Optional[ProductCategory] = None,
-        region: Optional[str] = None,
-        visual_style: Optional[VisualStyle] = None,
+        product_category: ProductCategory | None = None,
+        region: str | None = None,
+        visual_style: VisualStyle | None = None,
         season: Season = Season.NONE,
-        color_palette: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
-        dimensions: Optional[Tuple[int, int]] = None,
-        aspect_ratio: Optional[str] = None,
+        color_palette: list[str] | None = None,
+        tags: list[str] | None = None,
+        dimensions: tuple[int, int] | None = None,
+        aspect_ratio: str | None = None,
     ):
         self.asset_type = asset_type
         self.product_category = product_category
@@ -104,7 +108,7 @@ class SemanticMetadata:
         self.dimensions = dimensions
         self.aspect_ratio = aspect_ratio
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
             "asset_type": self.asset_type.value,
@@ -119,11 +123,13 @@ class SemanticMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SemanticMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "SemanticMetadata":
         """Create from dictionary"""
         return cls(
             asset_type=AssetType(data["asset_type"]),
-            product_category=ProductCategory(data["product_category"]) if data.get("product_category") else None,
+            product_category=ProductCategory(data["product_category"])
+            if data.get("product_category")
+            else None,
             region=data.get("region"),
             visual_style=VisualStyle(data["visual_style"]) if data.get("visual_style") else None,
             season=Season(data.get("season", "none")),
@@ -237,7 +243,7 @@ class AssetMatcher:
         return False
 
     @staticmethod
-    def _calculate_color_similarity(colors1: List[str], colors2: List[str]) -> float:
+    def _calculate_color_similarity(colors1: list[str], colors2: list[str]) -> float:
         """Calculate color palette similarity (basic overlap metric)"""
         if not colors1 or not colors2:
             return 0.0
@@ -251,7 +257,7 @@ class AssetMatcher:
         return overlap / total if total > 0 else 0.0
 
     @staticmethod
-    def _calculate_tag_similarity(tags1: List[str], tags2: List[str]) -> float:
+    def _calculate_tag_similarity(tags1: list[str], tags2: list[str]) -> float:
         """Calculate tag similarity (Jaccard index)"""
         if not tags1 or not tags2:
             return 0.0
@@ -283,9 +289,9 @@ class AssetVersion:
         cache_key: str,
         file_path: str,
         created_at: str,
-        variant_type: Optional[str] = None,
-        parent_version: Optional[str] = None,
-        change_notes: Optional[str] = None,
+        variant_type: str | None = None,
+        parent_version: str | None = None,
+        change_notes: str | None = None,
     ):
         self.version = version
         self.cache_key = cache_key
@@ -295,7 +301,7 @@ class AssetVersion:
         self.parent_version = parent_version
         self.change_notes = change_notes
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
             "version": self.version,
@@ -308,7 +314,7 @@ class AssetVersion:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AssetVersion":
+    def from_dict(cls, data: dict[str, Any]) -> "AssetVersion":
         """Create from dictionary"""
         return cls(
             version=data["version"],
@@ -340,7 +346,7 @@ class ReusePattern:
         target_campaign: str,
         reuse_count: int = 0,
         success_rate: float = 0.0,
-        contexts: Optional[List[str]] = None,
+        contexts: list[str] | None = None,
     ):
         self.source_asset = source_asset
         self.target_campaign = target_campaign
@@ -348,20 +354,22 @@ class ReusePattern:
         self.success_rate = success_rate
         self.contexts = contexts or []
 
-    def record_reuse(self, success: bool, context: Optional[str] = None):
+    def record_reuse(self, success: bool, context: str | None = None):
         """Record a reuse instance"""
         self.reuse_count += 1
 
         # Update success rate (weighted average)
         if success:
-            self.success_rate = (self.success_rate * (self.reuse_count - 1) + 1.0) / self.reuse_count
+            self.success_rate = (
+                self.success_rate * (self.reuse_count - 1) + 1.0
+            ) / self.reuse_count
         else:
             self.success_rate = (self.success_rate * (self.reuse_count - 1)) / self.reuse_count
 
         if context and context not in self.contexts:
             self.contexts.append(context)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
         return {
             "source_asset": self.source_asset,
@@ -372,7 +380,7 @@ class ReusePattern:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ReusePattern":
+    def from_dict(cls, data: dict[str, Any]) -> "ReusePattern":
         """Create from dictionary"""
         return cls(
             source_asset=data["source_asset"],
@@ -734,7 +742,7 @@ class CacheManager:
         cache_key: str,
         file_path: str,
         metadata: SemanticMetadata,
-        campaign_id: Optional[str] = None,
+        campaign_id: str | None = None,
     ) -> None:
         """
         Register asset with semantic metadata for intelligent reuse.
@@ -764,7 +772,7 @@ class CacheManager:
     def update_semantic_metadata(
         self,
         cache_key: str,
-        metadata_updates: Dict[str, Any],
+        metadata_updates: dict[str, Any],
     ) -> bool:
         """
         Update semantic metadata for an existing asset.
@@ -791,7 +799,7 @@ class CacheManager:
         logger.info(f"Updated semantic metadata for: {cache_key}")
         return True
 
-    def tag_asset(self, cache_key: str, tags: List[str]) -> bool:
+    def tag_asset(self, cache_key: str, tags: list[str]) -> bool:
         """
         Add tags to an asset for better discovery.
 
@@ -826,11 +834,11 @@ class CacheManager:
     def find_similar_assets(
         self,
         target_metadata: SemanticMetadata,
-        asset_type: Optional[AssetType] = None,
+        asset_type: AssetType | None = None,
         min_similarity: float = 0.5,
         max_results: int = 10,
-        exclude_campaigns: Optional[List[str]] = None,
-    ) -> List[Tuple[str, float, Dict[str, Any]]]:
+        exclude_campaigns: list[str] | None = None,
+    ) -> list[tuple[str, float, dict[str, Any]]]:
         """
         Find similar assets using intelligent matching.
 
@@ -862,12 +870,8 @@ class CacheManager:
 
             # Calculate similarity
             try:
-                candidate_metadata = SemanticMetadata.from_dict(
-                    asset_entry["semantic_metadata"]
-                )
-                similarity = self.matcher.calculate_similarity(
-                    target_metadata, candidate_metadata
-                )
+                candidate_metadata = SemanticMetadata.from_dict(asset_entry["semantic_metadata"])
+                similarity = self.matcher.calculate_similarity(target_metadata, candidate_metadata)
 
                 if similarity >= min_similarity:
                     candidates.append((cache_key, similarity, asset_entry))
@@ -882,7 +886,9 @@ class CacheManager:
 
         logger.info(
             f"Found {len(results)} similar assets (threshold: {min_similarity}, "
-            f"best match: {results[0][1]:.2f})" if results else "No similar assets found"
+            f"best match: {results[0][1]:.2f})"
+            if results
+            else "No similar assets found"
         )
 
         return results
@@ -892,10 +898,10 @@ class CacheManager:
         product_category: ProductCategory,
         region: str,
         season: Season = Season.NONE,
-        visual_style: Optional[VisualStyle] = None,
-        aspect_ratio: Optional[str] = None,
+        visual_style: VisualStyle | None = None,
+        aspect_ratio: str | None = None,
         min_similarity: float = 0.4,
-    ) -> List[Tuple[str, float, Dict[str, Any]]]:
+    ) -> list[tuple[str, float, dict[str, Any]]]:
         """
         Find suitable background assets for a product.
 
@@ -946,8 +952,8 @@ class CacheManager:
     def discover_cross_campaign_assets(
         self,
         campaign_id: str,
-        asset_types: Optional[List[AssetType]] = None,
-    ) -> Dict[str, List[Tuple[str, Dict[str, Any]]]]:
+        asset_types: list[AssetType] | None = None,
+    ) -> dict[str, list[tuple[str, dict[str, Any]]]]:
         """
         Discover reusable assets from other campaigns.
 
@@ -980,9 +986,7 @@ class CacheManager:
 
         # Log discoveries
         total = sum(len(v) for v in discovered.values())
-        logger.info(
-            f"Discovered {total} cross-campaign assets across {len(discovered)} types"
-        )
+        logger.info(f"Discovered {total} cross-campaign assets across {len(discovered)} types")
 
         return dict(discovered)
 
@@ -1008,11 +1012,9 @@ class CacheManager:
         self.index["asset_versions"][asset_id].append(version.to_dict())
         self._save_index()
 
-        logger.info(
-            f"Registered version {version.version} for asset {asset_id}"
-        )
+        logger.info(f"Registered version {version.version} for asset {asset_id}")
 
-    def get_latest_version(self, asset_id: str) -> Optional[AssetVersion]:
+    def get_latest_version(self, asset_id: str) -> AssetVersion | None:
         """
         Get the latest version of an asset.
 
@@ -1033,7 +1035,7 @@ class CacheManager:
         latest = max(versions, key=lambda v: v.get("created_at", ""))
         return AssetVersion.from_dict(latest)
 
-    def get_version_history(self, asset_id: str) -> List[AssetVersion]:
+    def get_version_history(self, asset_id: str) -> list[AssetVersion]:
         """
         Get complete version history for an asset.
 
@@ -1046,10 +1048,7 @@ class CacheManager:
         if asset_id not in self.index["asset_versions"]:
             return []
 
-        versions = [
-            AssetVersion.from_dict(v)
-            for v in self.index["asset_versions"][asset_id]
-        ]
+        versions = [AssetVersion.from_dict(v) for v in self.index["asset_versions"][asset_id]]
 
         # Sort by creation date (newest first)
         versions.sort(key=lambda v: v.created_at, reverse=True)
@@ -1062,7 +1061,7 @@ class CacheManager:
         new_cache_key: str,
         new_file_path: str,
         target_season: Season,
-        change_notes: Optional[str] = None,
+        change_notes: str | None = None,
     ) -> bool:
         """
         Create a seasonal variant of an existing asset.
@@ -1083,9 +1082,7 @@ class CacheManager:
             return False
 
         source_asset = self.index["semantic_assets"][source_cache_key]
-        source_metadata = SemanticMetadata.from_dict(
-            source_asset["semantic_metadata"]
-        )
+        source_metadata = SemanticMetadata.from_dict(source_asset["semantic_metadata"])
 
         # Create new metadata with updated season
         new_metadata = SemanticMetadata(
@@ -1121,9 +1118,7 @@ class CacheManager:
 
         self.register_asset_version(source_cache_key, version)
 
-        logger.info(
-            f"Created seasonal variant for {source_cache_key}: {target_season.value}"
-        )
+        logger.info(f"Created seasonal variant for {source_cache_key}: {target_season.value}")
 
         return True
 
@@ -1135,9 +1130,9 @@ class CacheManager:
         self,
         product_category: ProductCategory,
         region: str,
-        current_date: Optional[datetime] = None,
-        visual_style: Optional[VisualStyle] = None,
-    ) -> Optional[Tuple[str, Dict[str, Any]]]:
+        current_date: datetime | None = None,
+        visual_style: VisualStyle | None = None,
+    ) -> tuple[str, dict[str, Any]] | None:
         """
         Get season-appropriate background based on current date.
 
@@ -1230,7 +1225,7 @@ class CacheManager:
         source_cache_key: str,
         target_campaign: str,
         success: bool = True,
-        context: Optional[str] = None,
+        context: str | None = None,
     ) -> None:
         """
         Record asset reuse for learning patterns.
@@ -1250,9 +1245,7 @@ class CacheManager:
             )
             self.index["reuse_patterns"][pattern_key] = pattern.to_dict()
         else:
-            pattern = ReusePattern.from_dict(
-                self.index["reuse_patterns"][pattern_key]
-            )
+            pattern = ReusePattern.from_dict(self.index["reuse_patterns"][pattern_key])
 
         pattern.record_reuse(success, context)
         self.index["reuse_patterns"][pattern_key] = pattern.to_dict()
@@ -1270,17 +1263,14 @@ class CacheManager:
 
         self._save_index()
 
-        logger.info(
-            f"Recorded reuse: {source_cache_key} in {target_campaign} "
-            f"(success: {success})"
-        )
+        logger.info(f"Recorded reuse: {source_cache_key} in {target_campaign} (success: {success})")
 
     def get_recommended_assets(
         self,
         target_metadata: SemanticMetadata,
         campaign_id: str,
         max_results: int = 5,
-    ) -> List[Tuple[str, float, Dict[str, Any]]]:
+    ) -> list[tuple[str, float, dict[str, Any]]]:
         """
         Get recommended assets based on similarity and reuse patterns.
 
@@ -1312,9 +1302,7 @@ class CacheManager:
             reuse_boost = 0.0
 
             if pattern_key in self.index["reuse_patterns"]:
-                pattern = ReusePattern.from_dict(
-                    self.index["reuse_patterns"][pattern_key]
-                )
+                pattern = ReusePattern.from_dict(self.index["reuse_patterns"][pattern_key])
                 reuse_boost = pattern.success_rate * 0.2  # Up to 20% boost
 
             # Check overall usage count
@@ -1331,15 +1319,14 @@ class CacheManager:
         results = recommendations[:max_results]
 
         logger.info(
-            f"Generated {len(results)} recommendations "
-            f"(best score: {results[0][1]:.2f})" if results else "No recommendations available"
+            f"Generated {len(results)} recommendations (best score: {results[0][1]:.2f})"
+            if results
+            else "No recommendations available"
         )
 
         return results
 
-    def get_reuse_analytics(
-        self, campaign_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def get_reuse_analytics(self, campaign_id: str | None = None) -> dict[str, Any]:
         """
         Get analytics on asset reuse patterns.
 
@@ -1354,14 +1341,14 @@ class CacheManager:
         if campaign_id:
             # Filter patterns for specific campaign
             patterns = {
-                k: v for k, v in patterns.items()
-                if v.get("target_campaign") == campaign_id
+                k: v for k, v in patterns.items() if v.get("target_campaign") == campaign_id
             }
 
         total_reuses = sum(p.get("reuse_count", 0) for p in patterns.values())
         avg_success_rate = (
             sum(p.get("success_rate", 0) for p in patterns.values()) / len(patterns)
-            if patterns else 0.0
+            if patterns
+            else 0.0
         )
 
         # Find most reused assets
@@ -1369,19 +1356,14 @@ class CacheManager:
         for pattern in patterns.values():
             asset_usage[pattern["source_asset"]] += pattern.get("reuse_count", 0)
 
-        most_reused = sorted(
-            asset_usage.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:10]
+        most_reused = sorted(asset_usage.items(), key=lambda x: x[1], reverse=True)[:10]
 
         return {
             "total_patterns": len(patterns),
             "total_reuses": total_reuses,
             "average_success_rate": round(avg_success_rate, 3),
             "most_reused_assets": [
-                {"cache_key": key, "reuse_count": count}
-                for key, count in most_reused
+                {"cache_key": key, "reuse_count": count} for key, count in most_reused
             ],
             "campaign_filter": campaign_id,
         }
@@ -1426,44 +1408,39 @@ Examples:
     parser.add_argument("--cache-dir", default="cache", help="Cache directory")
 
     # Semantic asset operations
+    parser.add_argument("--discover", action="store_true", help="Discover cross-campaign assets")
     parser.add_argument(
-        "--discover",
-        action="store_true",
-        help="Discover cross-campaign assets"
+        "--find-backgrounds", action="store_true", help="Find suitable backgrounds for a product"
     )
     parser.add_argument(
-        "--find-backgrounds",
-        action="store_true",
-        help="Find suitable backgrounds for a product"
+        "--recommend", action="store_true", help="Get intelligent asset recommendations"
     )
-    parser.add_argument(
-        "--recommend",
-        action="store_true",
-        help="Get intelligent asset recommendations"
-    )
-    parser.add_argument(
-        "--analytics",
-        action="store_true",
-        help="Show asset reuse analytics"
-    )
+    parser.add_argument("--analytics", action="store_true", help="Show asset reuse analytics")
 
     # Filters and parameters
     parser.add_argument("--campaign", help="Campaign ID filter")
     parser.add_argument(
         "--category",
-        choices=["laundry_detergent", "dish_soap", "hair_care", "oral_care", "personal_care", "general_cpg"],
-        help="Product category"
+        choices=[
+            "laundry_detergent",
+            "dish_soap",
+            "hair_care",
+            "oral_care",
+            "personal_care",
+            "general_cpg",
+        ],
+        help="Product category",
     )
     parser.add_argument("--region", help="Target region (US, LATAM, APAC, EMEA)")
     parser.add_argument(
         "--season",
         choices=["spring", "summer", "fall", "winter", "holiday", "back_to_school", "none"],
-        help="Seasonal preference"
+        help="Seasonal preference",
     )
     parser.add_argument(
         "--style",
         choices=["minimal", "vibrant", "elegant", "warm", "cool", "professional", "casual"],
-        help="Visual style"
+        help="Visual style",
     )
     parser.add_argument("--aspect-ratio", choices=["1x1", "9x16", "16x9"], help="Aspect ratio")
 
@@ -1473,9 +1450,9 @@ Examples:
 
     if args.stats:
         stats = manager.get_cache_stats()
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("CACHE STATISTICS")
-        print("="*60)
+        print("=" * 60)
         print(f"  Total entries: {stats['total_entries']}")
         print(f"  Total size: {stats['total_size_mb']} MB")
         print("\n  By type:")
@@ -1496,9 +1473,9 @@ Examples:
 
     elif args.validate:
         results = manager.validate_cache()
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("CACHE VALIDATION")
-        print("="*60)
+        print("=" * 60)
         print(f"  Total entries: {results['total_entries']}")
         print(f"  Valid entries: {results['valid_entries']}")
         print(f"  Missing entries: {results['missing_entries']}")
@@ -1516,7 +1493,7 @@ Examples:
             sys.exit(1)
 
         print(f"\nDiscovering cross-campaign assets for: {args.campaign}")
-        print("="*60)
+        print("=" * 60)
 
         discovered = manager.discover_cross_campaign_assets(args.campaign)
 
@@ -1542,7 +1519,7 @@ Examples:
         style = VisualStyle(args.style) if args.style else None
 
         print(f"\nFinding backgrounds for {category.value} in {args.region}")
-        print("="*60)
+        print("=" * 60)
 
         backgrounds = manager.find_backgrounds_for_product(
             product_category=category,
@@ -1587,7 +1564,7 @@ Examples:
         )
 
         print(f"\nGetting recommendations for {category.value} in {args.region}")
-        print("="*60)
+        print("=" * 60)
 
         recommendations = manager.get_recommended_assets(
             target_metadata=target_metadata,
@@ -1609,9 +1586,9 @@ Examples:
                 print()
 
     elif args.analytics:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("ASSET REUSE ANALYTICS")
-        print("="*60)
+        print("=" * 60)
 
         analytics = manager.get_reuse_analytics(campaign_id=args.campaign)
 
@@ -1624,9 +1601,9 @@ Examples:
         print(f"  Total reuses: {analytics['total_reuses']}")
         print(f"  Average success rate: {analytics['average_success_rate']:.1%}")
 
-        if analytics['most_reused_assets']:
+        if analytics["most_reused_assets"]:
             print("\n  Most reused assets:")
-            for asset_info in analytics['most_reused_assets'][:5]:
+            for asset_info in analytics["most_reused_assets"][:5]:
                 print(f"    - {asset_info['cache_key']}: {asset_info['reuse_count']} reuses")
         print()
 

@@ -10,8 +10,8 @@ Usage:
     python src/main.py --brief briefs/campaign.json --resume
     python src/main.py --brief briefs/campaign.json --dry-run
 """
+
 import argparse
-import json
 import logging
 import sys
 import time
@@ -83,9 +83,7 @@ class CreativePipeline:
     #     """Load aspect ratios from external config file"""
     #     ...
 
-    def process_campaign(
-        self, brief_path: str, resume: bool = False
-    ) -> dict:
+    def process_campaign(self, brief_path: str, resume: bool = False) -> dict:
         """
         Process campaign brief and generate all creatives.
 
@@ -119,9 +117,9 @@ class CreativePipeline:
                 logger.warning(f"Failed to load brand guide: {e}")
 
         campaign_id = brief.get("campaign_id", Path(brief_path).stem)
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"CAMPAIGN: {campaign_id}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
 
         # Initialize state tracker
         state_tracker = StateTracker(campaign_id)
@@ -217,7 +215,9 @@ class CreativePipeline:
                             logger.info(f"         📐 {variant_type}...")
 
                             # Apply variant-specific transformations (from brief configuration)
-                            variant_theme = variant_themes.get(variant_type, theme or "clean modern style")
+                            variant_theme = variant_themes.get(
+                                variant_type, theme or "clean modern style"
+                            )
                             variant_color = color_scheme
 
                             # Apply color rules from brief configuration
@@ -225,7 +225,9 @@ class CreativePipeline:
                             if color_rule == "use_accent" and brand_guide:
                                 accent = brand_guide.get("colors", {}).get("accent")
                                 if accent:
-                                    variant_color = f"Accent color {accent} palette with complementary tones"
+                                    variant_color = (
+                                        f"Accent color {accent} palette with complementary tones"
+                                    )
 
                             # FUSION: Compose product into scene with text (REGION-SPECIFIC)
                             final_image = self.gemini_generator.generate_product_creative(
@@ -376,7 +378,8 @@ class CreativePipeline:
         products = brief.get("products", [])
         if products:
             primary_product = (
-                products[0] if isinstance(products[0], str)
+                products[0]
+                if isinstance(products[0], str)
                 else products[0].get("name", str(products[0]))
             )
             product_category = self.brief_loader._infer_product_category(primary_product)
@@ -459,7 +462,9 @@ class CreativePipeline:
             )
             print(f"  {idx}. {product_name}")
 
-        print(f"\nAspect Ratios ({len(self.aspect_ratios)}): {', '.join(self.aspect_ratios.keys())}")
+        print(
+            f"\nAspect Ratios ({len(self.aspect_ratios)}): {', '.join(self.aspect_ratios.keys())}"
+        )
         num_variants = 5
         total_creatives = len(products) * len(self.aspect_ratios) * num_variants
         print(f"\nVariants per Ratio: {num_variants}")
@@ -561,6 +566,7 @@ Examples:
 
             # Also clear old cache directories from DALL-E era
             import shutil
+
             old_cache_dirs = [
                 Path("cache/products"),
                 Path("cache/scenes"),

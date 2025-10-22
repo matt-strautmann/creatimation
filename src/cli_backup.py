@@ -11,20 +11,18 @@ Usage:
     creatimation cache stats
     creatimation config init
 """
+
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich import print as rprint
+from rich.table import Table
 
 # Import pipeline components
-from .config import ConfigManager, CreatimationConfig
-from .brand_guide_loader import BrandGuideLoader
-
+from .config import ConfigManager
 
 console = Console()
 
@@ -72,7 +70,9 @@ def generate():
 
 
 @generate.command(name="all")
-@click.option("--brief", "-b", required=True, type=click.Path(exists=True), help="Campaign brief JSON file")
+@click.option(
+    "--brief", "-b", required=True, type=click.Path(exists=True), help="Campaign brief JSON file"
+)
 @click.option("--output", "-o", type=click.Path(), help="Output directory (overrides config)")
 @click.option("--variants", "-n", type=int, help="Variants per ratio (overrides config)")
 @click.option("--ratios", "-r", help="Comma-separated aspect ratios (e.g., 1x1,9x16,16x9)")
@@ -82,7 +82,9 @@ def generate():
 @click.option("--dry-run", is_flag=True, help="Preview without execution")
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.pass_context
-def generate_all(ctx, brief, output, variants, ratios, brand_guide, no_cache, resume, dry_run, verbose):
+def generate_all(
+    ctx, brief, output, variants, ratios, brand_guide, no_cache, resume, dry_run, verbose
+):
     """
     Generate all creative assets (full pipeline).
 
@@ -113,7 +115,7 @@ def generate_all(ctx, brief, output, variants, ratios, brand_guide, no_cache, re
     from .main import CreativePipeline
 
     try:
-        console.print(f"\n[bold cyan]Starting Creative Automation Pipeline[/bold cyan]")
+        console.print("\n[bold cyan]Starting Creative Automation Pipeline[/bold cyan]")
         console.print(f"Brief: {brief}")
         console.print(f"Config: {config.project.name}")
 
@@ -128,8 +130,9 @@ def generate_all(ctx, brief, output, variants, ratios, brand_guide, no_cache, re
         # Apply brand guide if specified
         enhanced_brief = brief
         if brand_guide:
-            from .brand_guide_loader import apply_brand_guide
             import json
+
+            from .brand_guide_loader import apply_brand_guide
 
             with open(brief) as f:
                 brief_dict = json.load(f)
@@ -142,10 +145,7 @@ def generate_all(ctx, brief, output, variants, ratios, brand_guide, no_cache, re
                 json.dump(enhanced_brief_dict, f, indent=2)
 
         # Run pipeline
-        results = pipeline.process_campaign(
-            str(enhanced_brief),
-            resume=resume
-        )
+        results = pipeline.process_campaign(str(enhanced_brief), resume=resume)
 
         # Display summary
         _display_results(results)
@@ -300,8 +300,8 @@ def clear():
     Example:
         creatimation cache clear
     """
-    from .cache_manager import CacheManager
     from .background_remover import BackgroundRemover
+    from .cache_manager import CacheManager
 
     try:
         console.print("[bold]Clearing all cache...[/bold]")
@@ -329,8 +329,9 @@ def stats():
     Example:
         creatimation cache stats
     """
-    from .cache_manager import CacheManager
     import os
+
+    from .cache_manager import CacheManager
 
     try:
         cache_mgr = CacheManager()
@@ -343,7 +344,7 @@ def stats():
         if cache_dir.exists():
             for root, dirs, files in os.walk(cache_dir):
                 for file in files:
-                    if file.endswith(('.jpg', '.png', '.json')):
+                    if file.endswith((".jpg", ".png", ".json")):
                         file_path = Path(root) / file
                         total_size += file_path.stat().st_size
                         file_count += 1
@@ -497,8 +498,8 @@ def state(campaign_id):
         table.add_column("Value", style="green")
 
         table.add_row("Progress", f"{summary['progress_percentage']}%")
-        table.add_row("Current Step", summary['next_step'])
-        table.add_row("Products Processed", str(summary.get('products_processed', 0)))
+        table.add_row("Current Step", summary["next_step"])
+        table.add_row("Products Processed", str(summary.get("products_processed", 0)))
 
         console.print("\n")
         console.print(table)
@@ -514,7 +515,7 @@ def state(campaign_id):
 # ============================================================================
 
 
-def _build_cli_overrides(output, variants, ratios, brand_guide) -> Dict[str, Any]:
+def _build_cli_overrides(output, variants, ratios, brand_guide) -> dict[str, Any]:
     """Build CLI overrides dictionary"""
     overrides = {}
 
@@ -536,7 +537,7 @@ def _build_cli_overrides(output, variants, ratios, brand_guide) -> Dict[str, Any
     return overrides
 
 
-def _display_results(results: Dict[str, Any]):
+def _display_results(results: dict[str, Any]):
     """Display pipeline results in a nice table"""
     table = Table(title="Pipeline Results")
     table.add_column("Metric", style="cyan")

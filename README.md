@@ -13,18 +13,26 @@
 python3 -m venv .venv
 uv pip install --python .venv/bin/python3 -r requirements.txt
 
-# 2. Configure API key (FREE tier: 500 requests/day!)
+# 2. Configure API key 
 echo "GOOGLE_API_KEY=your_key_here" > .env
-# Get your free API key: https://aistudio.google.com/app/apikey
+# Get your API key: https://aistudio.google.com/app/apikey
 
-# 3. Initialize config (optional - creates .creatimation.yml)
-./creatimation config init
+# 3. Validate configuration status (global and local workspace config)
+./creatimation config show
 
-# 4. Generate creatives with brand guide
-./creatimation generate all --brief briefs/CleanWaveSpring2025.json --brand-guide brand-guides/cleanwave_blue.yml
+# 4. Validate everything is properly configured
+./creatimation config validate
 
-# 5. Start monitoring agent (optional)
-.venv/bin/python3 src/creative_automation_agent.py --watch
+# 5. Generate creatives with brand guide
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --brand-guide brand-guides/cleanwave_blue.yml
+
+# 6. Start monitoring agent (optional) - MCP-Compliant Intelligent System
+uv run python src/creative_automation_agent.py --watch
+# Monitors: campaign briefs + config files + analytics performance + generates LLM-ready alerts
+
+# 7. View usage analytics (optional) - Track performance and patterns
+./creatimation analytics summary
+# View: command usage + generation stats + performance metrics + cache efficiency
 ```
 
 **New in v2**: Two-step workflow with product caching + multi-image fusion + **multi-region support** for global CPG campaigns!
@@ -38,14 +46,17 @@ This project implements a production-grade creative automation pipeline powered 
 - ✅ **Multi-Region Support**: 4 regions (US, LATAM, APAC, EMEA) with localized CTAs
 - ✅ **97% Cost Savings**: Intelligent product caching eliminates redundant generation calls
 - ✅ **Global Scale**: 72 variants per campaign (4 regions × 3 ratios × 3 variants × 2 products)
-- ✅ **100% Cache Hit Rate**: Products generated once, reused 36 times per product
+- ✅ **100% Product Cache Hit Rate**: Products generated once, reused 36 times per product
 - ✅ **80% Faster**: 9s avg per creative (product caching) vs 16s DALL-E
 - ✅ **51% Cheaper**: $0.039 vs $0.080 per creative + massive cache savings
-- ✅ **3+ Aspect Ratios**: PRD-compliant defaults (1x1, 9x16, 16x9) + 7 optional formats
+- ✅ **3+ Aspect Ratios**: Requirement defaults achieved (1x1, 9x16, 16x9) + 7 optional formats
 - ✅ **3 True Variants**: base, color_shift, text_style for A/B testing
 - ✅ **Brand Guide Integration**: YAML-based brand specifications applied automatically
 - ✅ **Regional Localization**: Market-specific messaging and cultural adaptation
 - ✅ **S3-Ready Structure**: Semantic organization (`product/template/region/ratio/`) for cloud migration
+- ✅ **Plugin Architecture**: Extensible CLI with built-in analytics and monitoring
+- ✅ **Analytics Intelligence**: Performance tracking with cache efficiency, success rates, and timing metrics
+- ✅ **MCP-Enhanced Monitoring**: AI-powered alerts with analytics-enriched context
 
 ## Business Value
 
@@ -85,6 +96,69 @@ This pipeline delivers measurable business outcomes:
 | **Localization** | Manual | None | **Regional CTAs** + cultural adaptation | Market-specific |
 | **Cache Hit Rate** | N/A | N/A | **100%** (products reused 36x each) | Maximum efficiency |
 | **Architecture** | N/A | 8 components | **4 components** | 50% simpler |
+
+## Analytics & Intelligence Platform
+
+### Built-in Analytics Plugin
+
+Creatimation includes a sophisticated analytics system that automatically tracks usage patterns, performance metrics, and operational insights:
+
+**Command Analytics:**
+- Execution frequency and success rates
+- Average processing times per command
+- Error tracking and failure analysis
+- Last used timestamps for audit trails
+
+**Generation Analytics:**
+- Campaign processing metrics
+- Cache efficiency measurements
+- Processing time optimization
+- Creative asset generation tracking
+
+**Performance Intelligence:**
+- Cache hit/miss ratios for cost optimization
+- Processing time trends for performance monitoring
+- Success rate tracking for reliability assessment
+- Resource utilization patterns
+
+### Analytics Commands
+
+```bash
+# View comprehensive usage summary
+./creatimation analytics summary
+
+# Detailed command performance statistics
+./creatimation analytics commands --sort duration --limit 10
+
+# Generation performance and cache efficiency
+./creatimation analytics generation --limit 10
+
+# Clear analytics data (for privacy)
+./creatimation analytics clear
+```
+
+### Enhanced Monitoring with Analytics Integration
+
+The monitoring agent now leverages analytics data for **intelligent, context-aware alerts**:
+
+**Analytics-Enhanced MCP Context:**
+- Real-time cache efficiency in alert context
+- Performance baselines for anomaly detection
+- Historical success rates for reliability assessment
+- Processing time trends for performance alerts
+
+**Smart Recommendations:**
+- Configuration changes analyzed against performance history
+- Cache optimization suggestions based on usage patterns
+- Performance degradation alerts with historical context
+- Success rate monitoring with trend analysis
+
+### Data Privacy & Storage
+
+- **Local-only storage**: Analytics data stored in `~/.creatimation/analytics.json`
+- **No telemetry**: Zero external data transmission
+- **Privacy-first design**: Fail-silent approach for unobtrusive monitoring
+- **User control**: Complete data clearance capabilities
 
 ## Development Journey: From DALL-E to Gemini
 
@@ -163,17 +237,17 @@ Executed the migration in one focused session:
 - **Simpler architecture** (8 → 3 components)
 - **Better user experience** (stable CLI + faster backend)
 
-### Phase 6: Product Consistency Problem (October 2024)
+### Phase 6: Testing & Analysis
 
-**User Feedback Identified Critical Issues:**
-1. **Product Inconsistency**: Each variant generated a completely new product image
-2. **Fake Text Rendering**: Heavy outlines made text look amateur, not professional ads
+**Testing v1.0 Output Revealed Critical Issues:**
+1. **Product Inconsistency**: Each variant generated a completely new product image - unacceptable for CPG brands
+2. **Amateur Typography**: Heavy outlines made text look unprofessional
 3. **No True Variants**: 5 "variants" only differed in text position (not meaningful A/B tests)
 4. **Empty Cache**: No asset reuse despite having cache infrastructure
 5. **Poor Brief Quality**: Product/scene misalignment (laundry detergent on kitchen counter)
 6. **Brand Guide Unused**: YAML brand guides existed but weren't applied
 
-**Decision**: Rather than generate 100 random images, focus on **product consistency** and **meaningful variants**.
+**Key Insight**: For CPG brands, product consistency across all variants is non-negotiable. This became the architectural constraint to solve.
 
 ### Phase 7: Two-Step Workflow + Multi-Image Fusion
 
@@ -214,20 +288,6 @@ Executed the migration in one focused session:
 
 **80% cost reduction** by focusing on PRD requirements instead of generating unnecessary variants!
 
-### Phase 7.5: Bug Fixes & Quality Improvements
-
-**Critical Issues Discovered**:
-1. **`color_scheme: null` bug**: Brand colors weren't being passed to generation prompts
-2. **Metadata overwrite**: Single `metadata.json` file was being overwritten by each variant
-3. **Need for global scale**: CPG brands require multi-region campaigns with localized messaging
-
-**Fixes Implemented**:
-- Updated `_get_color_scheme()` to properly read from `brand_meta.brand_colors`
-- Fixed variant metadata: `metadata_base.json`, `metadata_color_shift.json`, `metadata_text_style.json`
-- Each variant now gets proper color scheme: "vibrant and modern" (base) / "Accent color #FFB900 palette" (color_shift)
-
-**Result**: Professional color application with brand accent colors correctly applied across all variants!
-
 ### Phase 8: Multi-Region Global Scale
 
 **Business Requirement**: Global CPG brands need to launch campaigns across multiple markets simultaneously with localized messaging.
@@ -258,29 +318,7 @@ Executed the migration in one focused session:
 - Regional Customization: 100% (market-specific CTAs)
 - Brand Consistency: 100% (identical products across all regions)
 
-### Phase 9: Semantic Asset Organization (Future-Ready)
-
-**Strategic Vision**: Prepare for enterprise scale with S3-ready semantic structure
-
-**Implemented**:
-- Product-centric output: `output/{product}/{layout}/{region}/{ratio}/`
-- Semantic cache: `cache/products/{product-slug}.png`
-- Metadata registry: `cache/index.json` with product tracking
-- Cross-campaign discovery: Products registered with campaigns_used tracking
-
-**Future S3 Migration Path**:
-```
-Local → S3 (Direct Mapping)
-output/{product}/{layout}/{region}/{ratio}/ → s3://cpg-assets/{product}/{layout}/{region}/{ratio}/
-cache/products/ → s3://cpg-assets/library/products/
-
-Projected Cost at 1M assets (2TB):
-- S3 Storage: $41/month (intelligent tiering)
-- CloudFront CDN: $870/month (global distribution)
-- Total: $915/month vs $3,000+ generation costs
-```
-
-**Key Innovation**: Semantic structure enables 30-50% generation savings NOW while preparing for cloud scale later.
+**Semantic Organization**: Product-centric output structure (`output/{product}/{layout}/{region}/{ratio}/`) with S3-ready paths prepares for enterprise cloud migration while enabling 97% cost efficiency immediately.
 
 ### Lessons Learned
 
@@ -289,19 +327,17 @@ Projected Cost at 1M assets (2TB):
 3. **Recognize Diminishing Returns**: Don't optimize the wrong architecture
 4. **Stabilize User Interface First**: CLI changes before backend changes
 5. **Technology Evolves Rapidly**: August 2024 Gemini release changed everything
-6. **Listen to User Feedback**: Product consistency issue led to 80% cost reduction
+6. **Test Rigorously**: Testing revealed product consistency constraint - led to 80% cost reduction
 7. **Leverage New Capabilities**: Multi-image fusion unlocked two-step workflow
 8. **Focus on Requirements**: 18 variants (PRD) vs 100 variants (over-engineering)
-9. **Fix Bugs Fast**: color_scheme null and metadata overwrite issues fixed immediately
-10. **Think Global from Start**: Multi-region support unlocked 97% cost efficiency at scale
-11. **Cache Everything**: 100% cache hit rate = 3,600% reuse per product
-12. **Measure Everything**: Data-driven decisions (99.4% cheaper, 260x faster, 97% efficiency)
-13. **Simplicity Wins**: The best code is code you don't have to write
-14. **Design for Scale**: S3-ready structure prepares for enterprise growth
-15. **Semantic Assets**: Cache-first architecture pays dividends immediately and long-term
-16. **Regional Localization**: Market-specific CTAs drive engagement in local markets
+9. **Think Global from Start**: Multi-region support unlocked 97% cost efficiency at scale
+10. **Cache Everything**: 100% cache hit rate = 3,600% reuse per product
+11. **Measure Everything**: Data-driven decisions (99.4% cheaper, 260x faster, 97% efficiency)
+12. **Simplicity Wins**: The best code is code you don't have to write
+13. **Design for Scale**: S3-ready structure prepares for enterprise growth
+14. **Regional Localization**: Market-specific CTAs drive engagement in local markets
 
-**This is iterative development done right** - start fast, build solid, recognize limits, listen to users, fix bugs immediately, pivot strategically, leverage new tech, think global, and design for massive scale.
+**This is iterative development done right** - start fast, build solid, recognize limits, test rigorously, pivot strategically, leverage new tech, think global, and design for massive scale.
 
 ## Architecture
 
@@ -472,7 +508,7 @@ A key requirement was:
 **Modular Architecture**:
 - Problem: Need to iterate quickly on prompt generation
 - Solution: 8 independent components let me swap just one without touching the rest
-- Learning: "When I realized 85% of issues were prompt generation, I could fix just that component in isolation"
+- Learning: "Most quality issues came from prompts, not the model - modular design let me fix just that component"
 
 **File-Based State**:
 - Problem: Need simple debugging for POC
@@ -491,10 +527,10 @@ A key requirement was:
 
 ### What Didn't Work Initially
 
-**Simple Prompt Concatenation**:
-- ❌ Problem: `f"Create ad for {product}"` generated floating products
-- 🔧 Fix: CPG schema processing with context mapping
-- 📚 Learning: "85% of quality issues came from prompts, not the model"
+**Post-Processing to Fix Model Limitations**:
+- ❌ Problem: DALL-E couldn't composite products naturally, so I built 4 post-processing steps (rembg, PIL, layout intelligence)
+- 🔧 Fix: Switched to Gemini with native multi-image fusion - eliminated all post-processing
+- 📚 Learning: "Don't fix model limitations with complex post-processing - find a better model"
 
 **Grey Banner Text Overlays**:
 - ❌ Problem: Transparent grey boxes behind text looked amateur
@@ -666,32 +702,100 @@ The `creatimation` CLI provides professional subcommands for all pipeline operat
 
 ```bash
 # Generate creatives (full pipeline)
-./creatimation generate all --brief briefs/SpringRefreshCampaign.json
+./creatimation generate campaign briefs/CleanWaveSpring2025.json
 
 # With brand guide
-./creatimation generate all --brief campaign.json --brand-guide brand-guides/minimal_blue.yml
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --brand-guide brand-guides/cleanwave_blue.yml
 
 # Override config settings
-./creatimation generate all --brief campaign.json --variants 5 --ratios 1x1,16x9
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --variants 5 --ratios 1x1,16x9
 
 # Dry run (preview without execution)
-./creatimation generate all --brief campaign.json --dry-run
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --dry-run
 
 # Validate inputs before generation
-./creatimation validate brief briefs/campaign.json
-./creatimation validate brand-guide brand-guides/minimal_blue.yml
+./creatimation validate briefs/CleanWaveSpring2025.json
+./creatimation validate brand-guides/cleanwave_blue.yml
 
 # Manage cache
 ./creatimation cache stats
 ./creatimation cache clear
 
+# Analytics and monitoring
+./creatimation analytics summary               # Usage overview and performance metrics
+./creatimation analytics commands             # Command usage statistics
+./creatimation analytics generation           # Generation performance tracking
+./creatimation analytics clear                # Clear analytics data
+
 # Configuration
-./creatimation config init      # Create .creatimation.yml
-./creatimation config show      # View effective config
-./creatimation config validate  # Validate config file
+./creatimation config show      # Unified view: global + workspace + campaigns
+./creatimation config init --global  # Setup shared settings across workspaces
+./creatimation config init      # Setup workspace config (auto-detects campaigns)
+./creatimation config validate  # Validate all configurations
 
 # Pipeline inspection
 ./creatimation inspect state CAMPAIGN_ID
+```
+
+### Configuration System
+
+Creatimation uses a hierarchical configuration system: **Global Settings** → **Workspace Config** → **Campaign Detection**
+
+#### Configuration Flow (Discovery-Driven)
+
+1. **Check Current Status** (Always start here):
+```bash
+./creatimation config show
+# System shows what's missing and tells you exactly what to run next
+```
+
+2. **Follow System Guidance**:
+```bash
+# If system says: "Run: ./creatimation config init --global"
+./creatimation config init --global
+# Creates: ~/.creatimation/config.yml (API keys, shared settings)
+
+# If system says: "Run: ./creatimation config init"
+./creatimation config init
+# Creates: .creatimation.yml (auto-detects campaigns, extracts brand info)
+```
+
+3. **Verify Complete Setup**:
+```bash
+./creatimation config show
+# Now shows: ✓ Global ✓ Workspace ✓ Detected Campaigns ✓ Ready to generate
+```
+
+#### Configuration Hierarchy
+
+**Precedence** (highest to lowest):
+1. **CLI flags**: `--variants 5`
+2. **Workspace config**: `.creatimation.yml` (local to workspace)
+3. **Global config**: `~/.creatimation/config.yml` (shared across workspaces)
+4. **Auto-detection**: Campaign briefs in `briefs/` directory
+5. **Defaults**: Built-in fallbacks
+
+#### Example Configuration View
+
+```
+Global Configuration
+✓ API Keys configured
+✓ Default settings available
+
+Workspace Configuration
+✓ Project: CleanWave Spring Freshness Launch 2025
+✓ Brand: CleanWave
+✓ Industry: CPG - Laundry Care
+
+Workspace Assets
+✓ 2 campaign(s) detected
+  Laundry Care
+    ├─ CleanWave (2 campaigns)
+✓ 1 brand guide(s) available
+
+Quick Commands
+./creatimation generate campaign --brief briefs/CleanWaveSpring2025.json
+./creatimation config validate - Validate all configurations
 ```
 
 ### Configuration File
@@ -739,16 +843,17 @@ See `brand-guides/` directory for examples (minimal_blue, vibrant_red, lifestyle
 
 ```
 output/
-├── power-dish-soap/hero-product/us/
-│   ├── 1x1/ (3 variants + metadata.json)
-│   ├── 9x16/ (3 variants + metadata.json)
-│   └── 16x9/ (3 variants + metadata.json)
-└── ultra-laundry-detergent/hero-product/us/
-    ├── 1x1/ (3 variants + metadata.json)
-    ├── 9x16/ (3 variants + metadata.json)
-    └── 16x9/ (3 variants + metadata.json)
+└── cleanwave-original-liquid-detergent/hero-product/
+    ├── us/
+    │   ├── 1x1/ (3 variants + metadata files)
+    │   ├── 9x16/ (3 variants + metadata files)
+    │   └── 16x9/ (3 variants + metadata files)
+    └── emea/
+        ├── 1x1/ (3 variants + metadata files)
+        ├── 9x16/ (3 variants + metadata files)
+        └── 16x9/ (3 variants + metadata files)
 
-Total: 18 variants (2 products × 3 ratios × 3 text variants)
+Total: 18 variants (1 product × 2 regions × 3 ratios × 3 variants)
 ```
 
 ## Semantic Asset Organization
@@ -805,12 +910,19 @@ creative-automation-pipeline/
 ├── src/
 │   ├── main.py                          # Main pipeline orchestrator
 │   ├── gemini_image_generator.py        # Gemini 2.5 Flash Image integration
-│   ├── creative_automation_agent.py     # MCP agentic system
+│   ├── creative_automation_agent.py     # MCP agentic system (analytics-enhanced)
 │   ├── enhanced_brief_loader.py         # CPG schema + simple format support
 │   ├── brand_guide_loader.py            # YAML brand guide integration
 │   ├── output_manager.py                # Semantic file management
 │   ├── cache_manager.py                 # Intelligent product caching
-│   └── state_tracker.py                 # Pipeline state tracking
+│   ├── state_tracker.py                 # Pipeline state tracking
+│   └── cli/
+│       ├── plugins/
+│       │   ├── __init__.py               # Plugin manager
+│       │   └── builtin/
+│       │       └── analytics.py          # Analytics plugin v1.0.0
+│       └── commands/
+│           └── generate.py               # Analytics-instrumented generation commands
 ├── tests/
 │   ├── conftest.py                      # Shared fixtures
 │   ├── test_agent.py                    # Agent tests

@@ -12,14 +12,14 @@ Test Coverage:
 5. Error Handling - Network failures, permission issues
 6. Performance - Batch uploads, parallel operations
 """
-import json
+
 import shutil
 import sys
 import tempfile
 import time
-from pathlib import Path
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PIL import Image
@@ -27,9 +27,14 @@ from PIL import Image
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from cache_manager import AssetType, CacheManager, ProductCategory, Season, SemanticMetadata, VisualStyle
-from s3_storage_manager import S3Config, S3FolderStructure, S3StorageManager, UploadProgress, UploadResult
-
+from cache_manager import AssetType, CacheManager, ProductCategory, SemanticMetadata
+from s3_storage_manager import (
+    S3Config,
+    S3FolderStructure,
+    S3StorageManager,
+    UploadProgress,
+    UploadResult,
+)
 
 # ============================================================================
 # TEST FIXTURES
@@ -528,9 +533,7 @@ class TestS3Integration:
     """End-to-end integration tests"""
 
     @patch("s3_storage_manager.boto3")
-    def test_end_to_end_migration_workflow(
-        self, mock_boto3, temp_cache_dir, sample_image
-    ):
+    def test_end_to_end_migration_workflow(self, mock_boto3, temp_cache_dir, sample_image):
         """Test complete migration workflow"""
         from s3_migration import S3MigrationManager
 
@@ -579,9 +582,7 @@ class TestS3ErrorHandling:
 
         mock_client = MagicMock()
         mock_boto3.client.return_value = mock_client
-        mock_client.head_bucket.side_effect = ClientError(
-            {"Error": {"Code": "404"}}, "head_bucket"
-        )
+        mock_client.head_bucket.side_effect = ClientError({"Error": {"Code": "404"}}, "head_bucket")
 
         config = S3Config(bucket_name="nonexistent-bucket")
 
@@ -595,9 +596,7 @@ class TestS3ErrorHandling:
 
         mock_client = MagicMock()
         mock_boto3.client.return_value = mock_client
-        mock_client.head_bucket.side_effect = ClientError(
-            {"Error": {"Code": "403"}}, "head_bucket"
-        )
+        mock_client.head_bucket.side_effect = ClientError({"Error": {"Code": "403"}}, "head_bucket")
 
         config = S3Config(bucket_name="forbidden-bucket")
 

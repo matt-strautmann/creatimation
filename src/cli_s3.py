@@ -5,6 +5,7 @@ S3 CLI Commands - Command-line interface for S3 operations
 Provides comprehensive CLI for S3 storage management, migration,
 and asset operations.
 """
+
 import argparse
 import logging
 import sys
@@ -34,7 +35,7 @@ def cmd_upload(args):
     if args.dry_run:
         print("\nDRY RUN complete - no files were uploaded")
     else:
-        print(f"\nUpload complete!")
+        print("\nUpload complete!")
         print(f"  Uploaded: {result.uploaded_count} files")
         print(f"  Failed: {result.failed_count} files")
         print(f"  Total size: {result.uploaded_bytes / 1024 / 1024:.2f} MB")
@@ -47,9 +48,13 @@ def cmd_download(args):
     from s3_storage_manager import S3Config, S3StorageManager
 
     try:
-        config = S3Config.from_env() if not args.bucket else S3Config(
-            bucket_name=args.bucket,
-            prefix=args.prefix,
+        config = (
+            S3Config.from_env()
+            if not args.bucket
+            else S3Config(
+                bucket_name=args.bucket,
+                prefix=args.prefix,
+            )
         )
 
         s3_manager = S3StorageManager(config=config)
@@ -80,9 +85,13 @@ def cmd_list(args):
     from s3_storage_manager import S3Config, S3StorageManager
 
     try:
-        config = S3Config.from_env() if not args.bucket else S3Config(
-            bucket_name=args.bucket,
-            prefix=args.prefix,
+        config = (
+            S3Config.from_env()
+            if not args.bucket
+            else S3Config(
+                bucket_name=args.bucket,
+                prefix=args.prefix,
+            )
         )
 
         s3_manager = S3StorageManager(config=config)
@@ -113,7 +122,7 @@ def cmd_list(args):
             print(f"    Modified: {obj['last_modified']}")
 
             if args.metadata and obj.get("metadata"):
-                print(f"    Metadata:")
+                print("    Metadata:")
                 for key, value in obj["metadata"].items():
                     print(f"      {key}: {value}")
 
@@ -143,9 +152,13 @@ def cmd_validate(args):
     try:
         cache_manager = CacheManager(cache_dir=args.cache_dir)
 
-        config = S3Config.from_env() if not args.bucket else S3Config(
-            bucket_name=args.bucket,
-            prefix=args.prefix,
+        config = (
+            S3Config.from_env()
+            if not args.bucket
+            else S3Config(
+                bucket_name=args.bucket,
+                prefix=args.prefix,
+            )
         )
 
         s3_manager = S3StorageManager(config=config)
@@ -164,20 +177,20 @@ def cmd_validate(args):
         print(f"  Size mismatches: {report['size_mismatches']}")
         print(f"  Success rate: {report['success_rate']:.1f}%")
 
-        if report['missing_details']:
+        if report["missing_details"]:
             print("\nMissing assets (first 10):")
-            for missing in report['missing_details']:
+            for missing in report["missing_details"]:
                 print(f"  {missing['local_path']} -> {missing['s3_key']}")
 
-        if report['mismatch_details']:
+        if report["mismatch_details"]:
             print("\nSize mismatches (first 10):")
-            for mismatch in report['mismatch_details']:
+            for mismatch in report["mismatch_details"]:
                 print(
                     f"  {mismatch['local_path']}: "
                     f"local={mismatch['local_size']}, s3={mismatch['s3_size']}"
                 )
 
-        return 0 if report['missing'] == 0 and report['size_mismatches'] == 0 else 1
+        return 0 if report["missing"] == 0 and report["size_mismatches"] == 0 else 1
 
     except Exception as e:
         print(f"Error: {e}")
@@ -200,22 +213,22 @@ def cmd_stats(args):
 
         stats = cache_manager.get_s3_stats()
 
-        print(f"\nS3 Configuration:")
+        print("\nS3 Configuration:")
         print(f"  Bucket: {stats.get('bucket_name', 'N/A')}")
         print(f"  Assets in S3: {stats.get('s3_assets', 0)}")
 
-        if stats.get('s3_total_objects'):
+        if stats.get("s3_total_objects"):
             print(f"  Total S3 objects: {stats['s3_total_objects']}")
             print(f"  Total S3 size: {stats.get('s3_total_size_mb', 0):.2f} MB")
 
-        print(f"\nCache Operations:")
+        print("\nCache Operations:")
         print(f"  Uploads: {stats.get('uploads', 0)}")
         print(f"  Downloads: {stats.get('downloads', 0)}")
         print(f"  Cache hits: {stats.get('cache_hits', 0)}")
         print(f"  Cache misses: {stats.get('cache_misses', 0)}")
         print(f"  Cache hit rate: {stats.get('cache_hit_rate', 0):.1f}%")
 
-        print(f"\nLocal Cache:")
+        print("\nLocal Cache:")
         print(f"  Size: {stats.get('local_cache_size_mb', 0):.2f} MB")
 
         # Get regular cache stats
@@ -292,7 +305,7 @@ def cmd_tier_manage(args):
             cold_threshold_days=args.cold_days,
         )
 
-        print(f"\nTier Management Results:")
+        print("\nTier Management Results:")
         print(f"  Promoted (S3 -> local): {result['promoted']}")
         print(f"  Demoted (local -> S3 only): {result['demoted']}")
 
@@ -312,9 +325,13 @@ def cmd_estimate(args):
     try:
         cache_manager = CacheManager(cache_dir=args.cache_dir)
 
-        config = S3Config.from_env() if not args.bucket else S3Config(
-            bucket_name=args.bucket,
-            prefix=args.prefix,
+        config = (
+            S3Config.from_env()
+            if not args.bucket
+            else S3Config(
+                bucket_name=args.bucket,
+                prefix=args.prefix,
+            )
         )
 
         s3_manager = S3StorageManager(config=config)
@@ -323,9 +340,11 @@ def cmd_estimate(args):
         print("Analyzing cache for migration...")
         plan = migration_manager.create_migration_plan()
 
-        print(f"\nMigration Plan:")
+        print("\nMigration Plan:")
         print(f"  Total assets: {plan.total_assets}")
-        print(f"  Total size: {plan.total_size_mb:.2f} MB ({plan.total_size_bytes / 1024 / 1024 / 1024:.3f} GB)")
+        print(
+            f"  Total size: {plan.total_size_mb:.2f} MB ({plan.total_size_bytes / 1024 / 1024 / 1024:.3f} GB)"
+        )
         print(f"  Products: {len(plan.products)}")
         print(f"  Semantic assets: {len(plan.semantic_assets)}")
         print(f"  Cache entries: {len(plan.cache_entries)}")
@@ -334,19 +353,19 @@ def cmd_estimate(args):
 
         # Standard storage
         cost = migration_manager.estimate_migration_cost(plan, cost_per_gb=0.023)
-        print(f"\n  Standard Storage:")
+        print("\n  Standard Storage:")
         print(f"    Monthly: ${cost['storage_cost_monthly']}")
         print(f"    Yearly: ${cost['storage_cost_yearly']}")
 
         # Intelligent-Tiering
         cost_it = migration_manager.estimate_migration_cost(plan, cost_per_gb=0.0125)
-        print(f"\n  Intelligent-Tiering:")
+        print("\n  Intelligent-Tiering:")
         print(f"    Monthly: ${cost_it['storage_cost_monthly']}")
         print(f"    Yearly: ${cost_it['storage_cost_yearly']}")
 
         # Glacier
         cost_glacier = migration_manager.estimate_migration_cost(plan, cost_per_gb=0.004)
-        print(f"\n  Glacier (archive):")
+        print("\n  Glacier (archive):")
         print(f"    Monthly: ${cost_glacier['storage_cost_monthly']}")
         print(f"    Yearly: ${cost_glacier['storage_cost_yearly']}")
 
@@ -423,9 +442,7 @@ Examples:
         help="Filter by asset type",
     )
     list_parser.add_argument("--max-results", type=int, default=100, help="Max results")
-    list_parser.add_argument(
-        "--metadata", action="store_true", help="Include metadata"
-    )
+    list_parser.add_argument("--metadata", action="store_true", help="Include metadata")
 
     # Validate command
     validate_parser = subparsers.add_parser("validate", help="Validate migration")
@@ -447,12 +464,8 @@ Examples:
     # Tier management command
     tier_parser = subparsers.add_parser("tier-manage", help="Manage cache tiers")
     tier_parser.add_argument("--cache-dir", default="cache", help="Cache directory")
-    tier_parser.add_argument(
-        "--no-promote", action="store_true", help="Don't promote hot assets"
-    )
-    tier_parser.add_argument(
-        "--no-demote", action="store_true", help="Don't demote cold assets"
-    )
+    tier_parser.add_argument("--no-promote", action="store_true", help="Don't promote hot assets")
+    tier_parser.add_argument("--no-demote", action="store_true", help="Don't demote cold assets")
     tier_parser.add_argument(
         "--cold-days", type=int, default=30, help="Days to consider asset cold"
     )

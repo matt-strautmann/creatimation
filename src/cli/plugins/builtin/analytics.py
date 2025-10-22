@@ -4,15 +4,14 @@ Analytics plugin for Creatimation CLI.
 Provides usage analytics, performance metrics, and reporting capabilities
 with privacy-first design and optional data collection.
 """
-import time
+
 import json
-from pathlib import Path
-from typing import Dict, Any, List
+import time
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
 
 import click
-from rich.table import Table
-from rich.panel import Panel
 
 # Try relative import first, fall back to absolute import
 try:
@@ -23,10 +22,12 @@ except ImportError:
     except ImportError:
         # Fallback to basic rich imports if utils not available
         from rich.console import Console
+
         console = Console()
 
         def create_table(title=None, headers=None):
             from rich.table import Table
+
             table = Table(title=title)
             if headers:
                 for header in headers:
@@ -52,7 +53,7 @@ PLUGIN_INFO = {
     "version": "1.0.0",
     "description": "Usage analytics and performance metrics",
     "author": "Creatimation Team",
-    "homepage": "https://github.com/your-org/creatimation"
+    "homepage": "https://github.com/your-org/creatimation",
 }
 
 # Commands provided by this plugin
@@ -71,14 +72,14 @@ class AnalyticsStore:
         self.data_file.parent.mkdir(exist_ok=True)
         self._data = self._load_data()
 
-    def _load_data(self) -> Dict[str, Any]:
+    def _load_data(self) -> dict[str, Any]:
         """Load analytics data from file."""
         if not self.data_file.exists():
             return {
                 "commands": {},
                 "generation_stats": {},
                 "performance": {},
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
         try:
@@ -89,13 +90,13 @@ class AnalyticsStore:
                 "commands": {},
                 "generation_stats": {},
                 "performance": {},
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
     def _save_data(self):
         """Save analytics data to file."""
         try:
-            with open(self.data_file, 'w') as f:
+            with open(self.data_file, "w") as f:
                 json.dump(self._data, f, indent=2)
         except Exception:
             pass  # Fail silently for analytics
@@ -111,7 +112,7 @@ class AnalyticsStore:
                 "total_duration": 0,
                 "success_count": 0,
                 "error_count": 0,
-                "last_used": None
+                "last_used": None,
             }
 
         stats = self._data["commands"][command]
@@ -126,23 +127,23 @@ class AnalyticsStore:
 
         self._save_data()
 
-    def record_generation(self, campaign_id: str, metrics: Dict[str, Any]):
+    def record_generation(self, campaign_id: str, metrics: dict[str, Any]):
         """Record generation metrics."""
         if "generation_stats" not in self._data:
             self._data["generation_stats"] = {}
 
         self._data["generation_stats"][campaign_id] = {
             **metrics,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         self._save_data()
 
-    def get_command_stats(self) -> Dict[str, Any]:
+    def get_command_stats(self) -> dict[str, Any]:
         """Get command usage statistics."""
         return self._data.get("commands", {})
 
-    def get_generation_stats(self) -> Dict[str, Any]:
+    def get_generation_stats(self) -> dict[str, Any]:
         """Get generation statistics."""
         return self._data.get("generation_stats", {})
 
@@ -152,7 +153,7 @@ class AnalyticsStore:
             "commands": {},
             "generation_stats": {},
             "performance": {},
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
         self._save_data()
 
@@ -174,12 +175,12 @@ def cleanup():
     pass
 
 
-def register_hooks() -> Dict[str, callable]:
+def register_hooks() -> dict[str, callable]:
     """Register hook functions."""
     return {
         "before_command": before_command_hook,
         "after_command": after_command_hook,
-        "generation_complete": generation_complete_hook
+        "generation_complete": generation_complete_hook,
     }
 
 
@@ -197,16 +198,14 @@ def after_command_hook(command_name: str, success: bool = True, **kwargs):
         del command_start_times[command_name]
 
 
-def generation_complete_hook(campaign_id: str, metrics: Dict[str, Any], **kwargs):
+def generation_complete_hook(campaign_id: str, metrics: dict[str, Any], **kwargs):
     """Hook called when generation completes."""
     analytics_store.record_generation(campaign_id, metrics)
 
 
-def get_commands() -> Dict[str, click.Command]:
+def get_commands() -> dict[str, click.Command]:
     """Get commands provided by this plugin."""
-    return {
-        "analytics": analytics
-    }
+    return {"analytics": analytics}
 
 
 # Analytics command group
@@ -232,7 +231,7 @@ def analytics():
     "--period",
     type=click.Choice(["day", "week", "month", "all"]),
     default="week",
-    help="Time period for statistics"
+    help="Time period for statistics",
 )
 def summary(period):
     """
@@ -260,10 +259,7 @@ def summary(period):
         total_duration = sum(stats["total_duration"] for stats in command_stats.values())
         avg_duration = total_duration / total_commands if total_commands > 0 else 0
 
-        summary_table = create_table(
-            title="Command Usage Summary",
-            headers=["Metric", "Value"]
-        )
+        summary_table = create_table(title="Command Usage Summary", headers=["Metric", "Value"])
 
         summary_table.add_row("Total Commands", str(total_commands))
         summary_table.add_row("Total Time", format_duration(total_duration))
@@ -277,14 +273,10 @@ def summary(period):
     if generation_stats:
         total_campaigns = len(generation_stats)
         total_creatives = sum(
-            metrics.get("total_creatives", 0)
-            for metrics in generation_stats.values()
+            metrics.get("total_creatives", 0) for metrics in generation_stats.values()
         )
 
-        gen_table = create_table(
-            title="Generation Summary",
-            headers=["Metric", "Value"]
-        )
+        gen_table = create_table(title="Generation Summary", headers=["Metric", "Value"])
 
         gen_table.add_row("Campaigns Generated", str(total_campaigns))
         gen_table.add_row("Total Creatives", str(total_creatives))
@@ -302,14 +294,9 @@ def summary(period):
     "--sort",
     type=click.Choice(["usage", "duration", "errors"]),
     default="usage",
-    help="Sort commands by metric"
+    help="Sort commands by metric",
 )
-@click.option(
-    "--limit",
-    type=int,
-    default=10,
-    help="Limit number of commands to show"
-)
+@click.option("--limit", type=int, default=10, help="Limit number of commands to show")
 def commands(sort, limit):
     """
     Show detailed command statistics.
@@ -334,7 +321,7 @@ def commands(sort, limit):
     # Create table
     table = create_table(
         title=f"Commands (sorted by {sort})",
-        headers=["Command", "Count", "Avg Duration", "Success Rate", "Last Used"]
+        headers=["Command", "Count", "Avg Duration", "Success Rate", "Last Used"],
     )
 
     for command, stats in sorted_commands[:limit]:
@@ -347,7 +334,7 @@ def commands(sort, limit):
             str(stats["count"]),
             format_duration(avg_duration),
             f"{success_rate:.1f}%",
-            last_used
+            last_used,
         )
 
     console.print(table)
@@ -355,12 +342,7 @@ def commands(sort, limit):
 
 
 @analytics.command()
-@click.option(
-    "--limit",
-    type=int,
-    default=10,
-    help="Limit number of campaigns to show"
-)
+@click.option("--limit", type=int, default=10, help="Limit number of campaigns to show")
 def generation(limit):
     """
     Show generation statistics.
@@ -381,15 +363,13 @@ def generation(limit):
 
     # Sort by timestamp (most recent first)
     sorted_campaigns = sorted(
-        generation_stats.items(),
-        key=lambda x: x[1].get("timestamp", ""),
-        reverse=True
+        generation_stats.items(), key=lambda x: x[1].get("timestamp", ""), reverse=True
     )
 
     # Create table
     table = create_table(
         title="Recent Generations",
-        headers=["Campaign", "Creatives", "Processing Time", "Cache Hit Rate", "Generated"]
+        headers=["Campaign", "Creatives", "Processing Time", "Cache Hit Rate", "Generated"],
     )
 
     for campaign_id, metrics in sorted_campaigns[:limit]:
@@ -408,7 +388,7 @@ def generation(limit):
             str(creatives),
             format_duration(proc_time),
             f"{hit_rate:.1f}%",
-            generated_time
+            generated_time,
         )
 
     console.print(table)
@@ -416,11 +396,7 @@ def generation(limit):
 
 
 @analytics.command()
-@click.option(
-    "--confirm",
-    is_flag=True,
-    help="Skip confirmation prompt"
-)
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
 def clear(confirm):
     """
     Clear all analytics data.
@@ -441,7 +417,7 @@ def clear(confirm):
 
 
 # Helper functions
-def _get_most_used_command(command_stats: Dict[str, Any]) -> str:
+def _get_most_used_command(command_stats: dict[str, Any]) -> str:
     """Get the most frequently used command."""
     if not command_stats:
         return "None"
@@ -450,7 +426,7 @@ def _get_most_used_command(command_stats: Dict[str, Any]) -> str:
     return f"{most_used[0]} ({most_used[1]['count']} times)"
 
 
-def _sort_commands(command_stats: Dict[str, Any], sort_by: str) -> List[tuple]:
+def _sort_commands(command_stats: dict[str, Any], sort_by: str) -> list[tuple]:
     """Sort commands by specified metric."""
     if sort_by == "usage":
         return sorted(command_stats.items(), key=lambda x: x[1]["count"], reverse=True)
@@ -458,7 +434,7 @@ def _sort_commands(command_stats: Dict[str, Any], sort_by: str) -> List[tuple]:
         return sorted(
             command_stats.items(),
             key=lambda x: x[1]["total_duration"] / x[1]["count"] if x[1]["count"] > 0 else 0,
-            reverse=True
+            reverse=True,
         )
     elif sort_by == "errors":
         return sorted(command_stats.items(), key=lambda x: x[1]["error_count"], reverse=True)
@@ -472,7 +448,7 @@ def _format_relative_time(timestamp_str: str) -> str:
         return "Never"
 
     try:
-        timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
         now = datetime.now()
         delta = now - timestamp
 

@@ -1,19 +1,18 @@
 """
 Validate command group - Validate briefs, brand guides, and configurations.
 
-GitHub spec-kit inspired validation patterns with comprehensive checks,
+Provides validation patterns with comprehensive checks,
 helpful error messages, and actionable recommendations.
 """
-import sys
+
 import json
+import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 import click
-from rich.table import Table
 from rich.panel import Panel
-from rich.columns import Columns
-from rich.text import Text
+from rich.table import Table
 
 from ..core import pass_context
 from ..utils.output import console, error_console
@@ -21,16 +20,8 @@ from ..utils.output import console, error_console
 
 @click.group(invoke_without_command=True)
 @click.argument("target", required=False)
-@click.option(
-    "--fix",
-    is_flag=True,
-    help="Attempt to auto-fix common issues"
-)
-@click.option(
-    "--strict",
-    is_flag=True,
-    help="Enable strict validation (fail on warnings)"
-)
+@click.option("--fix", is_flag=True, help="Attempt to auto-fix common issues")
+@click.option("--strict", is_flag=True, help="Enable strict validation (fail on warnings)")
 @pass_context
 def validate(ctx, target, fix, strict):
     """
@@ -52,18 +43,29 @@ def validate(ctx, target, fix, strict):
         workspace     Complete workspace validation
     """
     # If target provided without subcommand, auto-detect validation type
-    if ctx.invoked_subcommand is None and target:
-        file_path = Path(target)
+    click_ctx = click.get_current_context()
+    if click_ctx.invoked_subcommand is None and target:
+        # Check for special keywords first
+        if target == "config":
+            click_ctx.invoke(config, fix=fix, strict=strict)
+            return
+        elif target == "workspace":
+            click_ctx.invoke(workspace, fix=fix, strict=strict)
+            return
 
-        if file_path.suffix == '.json':
-            ctx.invoke(brief, brief_path=target, fix=fix, strict=strict)
-        elif file_path.suffix in ['.yml', '.yaml']:
-            ctx.invoke(brand_guide, guide_path=target, fix=fix, strict=strict)
+        # Auto-detect by file extension
+        file_path = Path(target)
+        if file_path.suffix == ".json":
+            click_ctx.invoke(brief, brief_path=target, fix=fix, strict=strict)
+        elif file_path.suffix in [".yml", ".yaml"]:
+            click_ctx.invoke(brand_guide, guide_path=target, fix=fix, strict=strict)
         else:
             error_console.print(f"[red]✗[/red] Cannot auto-detect validation type for: {target}")
-            console.print("Use explicit subcommands: [cyan]brief[/cyan], [cyan]brand-guide[/cyan], or [cyan]config[/cyan]")
+            console.print(
+                "Use explicit subcommands: [cyan]brief[/cyan], [cyan]brand-guide[/cyan], or [cyan]config[/cyan]"
+            )
             sys.exit(1)
-    elif ctx.invoked_subcommand is None:
+    elif click_ctx.invoked_subcommand is None:
         # Show help when no arguments
         console.print()
         console.print("[yellow]No validation target specified.[/yellow]")
@@ -73,21 +75,11 @@ def validate(ctx, target, fix, strict):
 
 @validate.command()
 @click.argument("brief_path", type=click.Path(exists=True))
+@click.option("--fix", is_flag=True, help="Attempt to auto-fix common issues")
 @click.option(
-    "--fix",
-    is_flag=True,
-    help="Attempt to auto-fix common issues"
+    "--strict", is_flag=True, help="Fail on warnings (default: warnings are informational)"
 )
-@click.option(
-    "--strict",
-    is_flag=True,
-    help="Fail on warnings (default: warnings are informational)"
-)
-@click.option(
-    "--schema",
-    type=click.Path(exists=True),
-    help="Custom JSON schema for validation"
-)
+@click.option("--schema", type=click.Path(exists=True), help="Custom JSON schema for validation")
 @pass_context
 def brief(ctx, brief_path, fix, strict, schema):
     """
@@ -107,13 +99,13 @@ def brief(ctx, brief_path, fix, strict, schema):
     """
     try:
         console.print()
-        console.print(f"[bold cyan]Validating Campaign Brief[/bold cyan]")
+        console.print("[bold cyan]Validating Campaign Brief[/bold cyan]")
         console.print(f"File: {brief_path}")
         console.print()
 
         # Load and parse JSON
         try:
-            with open(brief_path, 'r', encoding='utf-8') as f:
+            with open(brief_path, encoding="utf-8") as f:
                 brief_data = json.load(f)
         except json.JSONDecodeError as e:
             error_console.print(f"[red]✗[/red] Invalid JSON syntax: {e}")
@@ -130,10 +122,12 @@ def brief(ctx, brief_path, fix, strict, schema):
             backup_path = f"{brief_path}.backup"
             Path(brief_path).rename(backup_path)
 
-            with open(brief_path, 'w', encoding='utf-8') as f:
+            with open(brief_path, "w", encoding="utf-8") as f:
                 json.dump(fixed_data, f, indent=2)
 
-            console.print(f"[green]✓[/green] Applied {len(validation_result['fixable_issues'])} fixes")
+            console.print(
+                f"[green]✓[/green] Applied {len(validation_result['fixable_issues'])} fixes"
+            )
             console.print(f"[dim]Original saved as: {backup_path}[/dim]")
             console.print()
 
@@ -149,7 +143,7 @@ def brief(ctx, brief_path, fix, strict, schema):
         elif strict and validation_result["warnings"]:
             sys.exit(1)
         else:
-            console.print(f"[green]✓[/green] Brief validation completed successfully")
+            console.print("[green]✓[/green] Brief validation completed successfully")
             console.print()
 
     except Exception as e:
@@ -161,16 +155,8 @@ def brief(ctx, brief_path, fix, strict, schema):
 
 @validate.command(name="brand-guide")
 @click.argument("guide_path", type=click.Path(exists=True))
-@click.option(
-    "--fix",
-    is_flag=True,
-    help="Attempt to auto-fix common issues"
-)
-@click.option(
-    "--strict",
-    is_flag=True,
-    help="Fail on warnings"
-)
+@click.option("--fix", is_flag=True, help="Attempt to auto-fix common issues")
+@click.option("--strict", is_flag=True, help="Fail on warnings")
 @pass_context
 def brand_guide(ctx, guide_path, fix, strict):
     """
@@ -186,7 +172,7 @@ def brand_guide(ctx, guide_path, fix, strict):
     """
     try:
         console.print()
-        console.print(f"[bold cyan]Validating Brand Guide[/bold cyan]")
+        console.print("[bold cyan]Validating Brand Guide[/bold cyan]")
         console.print(f"File: {guide_path}")
         console.print()
 
@@ -206,7 +192,7 @@ def brand_guide(ctx, guide_path, fix, strict):
         # Apply fixes if requested
         if fix and validation_result["fixable_issues"]:
             # Brand guide fixes would be implemented here
-            console.print(f"[yellow]ℹ[/yellow] Auto-fix not yet implemented for brand guides")
+            console.print("[yellow]ℹ[/yellow] Auto-fix not yet implemented for brand guides")
 
         # Display results
         _display_brand_guide_validation_results(validation_result, guide_path)
@@ -217,7 +203,7 @@ def brand_guide(ctx, guide_path, fix, strict):
         elif strict and validation_result["warnings"]:
             sys.exit(1)
         else:
-            console.print(f"[green]✓[/green] Brand guide validation completed successfully")
+            console.print("[green]✓[/green] Brand guide validation completed successfully")
             console.print()
 
     except Exception as e:
@@ -228,16 +214,8 @@ def brand_guide(ctx, guide_path, fix, strict):
 
 
 @validate.command()
-@click.option(
-    "--fix",
-    is_flag=True,
-    help="Attempt to auto-fix configuration issues"
-)
-@click.option(
-    "--strict",
-    is_flag=True,
-    help="Fail on warnings"
-)
+@click.option("--fix", is_flag=True, help="Attempt to auto-fix configuration issues")
+@click.option("--strict", is_flag=True, help="Fail on warnings")
 @pass_context
 def config(ctx, fix, strict):
     """
@@ -253,7 +231,7 @@ def config(ctx, fix, strict):
     """
     try:
         console.print()
-        console.print(f"[bold cyan]Validating Workspace Configuration[/bold cyan]")
+        console.print("[bold cyan]Validating Workspace Configuration[/bold cyan]")
         console.print()
 
         # Check if we have a workspace
@@ -268,7 +246,9 @@ def config(ctx, fix, strict):
         # Apply fixes if requested
         if fix and validation_result["fixable_issues"]:
             _apply_config_fixes(workspace, validation_result["fixable_issues"])
-            console.print(f"[green]✓[/green] Applied {len(validation_result['fixable_issues'])} fixes")
+            console.print(
+                f"[green]✓[/green] Applied {len(validation_result['fixable_issues'])} fixes"
+            )
             console.print()
 
             # Re-validate
@@ -283,7 +263,7 @@ def config(ctx, fix, strict):
         elif strict and validation_result["warnings"]:
             sys.exit(1)
         else:
-            console.print(f"[green]✓[/green] Configuration validation completed successfully")
+            console.print("[green]✓[/green] Configuration validation completed successfully")
             console.print()
 
     except Exception as e:
@@ -294,16 +274,8 @@ def config(ctx, fix, strict):
 
 
 @validate.command()
-@click.option(
-    "--fix",
-    is_flag=True,
-    help="Attempt to auto-fix all workspace issues"
-)
-@click.option(
-    "--strict",
-    is_flag=True,
-    help="Fail on any warnings"
-)
+@click.option("--fix", is_flag=True, help="Attempt to auto-fix all workspace issues")
+@click.option("--strict", is_flag=True, help="Fail on any warnings")
 @pass_context
 def workspace(ctx, fix, strict):
     """
@@ -323,7 +295,7 @@ def workspace(ctx, fix, strict):
     """
     try:
         console.print()
-        console.print(f"[bold cyan]Validating Complete Workspace[/bold cyan]")
+        console.print("[bold cyan]Validating Complete Workspace[/bold cyan]")
         console.print()
 
         # Validate workspace exists
@@ -355,14 +327,16 @@ def workspace(ctx, fix, strict):
 
         # Calculate overall status
         total_errors = sum(len(result.get("errors", [])) for result in validation_results.values())
-        total_warnings = sum(len(result.get("warnings", [])) for result in validation_results.values())
+        total_warnings = sum(
+            len(result.get("warnings", [])) for result in validation_results.values()
+        )
 
         if total_errors > 0:
             sys.exit(1)
         elif strict and total_warnings > 0:
             sys.exit(1)
         else:
-            console.print(f"[green]✓[/green] Workspace validation completed successfully")
+            console.print("[green]✓[/green] Workspace validation completed successfully")
             console.print()
 
     except Exception as e:
@@ -376,7 +350,8 @@ def workspace(ctx, fix, strict):
 # VALIDATION LOGIC
 # ============================================================================
 
-def _validate_brief_data(brief_data: Dict[str, Any], file_path: str) -> Dict[str, Any]:
+
+def _validate_brief_data(brief_data: dict[str, Any], file_path: str) -> dict[str, Any]:
     """Validate campaign brief data structure and content."""
     errors = []
     warnings = []
@@ -384,12 +359,7 @@ def _validate_brief_data(brief_data: Dict[str, Any], file_path: str) -> Dict[str
     info = []
 
     # Required fields validation
-    required_fields = [
-        "campaign_id",
-        "products",
-        "target_regions",
-        "campaign_message"
-    ]
+    required_fields = ["campaign_id", "products", "target_regions", "campaign_message"]
 
     for field in required_fields:
         if field not in brief_data:
@@ -419,7 +389,9 @@ def _validate_brief_data(brief_data: Dict[str, Any], file_path: str) -> Dict[str
         supported_regions = ["US", "EMEA", "APAC", "LATAM", "CA", "EU", "UK"]
         unsupported = [r for r in regions if r not in supported_regions]
         if unsupported:
-            warnings.append(f"Unsupported regions (may need custom handling): {', '.join(unsupported)}")
+            warnings.append(
+                f"Unsupported regions (may need custom handling): {', '.join(unsupported)}"
+            )
 
         info.append(f"Target regions: {', '.join(regions)}")
     else:
@@ -431,7 +403,18 @@ def _validate_brief_data(brief_data: Dict[str, Any], file_path: str) -> Dict[str
         # Aspect ratios
         ratios = creative_reqs.get("aspect_ratios", [])
         if ratios:
-            supported_ratios = ["1x1", "9x16", "16x9", "4x5", "5x4", "4x3", "3x4", "2x3", "3x2", "21x9"]
+            supported_ratios = [
+                "1x1",
+                "9x16",
+                "16x9",
+                "4x5",
+                "5x4",
+                "4x3",
+                "3x4",
+                "2x3",
+                "3x2",
+                "21x9",
+            ]
             unsupported_ratios = [r for r in ratios if r not in supported_ratios]
             if unsupported_ratios:
                 warnings.append(f"Unsupported aspect ratios: {', '.join(unsupported_ratios)}")
@@ -471,11 +454,11 @@ def _validate_brief_data(brief_data: Dict[str, Any], file_path: str) -> Dict[str
         "warnings": warnings,
         "fixable_issues": fixable_issues,
         "info": info,
-        "valid": len(errors) == 0
+        "valid": len(errors) == 0,
     }
 
 
-def _validate_brand_guide_data(brand_guide_data: Dict[str, Any], file_path: str) -> Dict[str, Any]:
+def _validate_brand_guide_data(brand_guide_data: dict[str, Any], file_path: str) -> dict[str, Any]:
     """Validate brand guide data structure and content."""
     errors = []
     warnings = []
@@ -532,11 +515,11 @@ def _validate_brand_guide_data(brand_guide_data: Dict[str, Any], file_path: str)
         "warnings": warnings,
         "fixable_issues": fixable_issues,
         "info": info,
-        "valid": len(errors) == 0
+        "valid": len(errors) == 0,
     }
 
 
-def _validate_workspace_config(workspace_manager) -> Dict[str, Any]:
+def _validate_workspace_config(workspace_manager) -> dict[str, Any]:
     """Validate workspace configuration."""
     errors = []
     warnings = []
@@ -569,11 +552,11 @@ def _validate_workspace_config(workspace_manager) -> Dict[str, Any]:
         "warnings": warnings,
         "fixable_issues": fixable_issues,
         "info": info,
-        "valid": len(errors) == 0
+        "valid": len(errors) == 0,
     }
 
 
-def _validate_complete_workspace(workspace_manager, container) -> Dict[str, Dict[str, Any]]:
+def _validate_complete_workspace(workspace_manager, container) -> dict[str, dict[str, Any]]:
     """Validate complete workspace setup."""
     results = {}
 
@@ -592,7 +575,7 @@ def _validate_complete_workspace(workspace_manager, container) -> Dict[str, Dict
     return results
 
 
-def _validate_cache_setup(cache_manager) -> Dict[str, Any]:
+def _validate_cache_setup(cache_manager) -> dict[str, Any]:
     """Validate cache manager setup."""
     errors = []
     warnings = []
@@ -611,11 +594,11 @@ def _validate_cache_setup(cache_manager) -> Dict[str, Any]:
         "warnings": warnings,
         "fixable_issues": fixable_issues,
         "info": info,
-        "valid": len(errors) == 0
+        "valid": len(errors) == 0,
     }
 
 
-def _validate_output_setup(output_manager) -> Dict[str, Any]:
+def _validate_output_setup(output_manager) -> dict[str, Any]:
     """Validate output manager setup."""
     errors = []
     warnings = []
@@ -624,7 +607,7 @@ def _validate_output_setup(output_manager) -> Dict[str, Any]:
 
     try:
         # Check output directory
-        output_dir = getattr(output_manager, 'output_dir', None)
+        output_dir = getattr(output_manager, "output_dir", None)
         if output_dir and Path(output_dir).exists():
             info.append(f"Output directory: {output_dir}")
         else:
@@ -637,11 +620,11 @@ def _validate_output_setup(output_manager) -> Dict[str, Any]:
         "warnings": warnings,
         "fixable_issues": fixable_issues,
         "info": info,
-        "valid": len(errors) == 0
+        "valid": len(errors) == 0,
     }
 
 
-def _validate_workspace_content(workspace_manager) -> Dict[str, Any]:
+def _validate_workspace_content(workspace_manager) -> dict[str, Any]:
     """Validate workspace content availability."""
     errors = []
     warnings = []
@@ -673,7 +656,7 @@ def _validate_workspace_content(workspace_manager) -> Dict[str, Any]:
         "warnings": warnings,
         "fixable_issues": fixable_issues,
         "info": info,
-        "valid": len(errors) == 0
+        "valid": len(errors) == 0,
     }
 
 
@@ -681,7 +664,8 @@ def _validate_workspace_content(workspace_manager) -> Dict[str, Any]:
 # FIX FUNCTIONS
 # ============================================================================
 
-def _apply_brief_fixes(brief_data: Dict[str, Any], fixable_issues: List[str]) -> Dict[str, Any]:
+
+def _apply_brief_fixes(brief_data: dict[str, Any], fixable_issues: list[str]) -> dict[str, Any]:
     """Apply automatic fixes to brief data."""
     fixed_data = brief_data.copy()
 
@@ -691,7 +675,7 @@ def _apply_brief_fixes(brief_data: Dict[str, Any], fixable_issues: List[str]) ->
     return fixed_data
 
 
-def _apply_config_fixes(workspace_manager, fixable_issues: List[str]) -> None:
+def _apply_config_fixes(workspace_manager, fixable_issues: list[str]) -> None:
     """Apply automatic fixes to workspace configuration."""
     workspace_path = workspace_manager.workspace_path
 
@@ -718,7 +702,9 @@ cache:
             config_file.write_text(config_content)
 
 
-def _apply_workspace_component_fixes(workspace_manager, component: str, fixable_issues: List[str]) -> None:
+def _apply_workspace_component_fixes(
+    workspace_manager, component: str, fixable_issues: list[str]
+) -> None:
     """Apply fixes for specific workspace components."""
     if component == "configuration":
         _apply_config_fixes(workspace_manager, fixable_issues)
@@ -729,7 +715,8 @@ def _apply_workspace_component_fixes(workspace_manager, component: str, fixable_
 # DISPLAY FUNCTIONS
 # ============================================================================
 
-def _display_brief_validation_results(result: Dict[str, Any], file_path: str):
+
+def _display_brief_validation_results(result: dict[str, Any], file_path: str):
     """Display brief validation results."""
     # Summary panel
     status = "✓ Valid" if result["valid"] else "✗ Invalid"
@@ -779,7 +766,7 @@ def _display_brief_validation_results(result: Dict[str, Any], file_path: str):
         console.print()
 
 
-def _display_brand_guide_validation_results(result: Dict[str, Any], file_path: str):
+def _display_brand_guide_validation_results(result: dict[str, Any], file_path: str):
     """Display brand guide validation results."""
     status = "✓ Valid" if result["valid"] else "✗ Invalid"
     status_color = "green" if result["valid"] else "red"
@@ -810,12 +797,18 @@ def _display_brand_guide_validation_results(result: Dict[str, Any], file_path: s
         console.print()
 
 
-def _display_config_validation_results(result: Dict[str, Any]):
+def _display_config_validation_results(result: dict[str, Any]):
     """Display configuration validation results."""
     status = "✓ Valid" if result["valid"] else "✗ Invalid"
     status_color = "green" if result["valid"] else "red"
 
-    console.print(Panel(f"[{status_color}]{status}[/{status_color}]", title="Configuration Validation", border_style="cyan"))
+    console.print(
+        Panel(
+            f"[{status_color}]{status}[/{status_color}]",
+            title="Configuration Validation",
+            border_style="cyan",
+        )
+    )
     console.print()
 
     if result["errors"]:
@@ -834,7 +827,7 @@ def _display_config_validation_results(result: Dict[str, Any]):
         console.print()
 
 
-def _display_workspace_validation_results(results: Dict[str, Dict[str, Any]]):
+def _display_workspace_validation_results(results: dict[str, dict[str, Any]]):
     """Display comprehensive workspace validation results."""
     # Overall status
     total_errors = sum(len(result.get("errors", [])) for result in results.values())

@@ -5,6 +5,7 @@ Creative Compositor - Aspect-ratio-aware product+scene composition
 Combines transparent product PNGs with scene backgrounds using smart positioning,
 hero-sized scaling (70-80%), and realistic drop shadows.
 """
+
 import logging
 
 from PIL import Image, ImageFilter
@@ -111,7 +112,7 @@ class CreativeCompositor:
 
         logger.info(
             f"✓ Composited {ratio} creative: product at ({position_x}, {position_y}), "
-            f"size {product_width}x{product_height} ({int(rules['product_scale']*100)}% scale)"
+            f"size {product_width}x{product_height} ({int(rules['product_scale'] * 100)}% scale)"
         )
 
         return final_result

@@ -1,60 +1,60 @@
 """
 Output utilities for rich terminal experience.
 
-GitHub spec-kit inspired output formatting with consistent styling,
+Provides consistent output formatting with rich styling,
 progress indicators, and professional visual hierarchy.
 """
-import sys
-from typing import Optional, Any, Dict
+
+from typing import Any
 
 from rich.console import Console
-from rich.theme import Theme
 from rich.highlighter import ReprHighlighter
-from rich.traceback import install as install_traceback
+from rich.layout import Layout
+from rich.panel import Panel
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    TextColumn,
-    BarColumn,
     TaskProgressColumn,
+    TextColumn,
     TimeElapsedColumn,
-    TimeRemainingColumn
+    TimeRemainingColumn,
 )
-from rich.panel import Panel
-from rich.table import Table
-from rich.tree import Tree
-from rich.text import Text
 from rich.status import Status
-from rich.live import Live
-from rich.layout import Layout
-
+from rich.table import Table
+from rich.text import Text
+from rich.theme import Theme
+from rich.traceback import install as install_traceback
+from rich.tree import Tree
 
 # Custom theme for creatimation
-CREATIMATION_THEME = Theme({
-    "primary": "cyan",
-    "secondary": "blue",
-    "success": "green",
-    "warning": "yellow",
-    "error": "red",
-    "info": "dim cyan",
-    "prompt": "magenta",
-    "highlight": "bold cyan",
-    "dim": "dim white",
-    "brand": "bold blue",
-    "code": "green",
-    "path": "blue",
-    "value": "green",
-    "key": "cyan",
-    "command": "bold cyan",
-    "option": "yellow",
-    "progress.description": "white",
-    "progress.percentage": "cyan",
-    "progress.download": "green",
-    "progress.filesize": "blue",
-    "bar.back": "grey23",
-    "bar.complete": "cyan",
-    "bar.finished": "green",
-})
+CREATIMATION_THEME = Theme(
+    {
+        "primary": "cyan",
+        "secondary": "blue",
+        "success": "green",
+        "warning": "yellow",
+        "error": "red",
+        "info": "dim cyan",
+        "prompt": "magenta",
+        "highlight": "bold cyan",
+        "dim": "dim white",
+        "brand": "bold blue",
+        "code": "green",
+        "path": "blue",
+        "value": "green",
+        "key": "cyan",
+        "command": "bold cyan",
+        "option": "yellow",
+        "progress.description": "white",
+        "progress.percentage": "cyan",
+        "progress.download": "green",
+        "progress.filesize": "blue",
+        "bar.back": "grey23",
+        "bar.complete": "cyan",
+        "bar.finished": "green",
+    }
+)
 
 
 # Global console instances
@@ -64,7 +64,7 @@ console = Console(
     force_terminal=None,
     soft_wrap=True,
     width=None,
-    stderr=False
+    stderr=False,
 )
 
 error_console = Console(
@@ -73,11 +73,11 @@ error_console = Console(
     force_terminal=None,
     soft_wrap=True,
     width=None,
-    stderr=True
+    stderr=True,
 )
 
 
-def setup_console(main_console: Optional[Console] = None):
+def setup_console(main_console: Console | None = None):
     """
     Setup console configuration and error handling.
 
@@ -91,8 +91,8 @@ def setup_console(main_console: Optional[Console] = None):
         suppress=[
             # Suppress common framework modules
             "click",
-            "rich"
-        ]
+            "rich",
+        ],
     )
 
     # Configure main console if provided
@@ -102,9 +102,7 @@ def setup_console(main_console: Optional[Console] = None):
 
 
 def create_progress_bar(
-    show_speed: bool = False,
-    show_time: bool = True,
-    show_percentage: bool = True
+    show_speed: bool = False, show_time: bool = True, show_percentage: bool = True
 ) -> Progress:
     """
     Create a standardized progress bar for operations.
@@ -123,16 +121,20 @@ def create_progress_bar(
     ]
 
     if show_percentage:
-        columns.extend([
-            BarColumn(),
-            TaskProgressColumn(),
-        ])
+        columns.extend(
+            [
+                BarColumn(),
+                TaskProgressColumn(),
+            ]
+        )
 
     if show_time:
-        columns.extend([
-            TimeElapsedColumn(),
-            TimeRemainingColumn(),
-        ])
+        columns.extend(
+            [
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+            ]
+        )
 
     if show_speed:
         columns.append(TextColumn("[progress.filesize]{task.fields[speed]}"))
@@ -156,15 +158,10 @@ def create_status_indicator(message: str, spinner: str = "dots") -> Status:
     Returns:
         Configured Status instance
     """
-    return Status(
-        message,
-        console=console,
-        spinner=spinner,
-        speed=1.0
-    )
+    return Status(message, console=console, spinner=spinner, speed=1.0)
 
 
-def print_header(title: str, subtitle: Optional[str] = None, style: str = "primary"):
+def print_header(title: str, subtitle: str | None = None, style: str = "primary"):
     """
     Print a formatted header with consistent styling.
 
@@ -184,7 +181,7 @@ def print_header(title: str, subtitle: Optional[str] = None, style: str = "prima
     console.print()
 
 
-def print_success(message: str, details: Optional[str] = None):
+def print_success(message: str, details: str | None = None):
     """
     Print a success message with consistent formatting.
 
@@ -197,7 +194,7 @@ def print_success(message: str, details: Optional[str] = None):
         console.print(f"[dim]{details}[/dim]")
 
 
-def print_error(message: str, details: Optional[str] = None):
+def print_error(message: str, details: str | None = None):
     """
     Print an error message with consistent formatting.
 
@@ -210,7 +207,7 @@ def print_error(message: str, details: Optional[str] = None):
         error_console.print(f"[dim]{details}[/dim]")
 
 
-def print_warning(message: str, details: Optional[str] = None):
+def print_warning(message: str, details: str | None = None):
     """
     Print a warning message with consistent formatting.
 
@@ -223,7 +220,7 @@ def print_warning(message: str, details: Optional[str] = None):
         console.print(f"[dim]{details}[/dim]")
 
 
-def print_info(message: str, details: Optional[str] = None):
+def print_info(message: str, details: str | None = None):
     """
     Print an info message with consistent formatting.
 
@@ -237,10 +234,10 @@ def print_info(message: str, details: Optional[str] = None):
 
 
 def create_table(
-    title: Optional[str] = None,
-    headers: Optional[list] = None,
+    title: str | None = None,
+    headers: list | None = None,
     show_header: bool = True,
-    show_lines: bool = False
+    show_lines: bool = False,
 ) -> Table:
     """
     Create a standardized table with consistent styling.
@@ -258,8 +255,8 @@ def create_table(
         title=title,
         show_header=show_header,
         show_lines=show_lines,
-        header_style="bold primary",
-        title_style="bold secondary"
+        header_style="bold cyan",
+        title_style="bold blue",
     )
 
     if headers:
@@ -269,11 +266,7 @@ def create_table(
     return table
 
 
-def create_info_panel(
-    content: str,
-    title: Optional[str] = None,
-    style: str = "primary"
-) -> Panel:
+def create_info_panel(content: str, title: str | None = None, style: str = "primary") -> Panel:
     """
     Create an information panel with consistent styling.
 
@@ -285,12 +278,7 @@ def create_info_panel(
     Returns:
         Configured Panel instance
     """
-    return Panel(
-        content,
-        title=title,
-        border_style=style,
-        padding=(1, 2)
-    )
+    return Panel(content, title=title, border_style=style, padding=(1, 2))
 
 
 def create_tree(root_label: str) -> Tree:
@@ -303,11 +291,7 @@ def create_tree(root_label: str) -> Tree:
     Returns:
         Configured Tree instance
     """
-    return Tree(
-        root_label,
-        style="primary",
-        guide_style="dim"
-    )
+    return Tree(root_label, style="primary", guide_style="dim")
 
 
 def format_size(size_bytes: int) -> str:
@@ -323,7 +307,7 @@ def format_size(size_bytes: int) -> str:
     if size_bytes == 0:
         return "0 B"
 
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size_bytes < 1024.0:
             return f"{size_bytes:.1f} {unit}"
         size_bytes /= 1024.0
@@ -371,7 +355,7 @@ def format_percentage(value: float, total: float) -> str:
     return f"{percentage:.1f}%"
 
 
-def create_command_help_table(commands: Dict[str, Dict[str, str]]) -> Table:
+def create_command_help_table(commands: dict[str, dict[str, str]]) -> Table:
     """
     Create a help table for commands.
 
@@ -382,21 +366,18 @@ def create_command_help_table(commands: Dict[str, Dict[str, str]]) -> Table:
         Formatted help table
     """
     table = create_table(
-        title="Available Commands",
-        headers=["Command", "Description"],
-        show_lines=True
+        title="Available Commands", headers=["Command", "Description"], show_lines=True
     )
 
     for command, info in commands.items():
         table.add_row(
-            f"[command]{command}[/command]",
-            info.get("description", "No description available")
+            f"[command]{command}[/command]", info.get("description", "No description available")
         )
 
     return table
 
 
-def create_config_table(config_data: Dict[str, Any]) -> Table:
+def create_config_table(config_data: dict[str, Any]) -> Table:
     """
     Create a table for configuration display.
 
@@ -406,13 +387,9 @@ def create_config_table(config_data: Dict[str, Any]) -> Table:
     Returns:
         Formatted configuration table
     """
-    table = create_table(
-        title="Configuration",
-        headers=["Setting", "Value"],
-        show_lines=False
-    )
+    table = create_table(title="Configuration", headers=["Setting", "Value"], show_lines=False)
 
-    def add_config_rows(data: Dict[str, Any], prefix: str = ""):
+    def add_config_rows(data: dict[str, Any], prefix: str = ""):
         for key, value in data.items():
             if isinstance(value, dict):
                 add_config_rows(value, f"{prefix}{key}.")
@@ -425,7 +402,7 @@ def create_config_table(config_data: Dict[str, Any]) -> Table:
     return table
 
 
-def create_status_table(items: Dict[str, str]) -> Table:
+def create_status_table(items: dict[str, str]) -> Table:
     """
     Create a status table with icons.
 
@@ -435,18 +412,14 @@ def create_status_table(items: Dict[str, str]) -> Table:
     Returns:
         Formatted status table
     """
-    table = create_table(
-        title="Status",
-        headers=["Component", "Status"],
-        show_header=True
-    )
+    table = create_table(title="Status", headers=["Component", "Status"], show_header=True)
 
     status_icons = {
         "ok": "[success]✓[/success]",
         "error": "[error]✗[/error]",
         "warning": "[warning]⚠[/warning]",
         "info": "[info]ℹ[/info]",
-        "unknown": "[dim]?[/dim]"
+        "unknown": "[dim]?[/dim]",
     }
 
     for item, status in items.items():
@@ -459,7 +432,7 @@ def create_status_table(items: Dict[str, str]) -> Table:
 def print_welcome_banner(
     app_name: str = "Creatimation",
     version: str = "2.0",
-    subtitle: str = "Creative Automation Pipeline"
+    subtitle: str = "Creative Automation Pipeline",
 ):
     """
     Print a welcome banner for the application.
@@ -482,9 +455,9 @@ def print_welcome_banner(
     panel = Panel(
         welcome_text,
         title="Welcome",
-        subtitle="GitHub spec-kit inspired",
+        subtitle="Creative Automation",
         border_style="primary",
-        padding=(1, 2)
+        padding=(1, 2),
     )
 
     console.print(panel)
@@ -501,15 +474,10 @@ def create_dashboard_layout() -> Layout:
     layout = Layout()
 
     layout.split_column(
-        Layout(name="header", size=3),
-        Layout(name="main"),
-        Layout(name="footer", size=3)
+        Layout(name="header", size=3), Layout(name="main"), Layout(name="footer", size=3)
     )
 
-    layout["main"].split_row(
-        Layout(name="left"),
-        Layout(name="right")
-    )
+    layout["main"].split_row(Layout(name="left"), Layout(name="right"))
 
     return layout
 
@@ -553,7 +521,7 @@ class ProgressTracker:
         if self.progress:
             self.progress.__exit__(exc_type, exc_val, exc_tb)
 
-    def step(self, message: Optional[str] = None):
+    def step(self, message: str | None = None):
         """Advance to the next step."""
         self.current_step += 1
         if self.progress and self.task:
@@ -593,5 +561,5 @@ __all__ = [
     "print_welcome_banner",
     "create_dashboard_layout",
     "with_spinner",
-    "ProgressTracker"
+    "ProgressTracker",
 ]

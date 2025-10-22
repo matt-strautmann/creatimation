@@ -4,11 +4,12 @@ Unified Output Manager for Creative Automation Pipeline.
 Consolidates all output management functionality into a single,
 well-designed class that handles both basic and enhanced output operations.
 """
+
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from PIL import Image
 
@@ -51,10 +52,10 @@ class UnifiedOutputManager(OutputManagerInterface):
         image: Image.Image,
         product_name: str,
         ratio: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         template: str,
         region: str,
-        variant_id: Optional[str] = None
+        variant_id: str | None = None,
     ) -> str:
         """Save creative with appropriate structure and metadata."""
         if self.use_semantic_structure:
@@ -66,13 +67,7 @@ class UnifiedOutputManager(OutputManagerInterface):
                 image, product_name, ratio, metadata, template, region, variant_id
             )
 
-    def get_output_path(
-        self,
-        product_name: str,
-        template: str,
-        region: str,
-        ratio: str
-    ) -> Path:
+    def get_output_path(self, product_name: str, template: str, region: str, ratio: str) -> Path:
         """Get standardized output path."""
         product_slug = self._slugify(product_name)
         template_slug = self._slugify(template)
@@ -95,10 +90,10 @@ class UnifiedOutputManager(OutputManagerInterface):
         image: Image.Image,
         product_name: str,
         ratio: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         template: str,
         region: str,
-        variant_id: Optional[str] = None
+        variant_id: str | None = None,
     ) -> str:
         """Save creative using semantic folder structure."""
         campaign_id = metadata.get("campaign_id", "default_campaign")
@@ -124,16 +119,18 @@ class UnifiedOutputManager(OutputManagerInterface):
         self._save_semantic_metadata(output_path, metadata, filename, variant_id)
 
         file_size = image_path.stat().st_size
-        logger.info(f"💾 Saved semantic creative: {filename} ({file_size:,} bytes) -> {output_path}")
+        logger.info(
+            f"💾 Saved semantic creative: {filename} ({file_size:,} bytes) -> {output_path}"
+        )
 
         return str(image_path)
 
     def _save_semantic_metadata(
         self,
         output_path: Path,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         filename: str,
-        variant_id: Optional[str] = None
+        variant_id: str | None = None,
     ) -> None:
         """Save metadata with semantic naming."""
         # Include variant_id in metadata filename to prevent overwriting
@@ -150,14 +147,14 @@ class UnifiedOutputManager(OutputManagerInterface):
             "output_filename": filename,
             "output_directory": str(output_path),
             "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "output_structure": "semantic"
+            "output_structure": "semantic",
         }
 
         # Save metadata
         try:
-            with open(metadata_path, 'w') as f:
+            with open(metadata_path, "w") as f:
                 json.dump(enhanced_metadata, f, indent=2)
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save metadata: {e}")
 
     # ========================================================================
@@ -169,10 +166,10 @@ class UnifiedOutputManager(OutputManagerInterface):
         image: Image.Image,
         product_name: str,
         ratio: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         template: str,
         region: str,
-        variant_id: Optional[str] = None
+        variant_id: str | None = None,
     ) -> str:
         """Save creative using basic folder structure."""
         product_slug = self._slugify(product_name)
@@ -185,7 +182,9 @@ class UnifiedOutputManager(OutputManagerInterface):
 
         # Generate basic filename
         if variant_id:
-            filename = f"{product_slug}_{template_slug}_{region_slug}_{ratio}_{variant_id}_creative.jpg"
+            filename = (
+                f"{product_slug}_{template_slug}_{region_slug}_{ratio}_{variant_id}_creative.jpg"
+            )
         else:
             filename = f"{product_slug}_{template_slug}_{region_slug}_{ratio}_creative.jpg"
 
@@ -213,9 +212,9 @@ class UnifiedOutputManager(OutputManagerInterface):
     def _save_basic_metadata(
         self,
         creative_dir: Path,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         filename: str,
-        variant_id: Optional[str] = None
+        variant_id: str | None = None,
     ) -> None:
         """Save metadata with basic naming."""
         # Include variant_id in metadata filename to prevent overwriting
@@ -232,14 +231,14 @@ class UnifiedOutputManager(OutputManagerInterface):
             "output_filename": filename,
             "output_directory": str(creative_dir),
             "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "output_structure": "basic"
+            "output_structure": "basic",
         }
 
         # Save metadata
         try:
-            with open(metadata_path, 'w') as f:
+            with open(metadata_path, "w") as f:
                 json.dump(enhanced_metadata, f, indent=2)
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save metadata: {e}")
 
     # ========================================================================
@@ -250,9 +249,9 @@ class UnifiedOutputManager(OutputManagerInterface):
         self,
         image: Image.Image,
         asset_type: str,
-        product_name: Optional[str] = None,
-        category: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        product_name: str | None = None,
+        category: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Save asset to library for cross-campaign reuse."""
         if not self.use_semantic_structure:
@@ -266,10 +265,7 @@ class UnifiedOutputManager(OutputManagerInterface):
             raise ValueError(f"Unsupported asset type: {asset_type}")
 
     def _save_library_product(
-        self,
-        image: Image.Image,
-        product_name: str,
-        metadata: Optional[Dict[str, Any]] = None
+        self, image: Image.Image, product_name: str, metadata: dict[str, Any] | None = None
     ) -> str:
         """Save product to library."""
         product_slug = self._slugify(product_name)
@@ -285,17 +281,14 @@ class UnifiedOutputManager(OutputManagerInterface):
         # Save metadata
         if metadata:
             metadata_path = product_dir / "metadata.json"
-            with open(metadata_path, 'w') as f:
+            with open(metadata_path, "w") as f:
                 json.dump(metadata, f, indent=2)
 
         logger.info(f"💾 Saved library product: {filename}")
         return str(image_path)
 
     def _save_library_background(
-        self,
-        image: Image.Image,
-        category: Optional[str],
-        metadata: Optional[Dict[str, Any]] = None
+        self, image: Image.Image, category: str | None, metadata: dict[str, Any] | None = None
     ) -> str:
         """Save background to library."""
         if category:
@@ -315,7 +308,7 @@ class UnifiedOutputManager(OutputManagerInterface):
         # Save metadata
         if metadata:
             metadata_path = bg_dir / f"metadata_{timestamp}.json"
-            with open(metadata_path, 'w') as f:
+            with open(metadata_path, "w") as f:
                 json.dump(metadata, f, indent=2)
 
         logger.info(f"💾 Saved library background: {filename}")
@@ -325,7 +318,7 @@ class UnifiedOutputManager(OutputManagerInterface):
     # STATISTICS AND UTILITIES
     # ========================================================================
 
-    def get_output_stats(self) -> Dict[str, Any]:
+    def get_output_stats(self) -> dict[str, Any]:
         """Get comprehensive output statistics."""
         total_files = 0
         total_size = 0
@@ -344,7 +337,7 @@ class UnifiedOutputManager(OutputManagerInterface):
             "total_size_mb": round(total_size / (1024 * 1024), 2),
             "file_types": file_types,
             "output_directory": str(self.output_dir),
-            "semantic_structure": self.use_semantic_structure
+            "semantic_structure": self.use_semantic_structure,
         }
 
     def cleanup_empty_directories(self) -> int:

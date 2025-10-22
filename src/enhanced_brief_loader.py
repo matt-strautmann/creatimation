@@ -28,11 +28,21 @@ class EnhancedBriefLoader:
     while preserving all enhanced metadata for context-rich generation.
     """
 
-    def __init__(self):
+    def __init__(self, cache_manager=None):
         self.product_contexts = self._load_product_contexts()
         self.regional_aesthetics = self._load_regional_aesthetics()
-        self.cache_manager = CacheManager()
+        self.cache_manager = cache_manager or CacheManager()
         self.brand_guidelines = self._load_brand_guidelines_index()
+
+    def load_brief(self, brief_path: str) -> dict[str, Any]:
+        """Load brief - interface method that delegates to enhanced version."""
+        return self.load_and_enhance_brief(brief_path)
+
+    def validate_brief(self, brief: dict[str, Any]) -> bool:
+        """Validate brief structure and content."""
+        # Basic validation - check for required fields
+        required_fields = ["products", "campaign_id"]
+        return all(field in brief for field in required_fields)
 
     def load_and_enhance_brief(self, brief_path: str) -> dict[str, Any]:
         """
@@ -182,7 +192,9 @@ class EnhancedBriefLoader:
         enhanced_contexts = []
         for product in products:
             # Handle both string and dict products
-            product_name = product if isinstance(product, str) else product.get("name", str(product))
+            product_name = (
+                product if isinstance(product, str) else product.get("name", str(product))
+            )
             product_category = self._infer_product_category(product_name)
             context = self._generate_product_context(product_category, region)
             enhanced_contexts.append(context)
@@ -245,7 +257,9 @@ class EnhancedBriefLoader:
 
         for product in products:
             # Handle both string and dict products
-            product_name = product if isinstance(product, str) else product.get("name", str(product))
+            product_name = (
+                product if isinstance(product, str) else product.get("name", str(product))
+            )
 
             # Look up product in cache registry
             cached_product = self.cache_manager.lookup_product(product_name)
@@ -347,7 +361,7 @@ class EnhancedBriefLoader:
                 with open(index_path) as f:
                     return json.load(f)
             else:
-                logger.warning("Brand guidelines index not found, using empty index")
+                logger.debug("Brand guidelines index not found, using empty index")
                 return {"registered_brands": {}}
         except Exception as e:
             logger.error(f"Failed to load brand guidelines index: {e}")

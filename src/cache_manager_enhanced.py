@@ -7,11 +7,10 @@ Extends the semantic cache manager to work with the optimized local folder struc
 - Library asset reuse for cross-campaign optimization
 - Path construction for optimized structure
 """
-import os
-from pathlib import Path
-from typing import List, Optional
 
-from cache_manager import CacheManager, SemanticMetadata, AssetType, Season, ProductCategory
+from pathlib import Path
+
+from cache_manager import AssetType, CacheManager, ProductCategory, Season, SemanticMetadata
 
 
 class EnhancedCacheManager(CacheManager):
@@ -41,9 +40,9 @@ class EnhancedCacheManager(CacheManager):
     def construct_optimized_path(
         self,
         semantic_metadata: SemanticMetadata,
-        campaign_id: Optional[str] = None,
+        campaign_id: str | None = None,
         region: str = "us",
-        filename: str = "asset.jpg"
+        filename: str = "asset.jpg",
     ) -> str:
         """
         Construct path using optimized folder structure.
@@ -63,15 +62,36 @@ class EnhancedCacheManager(CacheManager):
 
             if semantic_metadata.asset_type == AssetType.PRODUCT_TRANSPARENT:
                 product_slug = self._slugify(semantic_metadata.product_name or "product")
-                return str(self.campaigns_dir / campaign_slug / "products" / product_slug / "transparent" / filename)
+                return str(
+                    self.campaigns_dir
+                    / campaign_slug
+                    / "products"
+                    / product_slug
+                    / "transparent"
+                    / filename
+                )
 
             elif semantic_metadata.asset_type == AssetType.SCENE_BACKGROUND:
                 aspect_ratio = semantic_metadata.aspect_ratio or "1x1"
-                return str(self.campaigns_dir / campaign_slug / "backgrounds" / region / aspect_ratio / filename)
+                return str(
+                    self.campaigns_dir
+                    / campaign_slug
+                    / "backgrounds"
+                    / region
+                    / aspect_ratio
+                    / filename
+                )
 
             elif semantic_metadata.asset_type == AssetType.COMPOSITE:
                 aspect_ratio = semantic_metadata.aspect_ratio or "1x1"
-                return str(self.campaigns_dir / campaign_slug / "outputs" / region / aspect_ratio / filename)
+                return str(
+                    self.campaigns_dir
+                    / campaign_slug
+                    / "outputs"
+                    / region
+                    / aspect_ratio
+                    / filename
+                )
 
         else:
             # Library asset for reuse
@@ -85,20 +105,40 @@ class EnhancedCacheManager(CacheManager):
                 if semantic_metadata.season and semantic_metadata.season != Season.NONE:
                     # Seasonal background
                     season = semantic_metadata.season.value
-                    return str(self.library_dir / "backgrounds" / "seasonal" / season / region / aspect_ratio / filename)
+                    return str(
+                        self.library_dir
+                        / "backgrounds"
+                        / "seasonal"
+                        / season
+                        / region
+                        / aspect_ratio
+                        / filename
+                    )
 
                 elif semantic_metadata.product_category:
                     # Category-specific background
                     category = semantic_metadata.product_category.value
-                    return str(self.library_dir / "backgrounds" / "category" / category / region / aspect_ratio / filename)
+                    return str(
+                        self.library_dir
+                        / "backgrounds"
+                        / "category"
+                        / category
+                        / region
+                        / aspect_ratio
+                        / filename
+                    )
 
                 else:
                     # Neutral background
-                    return str(self.library_dir / "backgrounds" / "neutral" / aspect_ratio / filename)
+                    return str(
+                        self.library_dir / "backgrounds" / "neutral" / aspect_ratio / filename
+                    )
 
-        raise ValueError(f"Cannot construct optimized path for asset type: {semantic_metadata.asset_type}")
+        raise ValueError(
+            f"Cannot construct optimized path for asset type: {semantic_metadata.asset_type}"
+        )
 
-    def discover_library_products(self, product_name: Optional[str] = None) -> List[dict]:
+    def discover_library_products(self, product_name: str | None = None) -> list[dict]:
         """
         Discover available product assets in library for reuse.
 
@@ -126,37 +166,41 @@ class EnhancedCacheManager(CacheManager):
             transparent_dir = product_dir / "transparent"
             if transparent_dir.exists():
                 for asset_file in transparent_dir.glob("*.png"):
-                    if asset_file.name != 'metadata.json':
-                        available_products.append({
-                            "product_slug": product_dir.name,
-                            "asset_type": "transparent",
-                            "path": str(asset_file),
-                            "filename": asset_file.name,
-                            "size_bytes": asset_file.stat().st_size
-                        })
+                    if asset_file.name != "metadata.json":
+                        available_products.append(
+                            {
+                                "product_slug": product_dir.name,
+                                "asset_type": "transparent",
+                                "path": str(asset_file),
+                                "filename": asset_file.name,
+                                "size_bytes": asset_file.stat().st_size,
+                            }
+                        )
 
             # Check for source assets
             source_dir = product_dir / "source"
             if source_dir.exists():
                 for asset_file in source_dir.glob("*.jpg"):
-                    if asset_file.name != 'metadata.json':
-                        available_products.append({
-                            "product_slug": product_dir.name,
-                            "asset_type": "source",
-                            "path": str(asset_file),
-                            "filename": asset_file.name,
-                            "size_bytes": asset_file.stat().st_size
-                        })
+                    if asset_file.name != "metadata.json":
+                        available_products.append(
+                            {
+                                "product_slug": product_dir.name,
+                                "asset_type": "source",
+                                "path": str(asset_file),
+                                "filename": asset_file.name,
+                                "size_bytes": asset_file.stat().st_size,
+                            }
+                        )
 
         return available_products
 
     def discover_library_backgrounds(
         self,
-        product_category: Optional[ProductCategory] = None,
+        product_category: ProductCategory | None = None,
         region: str = "us",
-        season: Optional[Season] = None,
-        aspect_ratio: str = "1x1"
-    ) -> List[dict]:
+        season: Season | None = None,
+        aspect_ratio: str = "1x1",
+    ) -> list[dict]:
         """
         Discover available background assets in library for reuse.
 
@@ -183,7 +227,9 @@ class EnhancedCacheManager(CacheManager):
 
         # 2. Category-specific backgrounds (if category specified)
         if product_category:
-            category_path = backgrounds_dir / "category" / product_category.value / region / aspect_ratio
+            category_path = (
+                backgrounds_dir / "category" / product_category.value / region / aspect_ratio
+            )
             search_paths.append(("category", category_path, product_category.value))
 
         # 3. Neutral backgrounds (always check as fallback)
@@ -193,16 +239,18 @@ class EnhancedCacheManager(CacheManager):
         for category_type, path, category_value in search_paths:
             if path.exists():
                 for bg_file in path.glob("*.jpg"):
-                    if bg_file.name != 'metadata.json':
-                        available_backgrounds.append({
-                            "category_type": category_type,
-                            "category_value": category_value,
-                            "region": region,
-                            "aspect_ratio": aspect_ratio,
-                            "path": str(bg_file),
-                            "filename": bg_file.name,
-                            "size_bytes": bg_file.stat().st_size
-                        })
+                    if bg_file.name != "metadata.json":
+                        available_backgrounds.append(
+                            {
+                                "category_type": category_type,
+                                "category_value": category_value,
+                                "region": region,
+                                "aspect_ratio": aspect_ratio,
+                                "path": str(bg_file),
+                                "filename": bg_file.name,
+                                "size_bytes": bg_file.stat().st_size,
+                            }
+                        )
 
         return available_backgrounds
 
@@ -210,8 +258,8 @@ class EnhancedCacheManager(CacheManager):
         self,
         file_path: str,
         semantic_metadata: SemanticMetadata,
-        campaign_id: Optional[str] = None,
-        is_library_asset: bool = False
+        campaign_id: str | None = None,
+        is_library_asset: bool = False,
     ) -> str:
         """
         Register asset in both cache and optimized folder structure.
@@ -233,7 +281,7 @@ class EnhancedCacheManager(CacheManager):
             cache_key=cache_key,
             file_path=file_path,
             metadata=semantic_metadata,
-            campaign_id=campaign_id
+            campaign_id=campaign_id,
         )
 
         # If it's a library asset, also track for cross-campaign reuse
@@ -245,9 +293,9 @@ class EnhancedCacheManager(CacheManager):
     def get_reusable_asset(
         self,
         semantic_metadata: SemanticMetadata,
-        campaign_id: Optional[str] = None,
-        region: str = "us"
-    ) -> Optional[dict]:
+        campaign_id: str | None = None,
+        region: str = "us",
+    ) -> dict | None:
         """
         Find reusable asset from library or cache based on semantic matching.
 
@@ -266,17 +314,17 @@ class EnhancedCacheManager(CacheManager):
             region=region,
             season=semantic_metadata.season,
             visual_style=semantic_metadata.visual_style,
-            aspect_ratio=semantic_metadata.aspect_ratio
+            aspect_ratio=semantic_metadata.aspect_ratio,
         )
 
         if matches:
             # Return best match from cache
-            best_match = max(matches, key=lambda x: x.get('similarity_score', 0))
+            best_match = max(matches, key=lambda x: x.get("similarity_score", 0))
             return {
-                "cache_key": best_match['cache_key'],
-                "file_path": best_match['file_path'],
+                "cache_key": best_match["cache_key"],
+                "file_path": best_match["file_path"],
                 "source": "cache",
-                "similarity_score": best_match.get('similarity_score', 0)
+                "similarity_score": best_match.get("similarity_score", 0),
             }
 
         # If no cache match, try library discovery
@@ -284,9 +332,9 @@ class EnhancedCacheManager(CacheManager):
             library_products = self.discover_library_products(semantic_metadata.product_name)
             if library_products:
                 return {
-                    "file_path": library_products[0]['path'],
+                    "file_path": library_products[0]["path"],
                     "source": "library",
-                    "asset_type": "product_transparent"
+                    "asset_type": "product_transparent",
                 }
 
         elif semantic_metadata.asset_type == AssetType.SCENE_BACKGROUND:
@@ -294,13 +342,13 @@ class EnhancedCacheManager(CacheManager):
                 product_category=semantic_metadata.product_category,
                 region=region,
                 season=semantic_metadata.season,
-                aspect_ratio=semantic_metadata.aspect_ratio
+                aspect_ratio=semantic_metadata.aspect_ratio,
             )
             if library_backgrounds:
                 return {
-                    "file_path": library_backgrounds[0]['path'],
+                    "file_path": library_backgrounds[0]["path"],
                     "source": "library",
-                    "asset_type": "scene_background"
+                    "asset_type": "scene_background",
                 }
 
         return None
@@ -313,10 +361,12 @@ class EnhancedCacheManager(CacheManager):
         self.index["library_index"][cache_key] = {
             "file_path": file_path,
             "asset_type": metadata.asset_type.value,
-            "product_category": metadata.product_category.value if metadata.product_category else None,
+            "product_category": metadata.product_category.value
+            if metadata.product_category
+            else None,
             "season": metadata.season.value if metadata.season else None,
             "region": metadata.region,
-            "added_at": self._get_timestamp()
+            "added_at": self._get_timestamp(),
         }
         self._save_index()
 
@@ -331,7 +381,7 @@ class EnhancedCacheManager(CacheManager):
             "total_products": 0,
             "total_backgrounds": 0,
             "reuse_potential": 0,
-            "disk_usage_mb": 0
+            "disk_usage_mb": 0,
         }
 
         # Count library products
@@ -341,7 +391,7 @@ class EnhancedCacheManager(CacheManager):
                 if product_dir.is_dir():
                     stats["total_products"] += 1
                     for asset_file in product_dir.rglob("*"):
-                        if asset_file.is_file() and asset_file.suffix.lower() in ['.jpg', '.png']:
+                        if asset_file.is_file() and asset_file.suffix.lower() in [".jpg", ".png"]:
                             stats["disk_usage_mb"] += asset_file.stat().st_size / (1024 * 1024)
 
         # Count library backgrounds
@@ -384,8 +434,12 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     parser = argparse.ArgumentParser(description="Enhanced cache manager with optimized structure")
-    parser.add_argument("--discover-products", action="store_true", help="Discover library products")
-    parser.add_argument("--discover-backgrounds", action="store_true", help="Discover library backgrounds")
+    parser.add_argument(
+        "--discover-products", action="store_true", help="Discover library products"
+    )
+    parser.add_argument(
+        "--discover-backgrounds", action="store_true", help="Discover library backgrounds"
+    )
     parser.add_argument("--library-stats", action="store_true", help="Show library statistics")
     parser.add_argument("--product-name", help="Filter products by name")
     parser.add_argument("--region", default="us", help="Target region")
@@ -401,16 +455,19 @@ if __name__ == "__main__":
         products = manager.discover_library_products(args.product_name)
         print(f"\n📦 Library Products: {len(products)} found")
         for product in products[:10]:  # Show first 10
-            print(f"  {product['product_slug']}: {product['asset_type']} ({product['size_bytes']:,} bytes)")
+            print(
+                f"  {product['product_slug']}: {product['asset_type']} ({product['size_bytes']:,} bytes)"
+            )
 
     elif args.discover_backgrounds:
         backgrounds = manager.discover_library_backgrounds(
-            region=args.region,
-            aspect_ratio=args.aspect_ratio
+            region=args.region, aspect_ratio=args.aspect_ratio
         )
         print(f"\n🌅 Library Backgrounds: {len(backgrounds)} found")
         for bg in backgrounds[:10]:  # Show first 10
-            print(f"  {bg['category_type']}/{bg['category_value']}: {bg['filename']} ({bg['size_bytes']:,} bytes)")
+            print(
+                f"  {bg['category_type']}/{bg['category_value']}: {bg['filename']} ({bg['size_bytes']:,} bytes)"
+            )
 
     elif args.library_stats:
         stats = manager.get_library_stats()

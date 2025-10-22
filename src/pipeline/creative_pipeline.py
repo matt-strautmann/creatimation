@@ -4,32 +4,33 @@ Refactored Creative Pipeline with Dependency Injection.
 This module contains the main pipeline orchestrator that follows SOLID principles
 and uses dependency injection for better testability and maintainability.
 """
+
 import logging
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 from PIL import Image
 
 try:
     from ..core.interfaces import (
-        CacheManagerInterface,
-        OutputManagerInterface,
-        ImageGeneratorInterface,
-        BriefLoaderInterface,
         BrandGuideLoaderInterface,
-        StateTrackerInterface
+        BriefLoaderInterface,
+        CacheManagerInterface,
+        ImageGeneratorInterface,
+        OutputManagerInterface,
+        StateTrackerInterface,
     )
     from ..core.models import CampaignBrief, CreativeSpec, GenerationResult, PipelineState
 except ImportError:
     # Fallback for direct execution
     from src.core.interfaces import (
-        CacheManagerInterface,
-        OutputManagerInterface,
-        ImageGeneratorInterface,
-        BriefLoaderInterface,
         BrandGuideLoaderInterface,
-        StateTrackerInterface
+        BriefLoaderInterface,
+        CacheManagerInterface,
+        ImageGeneratorInterface,
+        OutputManagerInterface,
+        StateTrackerInterface,
     )
     from src.core.models import CampaignBrief, CreativeSpec, GenerationResult, PipelineState
 
@@ -53,7 +54,7 @@ class CreativePipeline:
         brand_guide_loader: BrandGuideLoaderInterface,
         state_tracker: StateTrackerInterface,
         no_cache: bool = False,
-        dry_run: bool = False
+        dry_run: bool = False,
     ):
         """Initialize pipeline with injected dependencies."""
         self.cache_manager = cache_manager
@@ -72,11 +73,8 @@ class CreativePipeline:
         logger.info("🚀 CreativePipeline initialized with dependency injection")
 
     def process_campaign(
-        self,
-        brief_path: str,
-        brand_guide_path: Optional[str] = None,
-        resume: bool = False
-    ) -> Dict[str, Any]:
+        self, brief_path: str, brand_guide_path: str | None = None, resume: bool = False
+    ) -> dict[str, Any]:
         """
         Process a complete campaign brief.
 
@@ -103,9 +101,9 @@ class CreativePipeline:
         if self.dry_run:
             return self._dry_run_preview(campaign_brief, pipeline_state)
 
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"CAMPAIGN: {campaign_brief.campaign_id}")
-        logger.info(f"{'='*60}")
+        logger.info(f"{'=' * 60}")
 
         # Process campaign
         try:
@@ -127,10 +125,10 @@ class CreativePipeline:
     def _process_campaign_products(
         self,
         campaign_brief: CampaignBrief,
-        brand_guide: Optional[Dict[str, Any]],
+        brand_guide: dict[str, Any] | None,
         pipeline_state: PipelineState,
-        resume: bool
-    ) -> Dict[str, Any]:
+        resume: bool,
+    ) -> dict[str, Any]:
         """Process all products in the campaign."""
         results = {
             "campaign_id": campaign_brief.campaign_id,
@@ -178,9 +176,9 @@ class CreativePipeline:
         self,
         product: Any,
         campaign_brief: CampaignBrief,
-        brand_guide: Optional[Dict[str, Any]],
-        pipeline_state: PipelineState
-    ) -> Dict[str, Any]:
+        brand_guide: dict[str, Any] | None,
+        pipeline_state: PipelineState,
+    ) -> dict[str, Any]:
         """Process a single product across all regions and variants."""
         product_name = self._extract_product_name(product)
         product_slug = self._slugify(product_name)
@@ -202,8 +200,12 @@ class CreativePipeline:
 
         product_results = {
             "creatives_generated": 0,
-            "cache_hits": 1 if self._is_cache_hit(product_name) or self._has_provided_image(product) else 0,
-            "cache_misses": 0 if self._is_cache_hit(product_name) or self._has_provided_image(product) else 1
+            "cache_hits": 1
+            if self._is_cache_hit(product_name) or self._has_provided_image(product)
+            else 0,
+            "cache_misses": 0
+            if self._is_cache_hit(product_name) or self._has_provided_image(product)
+            else 1,
         }
 
         # Step 2: Generate variants for all regions
@@ -230,12 +232,14 @@ class CreativePipeline:
                         aspect_ratio=ratio,
                         region=region,
                         variant_type=variant_type,
-                        template=campaign_brief.enhanced_context.get("layout_style", "hero-product"),
+                        template=campaign_brief.enhanced_context.get(
+                            "layout_style", "hero-product"
+                        ),
                         theme=variant_themes.get(variant_type),
                         color_scheme=self._apply_color_rules(
                             base_color_scheme, variant_type, variant_color_rules, brand_guide
                         ),
-                        scene_description=scene_description
+                        scene_description=scene_description,
                     )
 
                     # Generate creative
@@ -256,7 +260,7 @@ class CreativePipeline:
         spec: CreativeSpec,
         product_image: Image.Image,
         campaign_brief: CampaignBrief,
-        brand_guide: Optional[Dict[str, Any]]
+        brand_guide: dict[str, Any] | None,
     ) -> GenerationResult:
         """Generate a single creative asset."""
         try:
@@ -273,7 +277,7 @@ class CreativePipeline:
                 region=spec.region,
                 variant_id=spec.variant_type,
                 product_image=product_image,
-                brand_guide=brand_guide
+                brand_guide=brand_guide,
             )
 
             # Build metadata
@@ -299,7 +303,7 @@ class CreativePipeline:
                 metadata,
                 spec.template,
                 spec.region,
-                variant_id=spec.variant_type
+                variant_id=spec.variant_type,
             )
 
             processing_time = time.time() - start_time
@@ -308,14 +312,11 @@ class CreativePipeline:
                 success=True,
                 output_path=output_path,
                 metadata=metadata,
-                processing_time=processing_time
+                processing_time=processing_time,
             )
 
         except Exception as e:
-            return GenerationResult(
-                success=False,
-                error_message=str(e)
-            )
+            return GenerationResult(success=False, error_message=str(e))
 
     def _get_or_generate_product_image(self, product: Any, product_slug: str) -> Image.Image:
         """
@@ -328,7 +329,9 @@ class CreativePipeline:
 
         # 🎯 STEP 1: Check if brief provides product image (HIGHEST PRIORITY)
         if isinstance(product, dict):
-            product_image_path = product.get("image") or product.get("image_path") or product.get("product_image")
+            product_image_path = (
+                product.get("image") or product.get("image_path") or product.get("product_image")
+            )
             if product_image_path:
                 try:
                     image_path = Path(product_image_path)
@@ -365,7 +368,7 @@ class CreativePipeline:
         logger.info(f"   🎨 Generating product image: {product_name}")
         product_image = self.image_generator.generate_product_only(
             product_name=product_name,
-            aspect_ratio="1x1"  # Standard square for products
+            aspect_ratio="1x1",  # Standard square for products
         )
 
         # Save to cache for future efficiency
@@ -391,7 +394,7 @@ class CreativePipeline:
             cache_hits=0,
             cache_misses=0,
             errors=[],
-            start_time=time.strftime("%Y-%m-%d %H:%M:%S")
+            start_time=time.strftime("%Y-%m-%d %H:%M:%S"),
         )
 
     def _calculate_total_creatives(self, campaign_brief: CampaignBrief) -> int:
@@ -427,7 +430,7 @@ class CreativePipeline:
 
         return f"{setting}, {mood}"
 
-    def _get_color_scheme(self, campaign_brief: CampaignBrief) -> Optional[str]:
+    def _get_color_scheme(self, campaign_brief: CampaignBrief) -> str | None:
         """Extract color scheme from campaign brief."""
         brand_meta = campaign_brief.enhanced_context or {}
         brand_colors = brand_meta.get("brand_colors", {})
@@ -443,11 +446,11 @@ class CreativePipeline:
 
     def _apply_color_rules(
         self,
-        base_color_scheme: Optional[str],
+        base_color_scheme: str | None,
         variant_type: str,
-        color_rules: Dict[str, str],
-        brand_guide: Optional[Dict[str, Any]]
-    ) -> Optional[str]:
+        color_rules: dict[str, str],
+        brand_guide: dict[str, Any] | None,
+    ) -> str | None:
         """Apply variant-specific color rules."""
         color_rule = color_rules.get(variant_type, "use_primary")
 
@@ -458,12 +461,14 @@ class CreativePipeline:
 
         return base_color_scheme
 
-    def _lookup_cached_product(self, product_name: str) -> Optional[Dict[str, Any]]:
+    def _lookup_cached_product(self, product_name: str) -> dict[str, Any] | None:
         """Look up cached product entry."""
         # This would call the cache manager interface
         return None  # Placeholder
 
-    def _cache_product_image(self, product_name: str, product_slug: str, image: Image.Image) -> None:
+    def _cache_product_image(
+        self, product_name: str, product_slug: str, image: Image.Image
+    ) -> None:
         """Cache product image for reuse."""
         # This would save to cache manager
         pass  # Placeholder
@@ -475,7 +480,9 @@ class CreativePipeline:
     def _has_provided_image(self, product: Any) -> bool:
         """Check if product has a pre-provided image."""
         if isinstance(product, dict):
-            return bool(product.get("image") or product.get("image_path") or product.get("product_image"))
+            return bool(
+                product.get("image") or product.get("image_path") or product.get("product_image")
+            )
         return False
 
     def _slugify(self, text: str) -> str:
@@ -492,7 +499,9 @@ class CreativePipeline:
 
         return slug.strip("-")
 
-    def _dry_run_preview(self, campaign_brief: CampaignBrief, pipeline_state: PipelineState) -> Dict[str, Any]:
+    def _dry_run_preview(
+        self, campaign_brief: CampaignBrief, pipeline_state: PipelineState
+    ) -> dict[str, Any]:
         """Preview pipeline execution without generation."""
         total_creatives = self._calculate_total_creatives(campaign_brief)
 
@@ -503,5 +512,5 @@ class CreativePipeline:
             "total_regions": len(campaign_brief.target_regions),
             "total_creatives_planned": total_creatives,
             "products": [self._extract_product_name(p) for p in campaign_brief.products],
-            "regions": campaign_brief.target_regions
+            "regions": campaign_brief.target_regions,
         }

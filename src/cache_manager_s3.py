@@ -13,21 +13,17 @@ Features:
 - Fallback strategies for offline operation
 - Smart prefetching based on usage patterns
 """
+
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from cache_manager import (
-    AssetMatcher,
     AssetType,
-    AssetVersion,
     CacheManager,
-    ProductCategory,
-    ReusePattern,
     Season,
     SemanticMetadata,
-    VisualStyle,
 )
 from s3_storage_manager import S3Config, S3StorageManager
 
@@ -52,7 +48,7 @@ class S3CacheManager(CacheManager):
     def __init__(
         self,
         cache_dir: str = "cache",
-        s3_config: Optional[S3Config] = None,
+        s3_config: S3Config | None = None,
         enable_s3: bool = None,
         local_cache_size_limit_gb: float = 10.0,
     ):
@@ -69,9 +65,7 @@ class S3CacheManager(CacheManager):
         super().__init__(cache_dir=cache_dir)
 
         # S3 configuration
-        self.local_cache_size_limit_bytes = int(
-            local_cache_size_limit_gb * 1024 * 1024 * 1024
-        )
+        self.local_cache_size_limit_bytes = int(local_cache_size_limit_gb * 1024 * 1024 * 1024)
 
         # Determine if S3 should be enabled
         if enable_s3 is None:
@@ -79,7 +73,7 @@ class S3CacheManager(CacheManager):
             enable_s3 = bool(os.getenv("S3_BUCKET_NAME"))
 
         self.s3_enabled = enable_s3
-        self.s3_manager: Optional[S3StorageManager] = None
+        self.s3_manager: S3StorageManager | None = None
 
         if self.s3_enabled:
             try:
@@ -114,7 +108,7 @@ class S3CacheManager(CacheManager):
         self,
         cache_key: str,
         auto_download: bool = True,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """
         Get local path to asset, downloading from S3 if necessary.
 
@@ -169,7 +163,7 @@ class S3CacheManager(CacheManager):
         cache_key: str,
         file_path: str,
         metadata: SemanticMetadata,
-        campaign_id: Optional[str] = None,
+        campaign_id: str | None = None,
         upload_to_s3: bool = True,
     ) -> None:
         """
@@ -194,7 +188,7 @@ class S3CacheManager(CacheManager):
         cache_key: str,
         file_path: str,
         metadata: SemanticMetadata,
-        campaign_id: Optional[str] = None,
+        campaign_id: str | None = None,
     ) -> bool:
         """Upload asset to S3 with semantic metadata"""
         try:
@@ -282,7 +276,7 @@ class S3CacheManager(CacheManager):
         self,
         cache_key: str,
         metadata: SemanticMetadata,
-        campaign_id: Optional[str] = None,
+        campaign_id: str | None = None,
     ) -> str:
         """Generate S3 key based on semantic metadata"""
         if not self.s3_manager:
@@ -295,11 +289,7 @@ class S3CacheManager(CacheManager):
             AssetType.PRODUCT_TRANSPARENT,
             AssetType.PRODUCT_ORIGINAL,
         ]:
-            category = (
-                metadata.product_category.value
-                if metadata.product_category
-                else "general"
-            )
+            category = metadata.product_category.value if metadata.product_category else "general"
             asset_type = (
                 "transparent"
                 if metadata.asset_type == AssetType.PRODUCT_TRANSPARENT
@@ -366,9 +356,9 @@ class S3CacheManager(CacheManager):
 
     def discover_s3_assets(
         self,
-        asset_type: Optional[AssetType] = None,
+        asset_type: AssetType | None = None,
         sync_to_local: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Discover assets available in S3.
 
@@ -416,7 +406,7 @@ class S3CacheManager(CacheManager):
 
         return discovered
 
-    def _sync_s3_assets_to_index(self, s3_assets: List[Dict[str, Any]]) -> int:
+    def _sync_s3_assets_to_index(self, s3_assets: list[dict[str, Any]]) -> int:
         """Sync S3 assets to local index without downloading files"""
         synced = 0
 
@@ -446,7 +436,9 @@ class S3CacheManager(CacheManager):
                 },
                 "created_at": asset.get("last_modified"),
                 "usage_count": 0,
-                "campaigns_used": [metadata.get("campaign-id")] if metadata.get("campaign-id") else [],
+                "campaigns_used": [metadata.get("campaign-id")]
+                if metadata.get("campaign-id")
+                else [],
             }
 
             self.index["semantic_assets"][cache_key] = asset_entry
@@ -467,7 +459,7 @@ class S3CacheManager(CacheManager):
         promote_hot_assets: bool = True,
         demote_cold_assets: bool = True,
         cold_threshold_days: int = 30,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """
         Manage cache tiers based on usage patterns.
 
@@ -559,7 +551,7 @@ class S3CacheManager(CacheManager):
     # S3 STATISTICS
     # ========================================================================
 
-    def get_s3_stats(self) -> Dict[str, Any]:
+    def get_s3_stats(self) -> dict[str, Any]:
         """Get S3 usage statistics"""
         if not self.s3_enabled:
             return {"s3_enabled": False}
@@ -588,9 +580,7 @@ class S3CacheManager(CacheManager):
             "cache_hits": s3_ops.get("cache_hits", 0),
             "cache_misses": s3_ops.get("cache_misses", 0),
             "cache_hit_rate": round(cache_hit_rate, 1),
-            "local_cache_size_mb": round(
-                self._calculate_local_cache_size() / 1024 / 1024, 2
-            ),
+            "local_cache_size_mb": round(self._calculate_local_cache_size() / 1024 / 1024, 2),
         }
 
         # Get S3 bucket size if available

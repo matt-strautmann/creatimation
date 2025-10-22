@@ -5,6 +5,7 @@ Image Processor - Text overlay with multi-line wrapping and professional typogra
 Adds campaign messages to images with intelligent word wrapping, responsive font sizing,
 and high-contrast styling for readability across all aspect ratios.
 """
+
 import logging
 
 from PIL import Image, ImageDraw, ImageFont

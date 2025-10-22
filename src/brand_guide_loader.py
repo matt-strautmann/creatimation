@@ -5,12 +5,12 @@ Brand Guide Loader for Creative Automation Pipeline
 Loads brand guides from YAML files and provides defaults that can override
 campaign brief settings.
 """
+
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field, validator
-
 
 # ============================================================================
 # BRAND GUIDE MODELS
@@ -21,10 +21,10 @@ class BrandColors(BaseModel):
     """Brand color palette"""
 
     primary: str = Field(..., description="Primary brand color (hex)")
-    secondary: Optional[str] = Field(None, description="Secondary brand color (hex)")
-    accent: Optional[str] = Field(None, description="Accent color (hex)")
-    background: Optional[str] = Field(None, description="Background color (hex)")
-    text: Optional[str] = Field(None, description="Text color (hex)")
+    secondary: str | None = Field(None, description="Secondary brand color (hex)")
+    accent: str | None = Field(None, description="Accent color (hex)")
+    background: str | None = Field(None, description="Background color (hex)")
+    text: str | None = Field(None, description="Text color (hex)")
 
     @validator("primary", "secondary", "accent", "background", "text")
     def validate_hex_color(cls, v):
@@ -39,39 +39,42 @@ class BrandColors(BaseModel):
 class BrandTypography(BaseModel):
     """Brand typography settings"""
 
-    font_family: Optional[str] = Field(None, description="Primary font family")
-    headline_size: Optional[int] = Field(None, ge=12, le=72, description="Headline font size")
-    body_size: Optional[int] = Field(None, ge=8, le=24, description="Body font size")
-    font_weight: Optional[str] = Field(None, description="Font weight (normal, bold, etc.)")
+    font_family: str | None = Field(None, description="Primary font family")
+    headline_size: int | None = Field(None, ge=12, le=72, description="Headline font size")
+    body_size: int | None = Field(None, ge=8, le=24, description="Body font size")
+    font_weight: str | None = Field(None, description="Font weight (normal, bold, etc.)")
 
 
 class VisualStyle(BaseModel):
     """Visual styling preferences"""
 
     layout_style: str = Field(
-        default="hero-product", description="Layout style (hero-product, minimal, vibrant, lifestyle)"
+        default="hero-product",
+        description="Layout style (hero-product, minimal, vibrant, lifestyle)",
     )
     text_positioning: str = Field(
         default="top", description="Default text position (top, bottom, center, dynamic)"
     )
-    scene_style: Optional[str] = Field(
+    scene_style: str | None = Field(
         None, description="Scene background style (kitchen, bathroom, lifestyle, etc.)"
     )
-    mood: Optional[str] = Field(None, description="Visual mood (clean, energetic, calm, professional)")
+    mood: str | None = Field(None, description="Visual mood (clean, energetic, calm, professional)")
 
 
 class MessagingGuidelines(BaseModel):
     """Brand messaging and tone"""
 
-    tone: str = Field(default="professional", description="Brand tone (professional, friendly, energetic)")
+    tone: str = Field(
+        default="professional", description="Brand tone (professional, friendly, energetic)"
+    )
     max_headline_length: int = Field(
         default=40, ge=10, le=100, description="Maximum headline character length"
     )
-    max_subheadline_length: Optional[int] = Field(
+    max_subheadline_length: int | None = Field(
         None, ge=10, le=200, description="Maximum subheadline character length"
     )
-    avoid_words: List[str] = Field(default_factory=list, description="Words to avoid in messaging")
-    preferred_phrases: List[str] = Field(
+    avoid_words: list[str] = Field(default_factory=list, description="Words to avoid in messaging")
+    preferred_phrases: list[str] = Field(
         default_factory=list, description="Brand-preferred phrases"
     )
 
@@ -80,9 +83,9 @@ class BrandMetadata(BaseModel):
     """Brand metadata"""
 
     name: str = Field(..., description="Brand name")
-    industry: Optional[str] = Field(None, description="Industry/category")
-    target_audience: Optional[str] = Field(None, description="Primary target audience")
-    values: List[str] = Field(default_factory=list, description="Brand values")
+    industry: str | None = Field(None, description="Industry/category")
+    target_audience: str | None = Field(None, description="Primary target audience")
+    values: list[str] = Field(default_factory=list, description="Brand values")
 
 
 class BrandGuide(BaseModel):
@@ -93,6 +96,10 @@ class BrandGuide(BaseModel):
     typography: BrandTypography = Field(default_factory=BrandTypography)
     visual: VisualStyle = Field(default_factory=VisualStyle)
     messaging: MessagingGuidelines = Field(default_factory=MessagingGuidelines)
+
+    # Allow additional fields like variants, style_guidelines, etc.
+    class Config:
+        extra = "allow"
 
 
 # ============================================================================
@@ -105,7 +112,20 @@ class BrandGuideLoader:
 
     def __init__(self):
         """Initialize brand guide loader"""
-        self._loaded_guides: Dict[str, BrandGuide] = {}
+        self._loaded_guides: dict[str, BrandGuide] = {}
+
+    def load_brand_guide(self, guide_path: str) -> dict[str, Any]:
+        """Load brand guide - interface method that returns dictionary."""
+        brand_guide = self.load(guide_path)
+        return brand_guide.dict()
+
+    def validate_brand_guide(self, guide: dict[str, Any]) -> bool:
+        """Validate brand guide structure."""
+        try:
+            BrandGuide(**guide)
+            return True
+        except Exception:
+            return False
 
     def load(self, brand_guide_path: str) -> BrandGuide:
         """
@@ -142,7 +162,7 @@ class BrandGuideLoader:
         except Exception as e:
             raise ValueError(f"Invalid brand guide YAML: {e}")
 
-    def apply_to_brief(self, brief: Dict[str, Any], brand_guide: BrandGuide) -> Dict[str, Any]:
+    def apply_to_brief(self, brief: dict[str, Any], brand_guide: BrandGuide) -> dict[str, Any]:
         """
         Apply brand guide overrides to campaign brief.
 
@@ -232,7 +252,7 @@ class BrandGuideLoader:
 
         return enhanced_brief
 
-    def validate(self, brand_guide_path: str) -> Dict[str, Any]:
+    def validate(self, brand_guide_path: str) -> dict[str, Any]:
         """
         Validate brand guide file.
 
@@ -290,7 +310,7 @@ def load_brand_guide(brand_guide_path: str) -> BrandGuide:
     return loader.load(brand_guide_path)
 
 
-def apply_brand_guide(brief: Dict[str, Any], brand_guide_path: str) -> Dict[str, Any]:
+def apply_brand_guide(brief: dict[str, Any], brand_guide_path: str) -> dict[str, Any]:
     """
     Load brand guide and apply to brief.
 
@@ -306,7 +326,7 @@ def apply_brand_guide(brief: Dict[str, Any], brand_guide_path: str) -> Dict[str,
     return loader.apply_to_brief(brief, brand_guide)
 
 
-def validate_brand_guide(brand_guide_path: str) -> Dict[str, Any]:
+def validate_brand_guide(brand_guide_path: str) -> dict[str, Any]:
     """
     Validate brand guide file.
 
