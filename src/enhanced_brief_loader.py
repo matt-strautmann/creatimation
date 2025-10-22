@@ -28,10 +28,17 @@ class EnhancedBriefLoader:
     while preserving all enhanced metadata for context-rich generation.
     """
 
-    def __init__(self, cache_manager=None):
+    def __init__(self, cache_manager=None, cache_dir=None):
         self.product_contexts = self._load_product_contexts()
         self.regional_aesthetics = self._load_regional_aesthetics()
-        self.cache_manager = cache_manager or CacheManager()
+
+        if cache_manager is not None:
+            self.cache_manager = cache_manager
+        elif cache_dir is not None:
+            self.cache_manager = CacheManager(cache_dir=cache_dir)
+        else:
+            self.cache_manager = CacheManager()
+
         self.brand_guidelines = self._load_brand_guidelines_index()
 
     def load_brief(self, brief_path: str) -> dict[str, Any]:

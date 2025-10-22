@@ -353,7 +353,7 @@ class TestS3Migration:
         # Register product
         cache_manager.register_product(
             product_name="Test Product",
-            cache_filename="product.png",
+            file_path=str(img_path),
             campaign_id="test_campaign",
         )
 
@@ -381,7 +381,7 @@ class TestS3Migration:
 
         cache_manager.register_product(
             product_name="Test Product",
-            cache_filename="product.png",
+            file_path=str(img_path),
             campaign_id="test_campaign",
         )
 
@@ -547,7 +547,7 @@ class TestS3Integration:
         cache_manager = CacheManager(cache_dir=str(temp_cache_dir))
         cache_manager.register_product(
             product_name="Test Product",
-            cache_filename=sample_image.name,
+            file_path=str(sample_image),
             campaign_id="test_campaign",
         )
 
