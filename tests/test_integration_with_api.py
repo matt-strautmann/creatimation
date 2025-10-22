@@ -9,8 +9,21 @@ NOTE: These tests are for the legacy DALL-E integration and are currently skippe
 since the system has migrated to Google Gemini 2.5 Flash Image.
 """
 
+import sys
+from pathlib import Path
+
 import pytest
 from PIL import Image
+
+# Add src to path for legacy imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Import legacy classes for the skipped tests
+from background_remover import BackgroundRemover
+from cache_manager import CacheManager
+from compositor import CreativeCompositor
+from gemini_image_generator import GeminiImageGenerator as ImageGenerator
+from image_processor import ImageProcessor
 
 # Skip all tests - legacy DALL-E integration tests, system migrated to Gemini
 pytestmark = pytest.mark.skip(reason="Legacy DALL-E tests - system migrated to Gemini")

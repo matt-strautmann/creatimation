@@ -7,6 +7,7 @@ Creative Automation Pipeline cache manager.
 
 Run these examples to see S3 integration in action.
 """
+
 import sys
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def example_1_basic_s3_upload():
         )
 
         if result.success:
-            print(f"\nUpload successful!")
+            print("\nUpload successful!")
             print(f"  S3 Key: {result.s3_key}")
             print(f"  Size: {result.size_bytes} bytes")
             print(f"  Duration: {result.duration_seconds:.2f}s")
@@ -62,10 +63,12 @@ def example_2_batch_upload():
     print("EXAMPLE 2: Batch Upload with Progress")
     print("=" * 60)
 
-    from s3_storage_manager import S3Config, S3StorageManager
-    from PIL import Image
-    import tempfile
     import shutil
+    import tempfile
+
+    from PIL import Image
+
+    from s3_storage_manager import S3Config, S3StorageManager
 
     try:
         config = S3Config.from_env()
@@ -74,7 +77,7 @@ def example_2_batch_upload():
         # Create temporary directory with test files
         temp_dir = Path(tempfile.mkdtemp())
 
-        print(f"\nCreating 10 test images...")
+        print("\nCreating 10 test images...")
         file_mappings = []
 
         for i in range(10):
@@ -102,8 +105,7 @@ def example_2_batch_upload():
             speed = progress.upload_speed_mbps
 
             print(
-                f"  Progress: {percent:5.1f}% ({uploaded}/{total}) - "
-                f"{speed:.2f} MB/s",
+                f"  Progress: {percent:5.1f}% ({uploaded}/{total}) - {speed:.2f} MB/s",
                 end="\r",
             )
 
@@ -112,7 +114,7 @@ def example_2_batch_upload():
             file_mappings, progress_callback=progress_callback
         )
 
-        print(f"\n\nBatch upload complete!")
+        print("\n\nBatch upload complete!")
         print(f"  Uploaded: {final_progress.uploaded}")
         print(f"  Failed: {final_progress.failed}")
         print(f"  Total size: {final_progress.uploaded_bytes / 1024:.1f} KB")
@@ -132,11 +134,13 @@ def example_3_hybrid_cache():
     print("EXAMPLE 3: Hybrid Local/S3 Cache")
     print("=" * 60)
 
-    from cache_manager_s3 import S3CacheManager
-    from cache_manager import SemanticMetadata, AssetType, ProductCategory
-    import tempfile
     import shutil
+    import tempfile
+
     from PIL import Image
+
+    from cache_manager import AssetType, ProductCategory, SemanticMetadata
+    from cache_manager_s3 import S3CacheManager
 
     try:
         # Create temporary cache directory
@@ -266,12 +270,14 @@ def example_5_migration():
     print("EXAMPLE 5: Cache Migration to S3")
     print("=" * 60)
 
+    import shutil
+    import tempfile
+
+    from PIL import Image
+
     from cache_manager import CacheManager
     from s3_migration import S3MigrationManager
     from s3_storage_manager import S3Config, S3StorageManager
-    import tempfile
-    import shutil
-    from PIL import Image
 
     try:
         # Create temporary cache with sample data
@@ -302,14 +308,14 @@ def example_5_migration():
         print("\nCreating migration plan...")
         plan = migration_manager.create_migration_plan()
 
-        print(f"\nMigration Plan:")
+        print("\nMigration Plan:")
         print(f"  Total assets: {plan.total_assets}")
         print(f"  Total size: {plan.total_size_mb:.2f} MB")
         print(f"  Products: {len(plan.products)}")
 
         # Estimate costs
         cost = migration_manager.estimate_migration_cost(plan)
-        print(f"\nEstimated Monthly Costs:")
+        print("\nEstimated Monthly Costs:")
         print(f"  Standard Storage: ${cost['storage_cost_monthly']}")
         print(f"  Size: {cost['size_gb']:.3f} GB")
 
@@ -317,7 +323,7 @@ def example_5_migration():
         print("\nExecuting dry run...")
         result = migration_manager.execute_migration(plan, dry_run=True)
 
-        print(f"\nDry Run Results:")
+        print("\nDry Run Results:")
         print(f"  Would upload: {result.uploaded_count} files")
         print(f"  Total size: {result.uploaded_bytes / 1024:.1f} KB")
 
@@ -361,7 +367,7 @@ def example_6_presigned_urls():
 
             if url:
                 print("\nPresigned URL generated successfully!")
-                print(f"  URL (valid for 1 hour):")
+                print("  URL (valid for 1 hour):")
                 print(f"  {url[:80]}...")
                 print("\n  Anyone with this URL can download the file for 1 hour")
                 print("  No AWS credentials needed")
@@ -401,9 +407,7 @@ def main():
     print("\n" + "=" * 60)
     print("EXAMPLES COMPLETE")
     print("=" * 60)
-    print(
-        "\nFor more information, see docs/S3_INTEGRATION.md and docs/S3_QUICKSTART.md"
-    )
+    print("\nFor more information, see docs/S3_INTEGRATION.md and docs/S3_QUICKSTART.md")
 
 
 if __name__ == "__main__":
