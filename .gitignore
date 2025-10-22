@@ -56,7 +56,7 @@ takehome.md
 
 # Config files (user-specific)
 .creatimation.yml
-test-config.yml
+tests/test-config.yml
 *_enhanced.json
 
 # OS
