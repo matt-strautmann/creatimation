@@ -10,7 +10,13 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.5.0",
     "requests>=2.31.0",
+    "click>=8.0.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0.0",
 ]
+
+[project.scripts]
+creatimation = "src.cli.main:cli_main"
 
 [project.optional-dependencies]
 dev = [
