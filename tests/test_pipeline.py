@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from PIL import Image
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -157,12 +156,8 @@ class TestOutputManager:
         metadata = {"campaign_id": "test"}
 
         # Save multiple creatives
-        output_mgr.save_creative(
-            sample_image, "Product A", "1x1", metadata, "hero-product", "US"
-        )
-        output_mgr.save_creative(
-            sample_image, "Product B", "9x16", metadata, "hero-product", "US"
-        )
+        output_mgr.save_creative(sample_image, "Product A", "1x1", metadata, "hero-product", "US")
+        output_mgr.save_creative(sample_image, "Product B", "9x16", metadata, "hero-product", "US")
 
         summary = output_mgr.get_output_summary()
         assert summary["total_creatives"] == 2

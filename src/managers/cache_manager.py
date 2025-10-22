@@ -4,20 +4,21 @@ Unified Cache Manager for Creative Automation Pipeline.
 Consolidates all cache functionality into a single, well-designed class
 that supports both local and S3 storage with semantic asset matching.
 """
+
 import hashlib
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 try:
     from ..core.interfaces import CacheManagerInterface
-    from ..core.models import AssetType, CacheEntry, Season, ProductCategory
+    from ..core.models import AssetType, CacheEntry, ProductCategory, Season
 except ImportError:
     # Fallback for direct execution
     from src.core.interfaces import CacheManagerInterface
-    from src.core.models import AssetType, CacheEntry, Season, ProductCategory
+    from src.core.models import AssetType, CacheEntry, ProductCategory, Season
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +34,7 @@ class UnifiedCacheManager(CacheManagerInterface):
     """
 
     def __init__(
-        self,
-        cache_dir: str = "cache",
-        enable_s3: bool = False,
-        s3_bucket: Optional[str] = None
+        self, cache_dir: str = "cache", enable_s3: bool = False, s3_bucket: str | None = None
     ):
         """Initialize unified cache manager."""
         self.cache_dir = Path(cache_dir)
@@ -62,7 +60,7 @@ class UnifiedCacheManager(CacheManagerInterface):
         if enable_s3:
             self._initialize_s3()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Retrieve item from cache."""
         if key in self.index:
             entry = self.index[key]
@@ -80,7 +78,7 @@ class UnifiedCacheManager(CacheManagerInterface):
 
         return None
 
-    def set(self, key: str, file_path: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def set(self, key: str, file_path: str, metadata: dict[str, Any] | None = None) -> None:
         """Store item in cache."""
         file_path_obj = Path(file_path)
 
@@ -93,7 +91,7 @@ class UnifiedCacheManager(CacheManagerInterface):
             metadata=metadata or {},
             created_at=self._get_timestamp(),
             accessed_at=self._get_timestamp(),
-            size_bytes=file_path_obj.stat().st_size
+            size_bytes=file_path_obj.stat().st_size,
         )
 
         self.index[key] = entry.__dict__
@@ -126,7 +124,7 @@ class UnifiedCacheManager(CacheManagerInterface):
         product_name: str,
         product_slug: str,
         file_path: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Register a product in the cache."""
         cache_key = f"product:{product_slug}"
@@ -135,22 +133,24 @@ class UnifiedCacheManager(CacheManagerInterface):
             "type": "product",
             "product_name": product_name,
             "product_slug": product_slug,
-            **(metadata or {})
+            **(metadata or {}),
         }
 
         self.set(cache_key, file_path, enhanced_metadata)
         return cache_key
 
-    def lookup_product(self, product_name: str) -> Optional[Dict[str, Any]]:
+    def lookup_product(self, product_name: str) -> dict[str, Any] | None:
         """Look up product by name."""
         for key, entry in self.index.items():
-            if (entry.get("metadata", {}).get("product_name") == product_name and
-                entry.get("metadata", {}).get("type") == "product"):
+            if (
+                entry.get("metadata", {}).get("product_name") == product_name
+                and entry.get("metadata", {}).get("type") == "product"
+            ):
                 return {
                     "cache_key": key,
                     "file_path": entry["file_path"],
                     "metadata": entry["metadata"],
-                    "product_cache_filename": entry["file_path"]
+                    "product_cache_filename": entry["file_path"],
                 }
         return None
 
@@ -163,11 +163,11 @@ class UnifiedCacheManager(CacheManagerInterface):
         cache_key: str,
         file_path: str,
         asset_type: AssetType,
-        product_category: Optional[ProductCategory] = None,
+        product_category: ProductCategory | None = None,
         region: str = "US",
-        season: Optional[Season] = None,
-        aspect_ratio: Optional[str] = None,
-        **kwargs
+        season: Season | None = None,
+        aspect_ratio: str | None = None,
+        **kwargs,
     ) -> None:
         """Register asset with semantic metadata for intelligent matching."""
         semantic_metadata = {
@@ -177,7 +177,7 @@ class UnifiedCacheManager(CacheManagerInterface):
             "region": region,
             "season": season.value if season else None,
             "aspect_ratio": aspect_ratio,
-            **kwargs
+            **kwargs,
         }
 
         self.set(cache_key, file_path, semantic_metadata)
@@ -185,12 +185,12 @@ class UnifiedCacheManager(CacheManagerInterface):
     def discover_semantic_assets(
         self,
         asset_type: AssetType,
-        product_category: Optional[ProductCategory] = None,
+        product_category: ProductCategory | None = None,
         region: str = "US",
-        season: Optional[Season] = None,
-        aspect_ratio: Optional[str] = None,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+        season: Season | None = None,
+        aspect_ratio: str | None = None,
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
         """Discover assets using semantic matching."""
         matches = []
 
@@ -209,12 +209,14 @@ class UnifiedCacheManager(CacheManagerInterface):
             )
 
             if score > 0.3:  # Minimum similarity threshold
-                matches.append({
-                    "cache_key": key,
-                    "file_path": entry["file_path"],
-                    "metadata": metadata,
-                    "similarity_score": score
-                })
+                matches.append(
+                    {
+                        "cache_key": key,
+                        "file_path": entry["file_path"],
+                        "metadata": metadata,
+                        "similarity_score": score,
+                    }
+                )
 
         # Sort by similarity and return top matches
         matches.sort(key=lambda x: x["similarity_score"], reverse=True)
@@ -224,7 +226,7 @@ class UnifiedCacheManager(CacheManagerInterface):
     # STATISTICS AND MAINTENANCE
     # ========================================================================
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get comprehensive cache statistics."""
         total_entries = len(self.index)
         total_size = sum(entry.get("size_bytes", 0) for entry in self.index.values())
@@ -240,7 +242,7 @@ class UnifiedCacheManager(CacheManagerInterface):
             "total_size_mb": round(total_size / (1024 * 1024), 2),
             "type_breakdown": type_counts,
             "cache_directory": str(self.cache_dir),
-            "s3_enabled": self.enable_s3
+            "s3_enabled": self.enable_s3,
         }
 
     def cleanup_stale_entries(self, max_age_days: int = 30) -> int:
@@ -280,22 +282,22 @@ class UnifiedCacheManager(CacheManagerInterface):
     # PRIVATE METHODS
     # ========================================================================
 
-    def _load_index(self) -> Dict[str, Any]:
+    def _load_index(self) -> dict[str, Any]:
         """Load cache index from disk."""
         if self.index_file.exists():
             try:
-                with open(self.index_file, 'r') as f:
+                with open(self.index_file) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(f"Failed to load cache index: {e}")
         return {}
 
     def _save_index(self) -> None:
         """Save cache index to disk."""
         try:
-            with open(self.index_file, 'w') as f:
+            with open(self.index_file, "w") as f:
                 json.dump(self.index, f, indent=2)
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save cache index: {e}")
 
     def _get_timestamp(self) -> str:
@@ -308,12 +310,12 @@ class UnifiedCacheManager(CacheManagerInterface):
 
     def _calculate_similarity_score(
         self,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         asset_type: AssetType,
-        product_category: Optional[ProductCategory],
+        product_category: ProductCategory | None,
         region: str,
-        season: Optional[Season],
-        aspect_ratio: Optional[str]
+        season: Season | None,
+        aspect_ratio: str | None,
     ) -> float:
         """Calculate similarity score for semantic matching."""
         score = 0.0
@@ -344,7 +346,8 @@ class UnifiedCacheManager(CacheManagerInterface):
 
         try:
             import boto3
-            self._s3_client = boto3.client('s3')
+
+            self._s3_client = boto3.client("s3")
             logger.info(f"S3 cache enabled with bucket: {self.s3_bucket}")
         except ImportError:
             logger.error("boto3 not installed, S3 cache disabled")

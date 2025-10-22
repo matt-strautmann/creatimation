@@ -1,25 +1,23 @@
 """
-Core CLI infrastructure inspired by GitHub spec-kit patterns.
+Core CLI infrastructure with modern command patterns.
 
 Provides the foundation for a world-class developer experience with
 rich formatting, intelligent configuration, and extensible architecture.
 """
-import os
+
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
-from rich import print as rprint
 
-from ..container import DIContainer, get_container
 from ..config import ConfigManager
-from .utils.workspace import WorkspaceManager
+from ..container import DIContainer, get_container
 from .utils.output import console, error_console
+from .utils.workspace import WorkspaceManager
 
 
 class CreatimationContext:
@@ -31,26 +29,26 @@ class CreatimationContext:
     """
 
     def __init__(self):
-        self.config_manager: Optional[ConfigManager] = None
-        self.workspace_manager: Optional[WorkspaceManager] = None
-        self.container: Optional[DIContainer] = None
+        self.config_manager: ConfigManager | None = None
+        self.workspace_manager: WorkspaceManager | None = None
+        self.container: DIContainer | None = None
         self.verbose: int = 0
         self.quiet: bool = False
         self.no_color: bool = False
         self.output_format: str = "auto"
-        self.profile: Optional[str] = None
-        self.workspace_path: Optional[Path] = None
+        self.profile: str | None = None
+        self.workspace_path: Path | None = None
         self._initialized: bool = False
 
     def initialize(
         self,
-        config_file: Optional[str] = None,
-        workspace: Optional[str] = None,
-        profile: Optional[str] = None,
+        config_file: str | None = None,
+        workspace: str | None = None,
+        profile: str | None = None,
         verbose: int = 0,
         quiet: bool = False,
         no_color: bool = False,
-        output_format: str = "auto"
+        output_format: str = "auto",
     ):
         """Initialize CLI context with configuration and workspace."""
         self.verbose = verbose
@@ -88,9 +86,9 @@ class CreatimationContext:
         if self.config_manager:
             try:
                 # Try to get config data if available
-                if hasattr(self.config_manager, 'get_all'):
+                if hasattr(self.config_manager, "get_all"):
                     config_data = self.config_manager.get_all()
-                elif hasattr(self.config_manager, 'config'):
+                elif hasattr(self.config_manager, "config"):
                     config_data = self.config_manager.config
             except Exception:
                 pass
@@ -137,13 +135,22 @@ class CreatimationContext:
             error_console.print("[red]No configuration manager available[/red]")
             sys.exit(1)
 
-    def _find_workspace(self) -> Optional[Path]:
+    def _find_workspace(self) -> Path | None:
         """Find workspace in current directory or parents."""
         current = Path.cwd()
         while current != current.parent:
-            if (current / ".creatimation").exists():
+            # Look for .creatimation directory or .creatimation.yml file
+            if (current / ".creatimation").exists() or (current / ".creatimation.yml").exists():
                 return current
+
+            # Also recognize as workspace if it has project structure (briefs/ and brand-guides/)
+            if (current / "briefs").exists() and (current / "brand-guides").exists():
+                return current
+
             current = current.parent
+            # Stop at home directory to avoid picking up global config as workspace
+            if current == Path.home():
+                break
         return None
 
     def debug(self, message: str):
@@ -189,11 +196,11 @@ class CreatimationGroup(click.Group):
 
         # Define logical command order
         command_order = [
-            "generate",    # Primary workflow
-            "validate",    # Validation
-            "workspace",   # Workspace management
-            "config",      # Configuration
-            "cache",       # System commands
+            "generate",  # Primary workflow
+            "validate",  # Validation
+            "workspace",  # Workspace management
+            "config",  # Configuration
+            "cache",  # System commands
             "completion",  # Shell integration
         ]
 
@@ -238,34 +245,24 @@ def show_welcome(ctx: CreatimationContext):
     welcome_text.append(" v2.0\n", style="dim")
     welcome_text.append("Professional creative generation at scale")
 
-    console.print(Panel(
-        welcome_text,
-        title="🎨 Creatimation",
-        subtitle="Inspired by GitHub spec-kit",
-        border_style="blue"
-    ))
+    console.print(
+        Panel(
+            welcome_text,
+            title="🎨 Creatimation",
+            subtitle="Creative Automation CLI",
+            border_style="blue",
+        )
+    )
 
     # Quick start table
     table = Table(title="Quick Start", show_header=True, header_style="bold cyan")
     table.add_column("Command", style="cyan", width=30)
     table.add_column("Description", style="white")
 
-    table.add_row(
-        "creatimation workspace init",
-        "Create a new workspace for your brand"
-    )
-    table.add_row(
-        "creatimation generate campaign",
-        "Generate creatives from a campaign brief"
-    )
-    table.add_row(
-        "creatimation validate brief",
-        "Validate campaign brief format"
-    )
-    table.add_row(
-        "creatimation config init",
-        "Setup global configuration"
-    )
+    table.add_row("./creatimation workspace init", "Create a new workspace for your brand")
+    table.add_row("./creatimation generate campaign", "Generate creatives from a campaign brief")
+    table.add_row("./creatimation validate brief", "Validate campaign brief format")
+    table.add_row("./creatimation config init", "Setup global configuration")
 
     console.print()
     console.print(table)
@@ -279,7 +276,7 @@ def show_welcome(ctx: CreatimationContext):
 
     try:
         if ctx.config_manager:
-            console.print(f"[green]✓[/green] Configuration loaded")
+            console.print("[green]✓[/green] Configuration loaded")
         else:
             console.print("[dim]No configuration found[/dim]")
     except Exception:
@@ -300,6 +297,7 @@ def require_workspace(f):
         if ctx:
             ctx.ensure_workspace()
         return f(*args, **kwargs)
+
     return wrapper
 
 
@@ -312,7 +310,8 @@ def require_config(f):
         ctx = click.get_current_context().find_object(CreatimationContext)
         if ctx and not ctx.config_manager:
             error_console.print("[red]No configuration found[/red]")
-            console.print("Initialize configuration with: [cyan]creatimation config init[/cyan]")
+            console.print("Initialize configuration with: [cyan]./creatimation config init[/cyan]")
             sys.exit(1)
         return f(*args, **kwargs)
+
     return wrapper

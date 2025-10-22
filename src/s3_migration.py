@@ -13,21 +13,17 @@ Features:
 - Rollback capabilities
 - Dry-run mode for testing
 """
-import json
+
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from cache_manager import (
-    AssetType,
     CacheManager,
-    ProductCategory,
-    Season,
-    SemanticMetadata,
-    VisualStyle,
 )
-from s3_storage_manager import S3Config, S3FolderStructure, S3StorageManager, UploadProgress
+from s3_storage_manager import S3Config, S3StorageManager, UploadProgress
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +39,10 @@ class MigrationPlan:
 
     total_assets: int
     total_size_bytes: int
-    products: List[Dict[str, Any]]
-    semantic_assets: List[Dict[str, Any]]
-    cache_entries: List[Dict[str, Any]]
-    metadata_file: Optional[Path] = None
+    products: list[dict[str, Any]]
+    semantic_assets: list[dict[str, Any]]
+    cache_entries: list[dict[str, Any]]
+    metadata_file: Path | None = None
 
     @property
     def total_size_mb(self) -> float:
@@ -75,7 +71,7 @@ class MigrationResult:
     skipped_count: int = 0
     uploaded_bytes: int = 0
     duration_seconds: float = 0.0
-    failed_files: List[str] = None
+    failed_files: list[str] = None
 
     def __post_init__(self):
         if self.failed_files is None:
@@ -152,9 +148,7 @@ class S3MigrationManager:
         total_size = 0
 
         # Collect products
-        for product_slug, product_entry in self.cache_manager.index.get(
-            "products", {}
-        ).items():
+        for product_slug, product_entry in self.cache_manager.index.get("products", {}).items():
             cache_filename = product_entry.get("cache_filename")
             if cache_filename:
                 file_path = self.cache_dir / cache_filename
@@ -170,9 +164,7 @@ class S3MigrationManager:
                     total_size += file_path.stat().st_size
 
         # Collect semantic assets
-        for cache_key, asset_entry in self.cache_manager.index.get(
-            "semantic_assets", {}
-        ).items():
+        for cache_key, asset_entry in self.cache_manager.index.get("semantic_assets", {}).items():
             file_path_str = asset_entry.get("file_path")
             if file_path_str:
                 file_path = Path(file_path_str)
@@ -225,7 +217,7 @@ class S3MigrationManager:
         self,
         plan: MigrationPlan,
         dry_run: bool = False,
-        progress_callback: Optional[Callable[[UploadProgress], None]] = None,
+        progress_callback: Callable[[UploadProgress], None] | None = None,
     ) -> MigrationResult:
         """
         Execute migration plan.
@@ -242,9 +234,7 @@ class S3MigrationManager:
 
         start_time = time.time()
 
-        logger.info(
-            f"Starting migration {'(DRY RUN)' if dry_run else ''}..."
-        )
+        logger.info(f"Starting migration {'(DRY RUN)' if dry_run else ''}...")
 
         result = MigrationResult(plan=plan)
 
@@ -256,27 +246,21 @@ class S3MigrationManager:
             s3_key = self._get_product_s3_key(product_item)
             metadata = self._build_product_metadata(product_item)
 
-            file_mappings.append(
-                (product_item["local_path"], s3_key, metadata)
-            )
+            file_mappings.append((product_item["local_path"], s3_key, metadata))
 
         # Migrate semantic assets
         for asset_item in plan.semantic_assets:
             s3_key = self._get_semantic_asset_s3_key(asset_item)
             metadata = self._build_semantic_asset_metadata(asset_item)
 
-            file_mappings.append(
-                (asset_item["local_path"], s3_key, metadata)
-            )
+            file_mappings.append((asset_item["local_path"], s3_key, metadata))
 
         # Migrate cache entries
         for cache_item in plan.cache_entries:
             s3_key = self._get_cache_entry_s3_key(cache_item)
             metadata = self._build_cache_entry_metadata(cache_item)
 
-            file_mappings.append(
-                (cache_item["local_path"], s3_key, metadata)
-            )
+            file_mappings.append((cache_item["local_path"], s3_key, metadata))
 
         if dry_run:
             logger.info(f"DRY RUN: Would upload {len(file_mappings)} files")
@@ -312,7 +296,7 @@ class S3MigrationManager:
         logger.info(result.summary())
         return result
 
-    def _get_product_s3_key(self, product_item: Dict[str, Any]) -> str:
+    def _get_product_s3_key(self, product_item: dict[str, Any]) -> str:
         """Generate S3 key for product asset"""
         product_entry = product_item["entry"]
         product_slug = product_item["product_slug"]
@@ -327,9 +311,7 @@ class S3MigrationManager:
 
         # Determine asset type (transparent vs original)
         cache_filename = product_entry.get("cache_filename", "")
-        asset_type = (
-            "transparent" if "transparent" in cache_filename.lower() else "original"
-        )
+        asset_type = "transparent" if "transparent" in cache_filename.lower() else "original"
 
         return self.s3_manager.folder_structure.get_product_path(
             product_slug=product_slug,
@@ -338,7 +320,7 @@ class S3MigrationManager:
             filename=product_item["local_path"].name,
         )
 
-    def _get_semantic_asset_s3_key(self, asset_item: Dict[str, Any]) -> str:
+    def _get_semantic_asset_s3_key(self, asset_item: dict[str, Any]) -> str:
         """Generate S3 key for semantic asset"""
         asset_entry = asset_item["entry"]
         semantic_metadata = asset_entry.get("semantic_metadata", {})
@@ -371,7 +353,7 @@ class S3MigrationManager:
             campaign_id = asset_entry.get("campaign_id", "unknown")
             return f"{self.s3_manager.config.prefix}/assets/{campaign_id}/{asset_item['local_path'].name}"
 
-    def _get_cache_entry_s3_key(self, cache_item: Dict[str, Any]) -> str:
+    def _get_cache_entry_s3_key(self, cache_item: dict[str, Any]) -> str:
         """Generate S3 key for cache entry"""
         entry = cache_item["entry"]
         metadata = entry.get("metadata", {})
@@ -382,7 +364,7 @@ class S3MigrationManager:
 
         return f"{self.s3_manager.config.prefix}/cache/{entry_type}/{campaign_id}/{cache_item['local_path'].name}"
 
-    def _build_product_metadata(self, product_item: Dict[str, Any]) -> Dict[str, str]:
+    def _build_product_metadata(self, product_item: dict[str, Any]) -> dict[str, str]:
         """Build S3 metadata for product"""
         product_entry = product_item["entry"]
 
@@ -395,9 +377,7 @@ class S3MigrationManager:
             "created-at": product_entry.get("created_at", ""),
         }
 
-    def _build_semantic_asset_metadata(
-        self, asset_item: Dict[str, Any]
-    ) -> Dict[str, str]:
+    def _build_semantic_asset_metadata(self, asset_item: dict[str, Any]) -> dict[str, str]:
         """Build S3 metadata for semantic asset"""
         asset_entry = asset_item["entry"]
         semantic_metadata = asset_entry.get("semantic_metadata", {})
@@ -425,7 +405,7 @@ class S3MigrationManager:
 
         return metadata
 
-    def _build_cache_entry_metadata(self, cache_item: Dict[str, Any]) -> Dict[str, str]:
+    def _build_cache_entry_metadata(self, cache_item: dict[str, Any]) -> dict[str, str]:
         """Build S3 metadata for cache entry"""
         entry = cache_item["entry"]
         metadata = entry.get("metadata", {})
@@ -465,7 +445,7 @@ class S3MigrationManager:
     # VALIDATION
     # ========================================================================
 
-    def validate_migration(self, plan: MigrationPlan) -> Dict[str, Any]:
+    def validate_migration(self, plan: MigrationPlan) -> dict[str, Any]:
         """
         Validate migration by comparing local and S3 assets.
 
@@ -495,9 +475,7 @@ class S3MigrationManager:
             s3_metadata = self.s3_manager.get_file_metadata(s3_key)
 
             if s3_metadata is None:
-                missing.append(
-                    {"local_path": str(item["local_path"]), "s3_key": s3_key}
-                )
+                missing.append({"local_path": str(item["local_path"]), "s3_key": s3_key})
             elif s3_metadata["size_bytes"] != item["size"]:
                 size_mismatches.append(
                     {
@@ -538,7 +516,7 @@ class S3MigrationManager:
 
     def estimate_migration_cost(
         self, plan: MigrationPlan, cost_per_gb: float = 0.023
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Estimate S3 storage costs.
 
@@ -566,7 +544,7 @@ class S3MigrationManager:
 
 def create_migration_from_cache(
     cache_dir: str = "cache",
-    bucket_name: Optional[str] = None,
+    bucket_name: str | None = None,
     prefix: str = "creative-assets",
     dry_run: bool = False,
 ) -> MigrationResult:
@@ -593,9 +571,7 @@ def create_migration_from_cache(
     s3_manager = S3StorageManager(config=s3_config)
 
     # Create migration manager
-    migration_manager = S3MigrationManager(
-        cache_manager=cache_manager, s3_manager=s3_manager
-    )
+    migration_manager = S3MigrationManager(cache_manager=cache_manager, s3_manager=s3_manager)
 
     # Create and execute plan
     plan = migration_manager.create_migration_plan()
@@ -609,7 +585,7 @@ def create_migration_from_cache(
 
 def migrate_with_progress_bar(
     cache_dir: str = "cache",
-    bucket_name: Optional[str] = None,
+    bucket_name: str | None = None,
     prefix: str = "creative-assets",
     dry_run: bool = False,
 ):
@@ -644,13 +620,11 @@ def migrate_with_progress_bar(
         s3_config = S3Config.from_env(prefix=prefix)
 
     s3_manager = S3StorageManager(config=s3_config)
-    migration_manager = S3MigrationManager(
-        cache_manager=cache_manager, s3_manager=s3_manager
-    )
+    migration_manager = S3MigrationManager(cache_manager=cache_manager, s3_manager=s3_manager)
 
     # Create plan
     plan = migration_manager.create_migration_plan()
-    console.print(f"\n[bold]Migration Plan[/bold]")
+    console.print("\n[bold]Migration Plan[/bold]")
     console.print(plan.summary())
 
     if dry_run:
@@ -667,9 +641,7 @@ def migrate_with_progress_bar(
         TimeRemainingColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task(
-            "Migrating assets...", total=plan.total_assets
-        )
+        task = progress.add_task("Migrating assets...", total=plan.total_assets)
 
         def progress_callback(upload_progress: UploadProgress):
             progress.update(
@@ -683,11 +655,11 @@ def migrate_with_progress_bar(
             plan, dry_run=dry_run, progress_callback=progress_callback
         )
 
-    console.print(f"\n[bold]Migration Results[/bold]")
+    console.print("\n[bold]Migration Results[/bold]")
     console.print(result.summary())
 
     if result.failed_count > 0:
-        console.print(f"\n[red]Failed files:[/red]")
+        console.print("\n[red]Failed files:[/red]")
         for failed_file in result.failed_files[:10]:
             console.print(f"  - {failed_file}")
         if len(result.failed_files) > 10:

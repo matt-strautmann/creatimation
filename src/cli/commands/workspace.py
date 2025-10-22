@@ -1,32 +1,26 @@
 """
 Workspace command group - Manage creative automation workspaces.
 
-GitHub spec-kit inspired workspace management with project isolation,
+Provides workspace management with project isolation,
 templates, and collaborative features.
 """
-import sys
+
 import shutil
+import sys
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 import click
+from rich.prompt import Confirm
 from rich.table import Table
-from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 from rich.tree import Tree
-from rich.text import Text
 
 from ..core import pass_context
 from ..utils.output import console, error_console
 
 
 @click.group(invoke_without_command=True)
-@click.option(
-    "--list", "-l",
-    "list_workspaces",
-    is_flag=True,
-    help="List available workspaces"
-)
+@click.option("--list", "-l", "list_workspaces", is_flag=True, help="List available workspaces")
 @pass_context
 def workspace(ctx, list_workspaces):
     """
@@ -59,7 +53,9 @@ def workspace(ctx, list_workspaces):
         else:
             console.print()
             console.print("[yellow]No workspace active.[/yellow]")
-            console.print("Create a workspace with: [cyan]creatimation workspace init <name>[/cyan]")
+            console.print(
+                "Create a workspace with: [cyan]creatimation workspace init <name>[/cyan]"
+            )
             console.print("Or see [cyan]creatimation workspace --help[/cyan] for more options.")
             console.print()
 
@@ -71,30 +67,12 @@ def workspace(ctx, list_workspaces):
     "-t",
     type=click.Choice(["minimal", "cpg", "fashion", "tech", "custom"]),
     default="minimal",
-    help="Workspace template to use"
+    help="Workspace template to use",
 )
-@click.option(
-    "--brand",
-    "-b",
-    help="Brand name for workspace"
-)
-@click.option(
-    "--industry",
-    "-i",
-    help="Industry vertical"
-)
-@click.option(
-    "--path",
-    "-p",
-    type=click.Path(),
-    help="Custom workspace path (default: ./<name>)"
-)
-@click.option(
-    "--force",
-    "-f",
-    is_flag=True,
-    help="Overwrite existing workspace"
-)
+@click.option("--brand", "-b", help="Brand name for workspace")
+@click.option("--industry", "-i", help="Industry vertical")
+@click.option("--path", "-p", type=click.Path(), help="Custom workspace path (default: ./<name>)")
+@click.option("--force", "-f", is_flag=True, help="Overwrite existing workspace")
 @pass_context
 def init(ctx, name, template, brand, industry, path, force):
     """
@@ -126,7 +104,9 @@ def init(ctx, name, template, brand, industry, path, force):
         # Check if workspace already exists
         if workspace_path.exists() and any(workspace_path.iterdir()):
             if not force:
-                if not Confirm.ask(f"Directory {workspace_path} exists and is not empty. Continue?"):
+                if not Confirm.ask(
+                    f"Directory {workspace_path} exists and is not empty. Continue?"
+                ):
                     console.print("Workspace creation cancelled.")
                     return
 
@@ -138,14 +118,7 @@ def init(ctx, name, template, brand, industry, path, force):
         console.print()
 
         # Create directories
-        directories = [
-            "briefs",
-            "brand-guides",
-            "output",
-            "cache",
-            "templates",
-            "assets"
-        ]
+        directories = ["briefs", "brand-guides", "output", "cache", "templates", "assets"]
 
         for directory in directories:
             dir_path = workspace_path / directory
@@ -156,7 +129,7 @@ def init(ctx, name, template, brand, industry, path, force):
         config_content = _get_template_config(template, name, brand, industry)
         config_file = workspace_path / ".creatimation.yml"
         config_file.write_text(config_content)
-        console.print(f"[green]✓[/green] Created configuration: [cyan].creatimation.yml[/cyan]")
+        console.print("[green]✓[/green] Created configuration: [cyan].creatimation.yml[/cyan]")
 
         # Create template files based on template type
         _create_template_files(workspace_path, template, brand)
@@ -165,13 +138,13 @@ def init(ctx, name, template, brand, industry, path, force):
         readme_content = _get_workspace_readme(name, template, brand)
         readme_file = workspace_path / "README.md"
         readme_file.write_text(readme_content)
-        console.print(f"[green]✓[/green] Created documentation: [cyan]README.md[/cyan]")
+        console.print("[green]✓[/green] Created documentation: [cyan]README.md[/cyan]")
 
         # Create .gitignore
         gitignore_content = _get_workspace_gitignore()
         gitignore_file = workspace_path / ".gitignore"
         gitignore_file.write_text(gitignore_content)
-        console.print(f"[green]✓[/green] Created version control: [cyan].gitignore[/cyan]")
+        console.print("[green]✓[/green] Created version control: [cyan].gitignore[/cyan]")
 
         console.print()
         console.print(f"[bold green]✓ Workspace '{name}' created successfully![/bold green]")
@@ -192,10 +165,7 @@ def init(ctx, name, template, brand, industry, path, force):
 
 @workspace.command(name="list")
 @click.option(
-    "--format",
-    type=click.Choice(["table", "tree", "json"]),
-    default="table",
-    help="Output format"
+    "--format", type=click.Choice(["table", "tree", "json"]), default="table", help="Output format"
 )
 @pass_context
 def list_workspaces_cmd(ctx, format):
@@ -216,7 +186,9 @@ def list_workspaces_cmd(ctx, format):
         if not workspaces:
             console.print()
             console.print("[yellow]No workspaces found.[/yellow]")
-            console.print("Create a workspace with: [cyan]creatimation workspace init <name>[/cyan]")
+            console.print(
+                "Create a workspace with: [cyan]creatimation workspace init <name>[/cyan]"
+            )
             console.print()
             return
 
@@ -237,12 +209,7 @@ def list_workspaces_cmd(ctx, format):
 
 
 @workspace.command()
-@click.option(
-    "--detailed",
-    "-d",
-    is_flag=True,
-    help="Show detailed workspace information"
-)
+@click.option("--detailed", "-d", is_flag=True, help="Show detailed workspace information")
 @pass_context
 def info(ctx, detailed):
     """
@@ -264,7 +231,7 @@ def info(ctx, detailed):
         workspace_path = workspace.workspace_path
 
         console.print()
-        console.print(f"[bold cyan]Workspace Information[/bold cyan]")
+        console.print("[bold cyan]Workspace Information[/bold cyan]")
         console.print()
 
         # Basic info table
@@ -279,6 +246,7 @@ def info(ctx, detailed):
         config_file = workspace_path / ".creatimation.yml"
         if config_file.exists():
             import yaml
+
             try:
                 with open(config_file) as f:
                     config = yaml.safe_load(f)
@@ -356,12 +324,7 @@ def switch(ctx, workspace_name):
 @workspace.command()
 @click.argument("source_workspace")
 @click.argument("new_name")
-@click.option(
-    "--path",
-    "-p",
-    type=click.Path(),
-    help="Custom path for cloned workspace"
-)
+@click.option("--path", "-p", type=click.Path(), help="Custom path for cloned workspace")
 @pass_context
 def clone(ctx, source_workspace, new_name, path):
     """
@@ -393,7 +356,7 @@ def clone(ctx, source_workspace, new_name, path):
                 return
 
         console.print()
-        console.print(f"[bold cyan]Cloning workspace[/bold cyan]")
+        console.print("[bold cyan]Cloning workspace[/bold cyan]")
         console.print(f"Source: {source_path}")
         console.print(f"Target: {target_path}")
         console.print()
@@ -408,17 +371,18 @@ def clone(ctx, source_workspace, new_name, path):
         if output_dir.exists():
             shutil.rmtree(output_dir)
             output_dir.mkdir()
-            console.print(f"[green]✓[/green] Cleared output directory")
+            console.print("[green]✓[/green] Cleared output directory")
 
         if cache_dir.exists():
             shutil.rmtree(cache_dir)
             cache_dir.mkdir()
-            console.print(f"[green]✓[/green] Cleared cache directory")
+            console.print("[green]✓[/green] Cleared cache directory")
 
         # Update configuration with new name
         config_file = target_path / ".creatimation.yml"
         if config_file.exists():
             import yaml
+
             try:
                 with open(config_file) as f:
                     config = yaml.safe_load(f)
@@ -427,16 +391,16 @@ def clone(ctx, source_workspace, new_name, path):
                     config["project"] = {}
                 config["project"]["name"] = new_name
 
-                with open(config_file, 'w') as f:
+                with open(config_file, "w") as f:
                     yaml.dump(config, f, default_flow_style=False)
 
-                console.print(f"[green]✓[/green] Updated configuration")
+                console.print("[green]✓[/green] Updated configuration")
 
             except Exception as e:
                 console.print(f"[yellow]⚠[/yellow] Could not update config: {e}")
 
         console.print()
-        console.print(f"[bold green]✓ Workspace cloned successfully![/bold green]")
+        console.print("[bold green]✓ Workspace cloned successfully![/bold green]")
         console.print(f"[dim]New workspace: {target_path}[/dim]")
         console.print()
 
@@ -449,12 +413,7 @@ def clone(ctx, source_workspace, new_name, path):
 
 @workspace.command()
 @click.argument("workspace_name")
-@click.option(
-    "--force",
-    "-f",
-    is_flag=True,
-    help="Skip confirmation prompt"
-)
+@click.option("--force", "-f", is_flag=True, help="Skip confirmation prompt")
 @pass_context
 def remove(ctx, workspace_name, force):
     """
@@ -477,7 +436,9 @@ def remove(ctx, workspace_name, force):
         # Confirmation
         if not force:
             console.print()
-            console.print(f"[bold red]Warning: This will permanently delete the workspace![/bold red]")
+            console.print(
+                "[bold red]Warning: This will permanently delete the workspace![/bold red]"
+            )
             console.print(f"Path: {workspace_path}")
             console.print()
 
@@ -503,6 +464,7 @@ def remove(ctx, workspace_name, force):
 # HELPER FUNCTIONS
 # ============================================================================
 
+
 def _discover_workspaces():
     """Discover available workspaces."""
     workspaces = []
@@ -516,20 +478,16 @@ def _discover_workspaces():
     return workspaces
 
 
-def _get_workspace_info(workspace_path: Path) -> Dict[str, Any]:
+def _get_workspace_info(workspace_path: Path) -> dict[str, Any]:
     """Get information about a workspace."""
-    info = {
-        "name": workspace_path.name,
-        "path": workspace_path,
-        "valid": False,
-        "config": {}
-    }
+    info = {"name": workspace_path.name, "path": workspace_path, "valid": False, "config": {}}
 
     # Check if valid workspace
     config_file = workspace_path / ".creatimation.yml"
     if config_file.exists():
         try:
             import yaml
+
             with open(config_file) as f:
                 config = yaml.safe_load(f)
             info["config"] = config
@@ -549,7 +507,7 @@ def _get_workspace_info(workspace_path: Path) -> Dict[str, Any]:
     return info
 
 
-def _find_workspace(name: str) -> Optional[Path]:
+def _find_workspace(name: str) -> Path | None:
     """Find workspace by name or path."""
     # Check if it's a direct path
     path = Path(name)
@@ -565,25 +523,13 @@ def _find_workspace(name: str) -> Optional[Path]:
     return None
 
 
-def _get_template_config(template: str, name: str, brand: Optional[str], industry: Optional[str]) -> str:
+def _get_template_config(template: str, name: str, brand: str | None, industry: str | None) -> str:
     """Generate configuration content based on template."""
     config = {
-        "project": {
-            "name": brand or name,
-            "workspace": name
-        },
-        "generation": {
-            "default_variants": 3,
-            "aspect_ratios": ["1x1", "9x16", "16x9"]
-        },
-        "cache": {
-            "enabled": True,
-            "directory": "cache"
-        },
-        "output": {
-            "directory": "output",
-            "semantic_structure": True
-        }
+        "project": {"name": brand or name, "workspace": name},
+        "generation": {"default_variants": 3, "aspect_ratios": ["1x1", "9x16", "16x9"]},
+        "cache": {"enabled": True, "directory": "cache"},
+        "output": {"directory": "output", "semantic_structure": True},
     }
 
     if brand:
@@ -605,10 +551,11 @@ def _get_template_config(template: str, name: str, brand: Optional[str], industr
         config["project"]["template"] = "tech"
 
     import yaml
+
     return yaml.dump(config, default_flow_style=False, sort_keys=False)
 
 
-def _create_template_files(workspace_path: Path, template: str, brand: Optional[str]):
+def _create_template_files(workspace_path: Path, template: str, brand: str | None):
     """Create template files based on template type."""
 
     # Create sample brief
@@ -629,7 +576,9 @@ def _create_template_files(workspace_path: Path, template: str, brand: Optional[
     guide_file = workspace_path / "brand-guides" / "brand-guide.yml"
     guide_file.write_text(brand_guide_content)
 
-    console.print(f"[green]✓[/green] Created template files: [cyan]sample brief & brand guide[/cyan]")
+    console.print(
+        "[green]✓[/green] Created template files: [cyan]sample brief & brand guide[/cyan]"
+    )
 
 
 def _get_cpg_sample_brief(brand: str) -> str:
@@ -647,22 +596,19 @@ def _get_cpg_sample_brief(brand: str) -> str:
             "variant_themes": {
                 "base": "clean modern style",
                 "color_shift": "bold dynamic style",
-                "premium": "elegant premium style"
-            }
+                "premium": "elegant premium style",
+            },
         },
         "enhanced_context": {
             "setting": "modern kitchen environment",
             "mood": "fresh and efficient",
-            "brand_colors": {
-                "primary": "#2E7D32",
-                "secondary": "#66BB6A"
-            }
+            "brand_colors": {"primary": "#2E7D32", "secondary": "#66BB6A"},
         },
         "regional_adaptations": {
             "US": {"call_to_action": "Try Now"},
             "EMEA": {"call_to_action": "Discover More"},
-            "APAC": {"call_to_action": "Learn More"}
-        }
+            "APAC": {"call_to_action": "Learn More"},
+        },
     }
 
     return json.dumps(brief, indent=2)
@@ -683,17 +629,14 @@ def _get_fashion_sample_brief(brand: str) -> str:
             "variant_themes": {
                 "elegant": "sophisticated luxury",
                 "casual": "effortless comfort",
-                "bold": "statement pieces"
-            }
+                "bold": "statement pieces",
+            },
         },
         "enhanced_context": {
             "setting": "urban lifestyle environment",
             "mood": "confident and stylish",
-            "brand_colors": {
-                "primary": "#212121",
-                "secondary": "#BDBDBD"
-            }
-        }
+            "brand_colors": {"primary": "#212121", "secondary": "#BDBDBD"},
+        },
     }
 
     return json.dumps(brief, indent=2)
@@ -714,17 +657,14 @@ def _get_tech_sample_brief(brand: str) -> str:
             "variant_themes": {
                 "professional": "sleek and minimal",
                 "consumer": "friendly and approachable",
-                "enterprise": "powerful and reliable"
-            }
+                "enterprise": "powerful and reliable",
+            },
         },
         "enhanced_context": {
             "setting": "modern office environment",
             "mood": "innovative and efficient",
-            "brand_colors": {
-                "primary": "#1976D2",
-                "secondary": "#42A5F5"
-            }
-        }
+            "brand_colors": {"primary": "#1976D2", "secondary": "#42A5F5"},
+        },
     }
 
     return json.dumps(brief, indent=2)
@@ -742,17 +682,13 @@ def _get_minimal_sample_brief(brand: str) -> str:
         "creative_requirements": {
             "aspect_ratios": ["1x1", "9x16", "16x9"],
             "variant_types": ["base"],
-            "variant_themes": {
-                "base": "clean and professional"
-            }
+            "variant_themes": {"base": "clean and professional"},
         },
         "enhanced_context": {
             "setting": "clean modern environment",
             "mood": "professional and trustworthy",
-            "brand_colors": {
-                "primary": "#1565C0"
-            }
-        }
+            "brand_colors": {"primary": "#1565C0"},
+        },
     }
 
     return json.dumps(brief, indent=2)
@@ -766,29 +702,25 @@ def _get_sample_brand_guide(brand: str, template: str) -> str:
         "brand": {
             "name": brand,
             "tagline": "Quality and innovation",
-            "industry": "consumer goods" if template == "cpg" else template
+            "industry": "consumer goods" if template == "cpg" else template,
         },
-        "colors": {
-            "primary": "#1565C0",
-            "secondary": "#42A5F5",
-            "accent": "#FFA726"
-        },
+        "colors": {"primary": "#1565C0", "secondary": "#42A5F5", "accent": "#FFA726"},
         "visual": {
             "layout_style": "clean and modern",
             "logo_placement": "top-left",
-            "font_style": "sans-serif"
+            "font_style": "sans-serif",
         },
         "messaging": {
             "tone": "professional yet approachable",
             "voice": "confident and helpful",
-            "keywords": ["quality", "innovation", "trust"]
-        }
+            "keywords": ["quality", "innovation", "trust"],
+        },
     }
 
     return yaml.dump(brand_guide, default_flow_style=False)
 
 
-def _get_workspace_readme(name: str, template: str, brand: Optional[str]) -> str:
+def _get_workspace_readme(name: str, template: str, brand: str | None) -> str:
     """Generate workspace README."""
     brand_name = brand or name
 
@@ -880,13 +812,7 @@ def _display_workspaces_table(workspaces):
         status = "✓ Valid" if ws["valid"] else "✗ Invalid"
         briefs = str(ws.get("briefs_count", 0))
 
-        table.add_row(
-            ws["name"],
-            str(ws["path"]),
-            brand,
-            status,
-            briefs
-        )
+        table.add_row(ws["name"], str(ws["path"]), brand, status, briefs)
 
     console.print(table)
 

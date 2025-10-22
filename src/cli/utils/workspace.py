@@ -1,16 +1,17 @@
 """
 Workspace management utilities.
 
-GitHub spec-kit inspired workspace patterns with project isolation,
+Provides workspace patterns with project isolation,
 configuration management, and collaborative features.
 """
-import os
-import json
-import yaml
-from pathlib import Path
-from typing import Dict, Any, Optional, List
 
-from .output import console, error_console, print_warning, print_error
+import json
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from .output import console, print_error
 
 
 class WorkspaceManager:
@@ -35,12 +36,12 @@ class WorkspaceManager:
     def exists(self) -> bool:
         """Check if workspace exists and is valid."""
         return (
-            self.workspace_path.exists() and
-            self.workspace_path.is_dir() and
-            self._config_file.exists()
+            self.workspace_path.exists()
+            and self.workspace_path.is_dir()
+            and self._config_file.exists()
         )
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         """
         Get workspace configuration.
 
@@ -64,7 +65,7 @@ class WorkspaceManager:
             Configuration value or default
         """
         config = self.get_config()
-        keys = key.split('.')
+        keys = key.split(".")
 
         current = config
         for k in keys:
@@ -84,7 +85,7 @@ class WorkspaceManager:
             value: Value to set
         """
         config = self.get_config()
-        keys = key.split('.')
+        keys = key.split(".")
 
         # Navigate to the parent dictionary
         current = config
@@ -100,26 +101,21 @@ class WorkspaceManager:
         self._save_config(config)
         self._config_cache = config
 
-    def validate_structure(self) -> Dict[str, Any]:
+    def validate_structure(self) -> dict[str, Any]:
         """
         Validate workspace directory structure.
 
         Returns:
             Validation result with errors, warnings, and recommendations
         """
-        result = {
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "recommendations": []
-        }
+        result = {"valid": True, "errors": [], "warnings": [], "recommendations": []}
 
         # Check required directories
         required_dirs = {
             "briefs": "Campaign brief JSON files",
             "brand-guides": "Brand guide YAML files",
             "output": "Generated creative assets",
-            "cache": "Cached assets and metadata"
+            "cache": "Cached assets and metadata",
         }
 
         for dir_name, description in required_dirs.items():
@@ -160,21 +156,14 @@ class WorkspaceManager:
         self.workspace_path.mkdir(parents=True, exist_ok=True)
 
         # Create standard directories
-        directories = [
-            "briefs",
-            "brand-guides",
-            "output",
-            "cache",
-            "templates",
-            "assets"
-        ]
+        directories = ["briefs", "brand-guides", "output", "cache", "templates", "assets"]
 
         for directory in directories:
             (self.workspace_path / directory).mkdir(exist_ok=True)
 
         console.print(f"[green]✓[/green] Created workspace structure at {self.workspace_path}")
 
-    def list_briefs(self) -> List[Dict[str, Any]]:
+    def list_briefs(self) -> list[dict[str, Any]]:
         """
         List all campaign briefs in the workspace.
 
@@ -198,25 +187,27 @@ class WorkspaceManager:
                     "campaign_id": brief_data.get("campaign_id", "Unknown"),
                     "products": brief_data.get("products", []),
                     "regions": brief_data.get("target_regions", []),
-                    "valid": True
+                    "valid": True,
                 }
 
                 briefs.append(brief_info)
 
             except Exception as e:
-                briefs.append({
-                    "file": brief_file.name,
-                    "path": brief_file,
-                    "campaign_id": "Error",
-                    "products": [],
-                    "regions": [],
-                    "valid": False,
-                    "error": str(e)
-                })
+                briefs.append(
+                    {
+                        "file": brief_file.name,
+                        "path": brief_file,
+                        "campaign_id": "Error",
+                        "products": [],
+                        "regions": [],
+                        "valid": False,
+                        "error": str(e),
+                    }
+                )
 
         return briefs
 
-    def list_brand_guides(self) -> List[Dict[str, Any]]:
+    def list_brand_guides(self) -> list[dict[str, Any]]:
         """
         List all brand guides in the workspace.
 
@@ -239,36 +230,33 @@ class WorkspaceManager:
                     "path": guide_file,
                     "brand_name": guide_data.get("brand", {}).get("name", "Unknown"),
                     "industry": guide_data.get("brand", {}).get("industry"),
-                    "valid": True
+                    "valid": True,
                 }
 
                 guides.append(guide_info)
 
             except Exception as e:
-                guides.append({
-                    "file": guide_file.name,
-                    "path": guide_file,
-                    "brand_name": "Error",
-                    "industry": None,
-                    "valid": False,
-                    "error": str(e)
-                })
+                guides.append(
+                    {
+                        "file": guide_file.name,
+                        "path": guide_file,
+                        "brand_name": "Error",
+                        "industry": None,
+                        "valid": False,
+                        "error": str(e),
+                    }
+                )
 
         return guides
 
-    def get_output_summary(self) -> Dict[str, Any]:
+    def get_output_summary(self) -> dict[str, Any]:
         """
         Get summary of generated outputs.
 
         Returns:
             Output summary with counts and sizes
         """
-        summary = {
-            "total_files": 0,
-            "total_size_bytes": 0,
-            "campaigns": {},
-            "file_types": {}
-        }
+        summary = {"total_files": 0, "total_size_bytes": 0, "campaigns": {}, "file_types": {}}
 
         output_dir = self.workspace_path / "output"
         if not output_dir.exists():
@@ -303,7 +291,7 @@ class WorkspaceManager:
 
         return summary
 
-    def clean_outputs(self, campaign_id: Optional[str] = None) -> int:
+    def clean_outputs(self, campaign_id: str | None = None) -> int:
         """
         Clean generated outputs.
 
@@ -324,6 +312,7 @@ class WorkspaceManager:
             campaign_dir = output_dir / campaign_id
             if campaign_dir.exists():
                 import shutil
+
                 shutil.rmtree(campaign_dir)
                 cleaned_count = 1
         else:
@@ -331,6 +320,7 @@ class WorkspaceManager:
             for item in output_dir.iterdir():
                 if item.is_dir():
                     import shutil
+
                     shutil.rmtree(item)
                     cleaned_count += 1
                 elif item.is_file():
@@ -339,7 +329,7 @@ class WorkspaceManager:
 
         return cleaned_count
 
-    def export_workspace_info(self) -> Dict[str, Any]:
+    def export_workspace_info(self) -> dict[str, Any]:
         """
         Export workspace information for sharing or backup.
 
@@ -353,7 +343,7 @@ class WorkspaceManager:
             "briefs": self.list_briefs(),
             "brand_guides": self.list_brand_guides(),
             "output_summary": self.get_output_summary(),
-            "created_at": self._get_creation_time()
+            "created_at": self._get_creation_time(),
         }
 
     def _load_config(self) -> None:
@@ -363,21 +353,21 @@ class WorkspaceManager:
             return
 
         try:
-            with open(self._config_file, 'r') as f:
+            with open(self._config_file) as f:
                 self._config_cache = yaml.safe_load(f) or {}
         except Exception as e:
             print_error(f"Failed to load workspace configuration: {e}")
             self._config_cache = {}
 
-    def _save_config(self, config: Dict[str, Any]) -> None:
+    def _save_config(self, config: dict[str, Any]) -> None:
         """Save configuration to file."""
         try:
-            with open(self._config_file, 'w') as f:
+            with open(self._config_file, "w") as f:
                 yaml.dump(config, f, default_flow_style=False, sort_keys=False)
         except Exception as e:
             print_error(f"Failed to save workspace configuration: {e}")
 
-    def _check_workspace_content(self, result: Dict[str, Any]) -> None:
+    def _check_workspace_content(self, result: dict[str, Any]) -> None:
         """Check workspace content and add recommendations."""
         # Check for briefs
         briefs = self.list_briefs()
@@ -396,17 +386,18 @@ class WorkspaceManager:
         if output_summary["total_files"] == 0:
             result["recommendations"].append("Run generation to create output assets")
 
-    def _get_creation_time(self) -> Optional[str]:
+    def _get_creation_time(self) -> str | None:
         """Get workspace creation time."""
         try:
             stat = self.workspace_path.stat()
             import time
+
             return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stat.st_ctime))
         except:
             return None
 
 
-def discover_workspaces(search_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+def discover_workspaces(search_path: Path | None = None) -> list[dict[str, Any]]:
     """
     Discover workspaces in a directory tree.
 
@@ -430,7 +421,7 @@ def discover_workspaces(search_path: Optional[Path] = None) -> List[Dict[str, An
                     "name": item.name,
                     "path": item,
                     "config_file": config_file,
-                    "valid": True
+                    "valid": True,
                 }
 
                 # Try to load basic info
@@ -455,7 +446,7 @@ def discover_workspaces(search_path: Optional[Path] = None) -> List[Dict[str, An
     return workspaces
 
 
-def find_workspace_root(start_path: Optional[Path] = None) -> Optional[Path]:
+def find_workspace_root(start_path: Path | None = None) -> Path | None:
     """
     Find workspace root by walking up the directory tree.
 
@@ -480,9 +471,7 @@ def find_workspace_root(start_path: Optional[Path] = None) -> Optional[Path]:
 
 
 def create_workspace_from_template(
-    workspace_path: Path,
-    template_name: str,
-    **template_vars
+    workspace_path: Path, template_name: str, **template_vars
 ) -> WorkspaceManager:
     """
     Create a workspace from a template.
@@ -532,14 +521,34 @@ def validate_workspace_name(name: str) -> bool:
 
     # Check characters (alphanumeric, hyphens, underscores)
     import re
-    if not re.match(r'^[a-zA-Z0-9_-]+$', name):
+
+    if not re.match(r"^[a-zA-Z0-9_-]+$", name):
         return False
 
     # Check for reserved names
     reserved_names = {
-        'con', 'prn', 'aux', 'nul',
-        'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
-        'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9'
+        "con",
+        "prn",
+        "aux",
+        "nul",
+        "com1",
+        "com2",
+        "com3",
+        "com4",
+        "com5",
+        "com6",
+        "com7",
+        "com8",
+        "com9",
+        "lpt1",
+        "lpt2",
+        "lpt3",
+        "lpt4",
+        "lpt5",
+        "lpt6",
+        "lpt7",
+        "lpt8",
+        "lpt9",
     }
 
     if name.lower() in reserved_names:
@@ -548,25 +557,16 @@ def validate_workspace_name(name: str) -> bool:
     return True
 
 
-def _generate_config_from_template(template_name: str, **vars) -> Dict[str, Any]:
+def _generate_config_from_template(template_name: str, **vars) -> dict[str, Any]:
     """Generate configuration from template."""
     base_config = {
         "project": {
             "name": vars.get("name", "My Project"),
-            "workspace": vars.get("workspace_name", "my-workspace")
+            "workspace": vars.get("workspace_name", "my-workspace"),
         },
-        "generation": {
-            "default_variants": 3,
-            "aspect_ratios": ["1x1", "9x16", "16x9"]
-        },
-        "cache": {
-            "enabled": True,
-            "directory": "cache"
-        },
-        "output": {
-            "directory": "output",
-            "semantic_structure": True
-        }
+        "generation": {"default_variants": 3, "aspect_ratios": ["1x1", "9x16", "16x9"]},
+        "cache": {"enabled": True, "directory": "cache"},
+        "output": {"directory": "output", "semantic_structure": True},
     }
 
     # Apply template-specific modifications
@@ -618,17 +618,13 @@ def _generate_sample_brief(template_name: str, **vars) -> str:
         "creative_requirements": {
             "aspect_ratios": ["1x1", "9x16", "16x9"],
             "variant_types": ["base"],
-            "variant_themes": {
-                "base": "clean and professional"
-            }
+            "variant_themes": {"base": "clean and professional"},
         },
         "enhanced_context": {
             "setting": "modern clean environment",
             "mood": "professional and trustworthy",
-            "brand_colors": {
-                "primary": "#1565C0"
-            }
-        }
+            "brand_colors": {"primary": "#1565C0"},
+        },
     }
 
     return json.dumps(brief, indent=2)
@@ -642,23 +638,19 @@ def _generate_sample_brand_guide(template_name: str, **vars) -> str:
         "brand": {
             "name": brand_name,
             "tagline": "Quality and innovation",
-            "industry": vars.get("industry", "consumer goods")
+            "industry": vars.get("industry", "consumer goods"),
         },
-        "colors": {
-            "primary": "#1565C0",
-            "secondary": "#42A5F5",
-            "accent": "#FFA726"
-        },
+        "colors": {"primary": "#1565C0", "secondary": "#42A5F5", "accent": "#FFA726"},
         "visual": {
             "layout_style": "clean and modern",
             "logo_placement": "top-left",
-            "font_style": "sans-serif"
+            "font_style": "sans-serif",
         },
         "messaging": {
             "tone": "professional yet approachable",
             "voice": "confident and helpful",
-            "keywords": ["quality", "innovation", "trust"]
-        }
+            "keywords": ["quality", "innovation", "trust"],
+        },
     }
 
     return yaml.dump(guide, default_flow_style=False)

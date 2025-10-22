@@ -4,14 +4,13 @@ Configuration Management for Creative Automation Pipeline
 
 Implements precedence chain: CLI flags > .creatimation.yml > hardcoded defaults
 """
+
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, Field, validator
-
 
 # ============================================================================
 # PYDANTIC MODELS FOR VALIDATION
@@ -29,15 +28,13 @@ class ProjectConfig(BaseModel):
 class GenerationConfig(BaseModel):
     """Creative generation settings"""
 
-    aspect_ratios: List[str] = Field(
+    aspect_ratios: list[str] = Field(
         default=["1x1", "9x16", "16x9"], description="Aspect ratios to generate"
     )
     variants_per_ratio: int = Field(
         default=3, ge=1, le=10, description="Number of variants per aspect ratio"
     )
-    brand_guide: Optional[str] = Field(
-        default=None, description="Path to brand guide YAML file"
-    )
+    brand_guide: str | None = Field(default=None, description="Path to brand guide YAML file")
 
     @validator("aspect_ratios")
     def validate_ratios(cls, v):
@@ -72,7 +69,7 @@ class OpenAIConfig(BaseModel):
 
     model: str = Field(default="dall-e-3", description="DALL-E model version")
     timeout: int = Field(default=120, ge=30, le=300, description="API timeout in seconds")
-    api_key: Optional[str] = Field(default=None, description="OpenAI API key")
+    api_key: str | None = Field(default=None, description="OpenAI API key")
 
 
 class CreatimationConfig(BaseModel):
@@ -98,7 +95,7 @@ class ConfigManager:
     3. Hardcoded defaults (lowest priority)
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         Initialize config manager.
 
@@ -106,9 +103,9 @@ class ConfigManager:
             config_path: Path to .creatimation.yml file (default: .creatimation.yml in cwd)
         """
         self.config_path = Path(config_path) if config_path else Path(".creatimation.yml")
-        self._config: Optional[CreatimationConfig] = None
+        self._config: CreatimationConfig | None = None
 
-    def load(self, cli_overrides: Optional[Dict[str, Any]] = None) -> CreatimationConfig:
+    def load(self, cli_overrides: dict[str, Any] | None = None) -> CreatimationConfig:
         """
         Load configuration with precedence chain.
 
@@ -128,16 +125,34 @@ class ConfigManager:
 
         # Layer 2: Load from .creatimation.yml if exists
         if self.config_path.exists():
-            with open(self.config_path) as f:
-                file_config = yaml.safe_load(f) or {}
-                config_dict = self._deep_merge(config_dict, file_config)
+            try:
+                with open(self.config_path, encoding='utf-8') as f:
+                    file_config = yaml.safe_load(f) or {}
+                    config_dict = self._deep_merge(config_dict, file_config)
+            except PermissionError as e:
+                raise RuntimeError(f"Permission denied reading config file {self.config_path}: {e}")
+            except yaml.YAMLError as e:
+                raise RuntimeError(f"Invalid YAML in config file {self.config_path}: {e}")
+            except UnicodeDecodeError as e:
+                raise RuntimeError(f"Encoding error in config file {self.config_path}: {e}")
+            except OSError as e:
+                raise RuntimeError(f"Failed to read config file {self.config_path}: {e}")
+            except Exception as e:
+                raise RuntimeError(f"Unexpected error reading config file {self.config_path}: {e}")
 
         # Layer 1: Apply CLI overrides (highest priority)
         if cli_overrides:
             config_dict = self._deep_merge(config_dict, cli_overrides)
 
         # Validate and create config object
-        self._config = CreatimationConfig(**config_dict)
+        try:
+            self._config = CreatimationConfig(**config_dict)
+        except Exception as e:
+            # Provide helpful validation error messages
+            if "validation error" in str(e).lower():
+                raise RuntimeError(f"Configuration validation failed: {e}")
+            else:
+                raise RuntimeError(f"Failed to create configuration: {e}")
 
         # Override OpenAI API key from environment if not in config
         if not self._config.openai.api_key:
@@ -145,7 +160,7 @@ class ConfigManager:
 
         return self._config
 
-    def _deep_merge(self, base: Dict, override: Dict) -> Dict:
+    def _deep_merge(self, base: dict, override: dict) -> dict:
         """
         Deep merge two dictionaries, with override taking precedence.
 
@@ -166,7 +181,7 @@ class ConfigManager:
 
         return result
 
-    def save_template(self, output_path: Optional[str] = None) -> Path:
+    def save_template(self, output_path: str | None = None) -> Path:
         """
         Save a .creatimation.yml template with defaults and comments.
 
@@ -214,12 +229,19 @@ openai:
   # api_key: sk-...            # Optional: override .env OPENAI_API_KEY
 """
 
-        with open(template_path, "w") as f:
-            f.write(template)
+        try:
+            with open(template_path, "w", encoding='utf-8') as f:
+                f.write(template)
+        except PermissionError as e:
+            raise RuntimeError(f"Permission denied writing template to {template_path}: {e}")
+        except OSError as e:
+            raise RuntimeError(f"Failed to write template to {template_path}: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error writing template to {template_path}: {e}")
 
         return template_path
 
-    def validate(self) -> Dict[str, Any]:
+    def validate(self) -> dict[str, Any]:
         """
         Validate configuration file.
 
@@ -256,16 +278,14 @@ openai:
                 )
 
             if config.generation.brand_guide and not Path(config.generation.brand_guide).exists():
-                warnings.append(
-                    f"Brand guide file not found: {config.generation.brand_guide}"
-                )
+                warnings.append(f"Brand guide file not found: {config.generation.brand_guide}")
 
             return {"valid": True, "config": config, "warnings": warnings}
 
         except Exception as e:
             return {"valid": False, "error": str(e), "warnings": []}
 
-    def show_effective_config(self, cli_overrides: Optional[Dict[str, Any]] = None) -> str:
+    def show_effective_config(self, cli_overrides: dict[str, Any] | None = None) -> str:
         """
         Show effective configuration after precedence chain applied.
 
@@ -299,9 +319,7 @@ openai:
         output.append("Generation:")
         output.append(f"  aspect_ratios: {', '.join(config.generation.aspect_ratios)}")
         output.append(f"  variants_per_ratio: {config.generation.variants_per_ratio}")
-        output.append(
-            f"  brand_guide: {config.generation.brand_guide or '(none)'}"
-        )
+        output.append(f"  brand_guide: {config.generation.brand_guide or '(none)'}")
         output.append("")
 
         output.append("Cache:")
@@ -331,7 +349,7 @@ openai:
 
 
 def load_config(
-    config_path: Optional[str] = None, cli_overrides: Optional[Dict[str, Any]] = None
+    config_path: str | None = None, cli_overrides: dict[str, Any] | None = None
 ) -> CreatimationConfig:
     """
     Convenience function to load configuration.
@@ -347,7 +365,7 @@ def load_config(
     return manager.load(cli_overrides)
 
 
-def init_config(output_path: Optional[str] = None) -> Path:
+def init_config(output_path: str | None = None) -> Path:
     """
     Initialize .creatimation.yml template.
 
@@ -361,7 +379,7 @@ def init_config(output_path: Optional[str] = None) -> Path:
     return manager.save_template(output_path)
 
 
-def validate_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+def validate_config(config_path: str | None = None) -> dict[str, Any]:
     """
     Validate configuration file.
 

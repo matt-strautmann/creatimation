@@ -5,6 +5,7 @@ Output Manager - Semantic file naming and metadata generation
 Manages organized output structure with semantic naming conventions
 (ecowash-detergent_1x1_creative.jpg) and comprehensive metadata tracking.
 """
+
 import json
 import logging
 import time

@@ -25,47 +25,62 @@ from creative_automation_agent import (
 class TestBriefMonitoring:
     """Test campaign brief monitoring and change detection"""
 
-    def test_scan_for_new_briefs(self, temp_dir, sample_brief_file):
+    def test_scan_for_new_briefs(self, temp_dir, sample_brief_data, clean_agent):
         """Test scanning for new campaign briefs"""
-        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+        import json
 
-        new_briefs = agent.scan_for_new_briefs()
+        # Create a brief file directly in clean agent's directory
+        brief_file = clean_agent.briefs_dir / "test_campaign.json"
+        with open(brief_file, "w") as f:
+            json.dump(sample_brief_data, f, indent=2)
+
+        new_briefs = clean_agent.scan_for_new_briefs()
 
         assert len(new_briefs) > 0
-        assert sample_brief_file in new_briefs
+        assert brief_file in new_briefs
 
-    def test_ignore_unchanged_briefs(self, temp_dir, sample_brief_file):
+    def test_ignore_unchanged_briefs(self, temp_dir, sample_brief_data, clean_agent):
         """Test that unchanged briefs are not detected as new"""
-        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+        import json
+
+        # Create a brief file directly in clean agent's directory
+        brief_file = clean_agent.briefs_dir / "test_campaign.json"
+        with open(brief_file, "w") as f:
+            json.dump(sample_brief_data, f, indent=2)
 
         # First scan
-        agent.scan_for_new_briefs()
-        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
-        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+        clean_agent.scan_for_new_briefs()
+        campaign_id, brief_data = clean_agent.analyze_campaign_brief(brief_file)
+        clean_agent.trigger_generation_task(brief_file, campaign_id, brief_data)
 
         # Second scan should find no changes
-        new_briefs = agent.scan_for_new_briefs()
-        assert sample_brief_file not in new_briefs
+        new_briefs = clean_agent.scan_for_new_briefs()
+        assert brief_file not in new_briefs
 
-    def test_detect_modified_briefs(self, temp_dir, sample_brief_file):
+    def test_detect_modified_briefs(self, temp_dir, sample_brief_data, clean_agent):
         """Test detection of modified campaign briefs"""
-        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+        import json
+
+        # Create a brief file directly in clean agent's directory
+        brief_file = clean_agent.briefs_dir / "test_campaign.json"
+        with open(brief_file, "w") as f:
+            json.dump(sample_brief_data, f, indent=2)
 
         # Initial scan
-        agent.scan_for_new_briefs()
-        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
-        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+        clean_agent.scan_for_new_briefs()
+        campaign_id, brief_data = clean_agent.analyze_campaign_brief(brief_file)
+        clean_agent.trigger_generation_task(brief_file, campaign_id, brief_data)
 
         # Modify the brief
-        with open(sample_brief_file) as f:
+        with open(brief_file) as f:
             brief_data = json.load(f)
         brief_data["campaign_message"] = "Modified Message"
-        with open(sample_brief_file, "w") as f:
+        with open(brief_file, "w") as f:
             json.dump(brief_data, f)
 
         # Should detect modification
-        new_briefs = agent.scan_for_new_briefs()
-        assert sample_brief_file in new_briefs
+        new_briefs = clean_agent.scan_for_new_briefs()
+        assert brief_file in new_briefs
 
 
 class TestTaskTriggering:
@@ -163,15 +178,20 @@ class TestVariantSufficiency:
         # With 9 variants per product (3 per ratio × 3 ratios), should be sufficient
         assert len(insufficient) == 0
 
-    def test_check_insufficient_variants(self, temp_dir, sample_brief_file):
+    def test_check_insufficient_variants(self, temp_dir, sample_brief_data, clean_agent):
         """Test detection of insufficient variants"""
-        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+        import json
 
-        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
-        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+        # Create brief file
+        brief_file = clean_agent.briefs_dir / "test_campaign.json"
+        with open(brief_file, "w") as f:
+            json.dump(sample_brief_data, f, indent=2)
+
+        campaign_id, brief_data = clean_agent.analyze_campaign_brief(brief_file)
+        clean_agent.trigger_generation_task(brief_file, campaign_id, brief_data)
 
         # Don't track any variants - all products should be insufficient
-        insufficient = agent.check_variant_sufficiency(campaign_id)
+        insufficient = clean_agent.check_variant_sufficiency(campaign_id)
 
         # Both products should have insufficient variants
         assert len(insufficient) == 2
@@ -291,21 +311,26 @@ class TestMCPContext:
 class TestAlertGeneration:
     """Test MCP alert generation"""
 
-    def test_generate_mcp_alert(self, temp_dir, sample_brief_file):
+    def test_generate_mcp_alert(self, temp_dir, sample_brief_data, clean_agent):
         """Test generating MCP alert"""
-        agent = CreativeAutomationAgent(briefs_dir=str(sample_brief_file.parent))
+        import json
 
-        campaign_id, brief_data = agent.analyze_campaign_brief(sample_brief_file)
-        agent.trigger_generation_task(sample_brief_file, campaign_id, brief_data)
+        # Create brief file
+        brief_file = clean_agent.briefs_dir / "test_campaign.json"
+        with open(brief_file, "w") as f:
+            json.dump(sample_brief_data, f, indent=2)
+
+        campaign_id, brief_data = clean_agent.analyze_campaign_brief(brief_file)
+        clean_agent.trigger_generation_task(brief_file, campaign_id, brief_data)
 
         # Generate alert for insufficient variants
-        mcp_context = agent.generate_mcp_alert(
+        mcp_context = clean_agent.generate_mcp_alert(
             campaign_id, alert_type="insufficient_variants", severity=AlertSeverity.WARNING
         )
 
         assert isinstance(mcp_context, MCPContext)
         assert mcp_context.campaign_id == campaign_id
-        assert mcp_context.total_variants_expected == 6
+        assert mcp_context.total_variants_expected == 18  # 2 products × 3 ratios × 3 variants = 18
         assert len(mcp_context.insufficient_variants) > 0
 
     def test_generate_completion_alert(self, temp_dir, sample_brief_file, mock_output_structure):

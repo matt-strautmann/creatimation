@@ -5,6 +5,7 @@ Text Variant Engine - Professional Ad-Quality Text Generation
 Creates dynamic text variants with professional fonts, colors, effects, and
 platform-specific optimizations for social media advertising.
 """
+
 import colorsys
 import logging
 import random
@@ -1064,4 +1065,4 @@ if __name__ == "__main__":
     variants = engine.get_available_variants(args.message)
     print(f"\nAvailable Variants ({len(variants)}):")
     for i, var in enumerate(variants[:5]):  # Show first 5
-        print(f"  {i+1}. {var['message']} (ID: {var['id']})")
+        print(f"  {i + 1}. {var['message']} (ID: {var['id']})")

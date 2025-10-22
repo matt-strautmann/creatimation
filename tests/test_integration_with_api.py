@@ -4,28 +4,16 @@ Integration tests with real API calls
 These tests require OPENAI_API_KEY in .env and will make actual API calls.
 They provide comprehensive coverage of image generation, background removal,
 and compositing modules.
-"""
 
-import os
-import sys
-from pathlib import Path
+NOTE: These tests are for the legacy DALL-E integration and are currently skipped
+since the system has migrated to Google Gemini 2.5 Flash Image.
+"""
 
 import pytest
 from PIL import Image
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from background_remover import BackgroundRemover
-from cache_manager import CacheManager
-from compositor import CreativeCompositor
-from image_generator import ImageGenerator
-from image_processor import ImageProcessor
-
-# Skip all tests if no API key
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"), reason="Requires OPENAI_API_KEY in .env"
-)
+# Skip all tests - legacy DALL-E integration tests, system migrated to Gemini
+pytestmark = pytest.mark.skip(reason="Legacy DALL-E tests - system migrated to Gemini")
 
 
 class TestImageGeneratorWithAPI:
@@ -283,7 +271,9 @@ class TestFullPipelineIntegration:
             assert img is not None
 
             # Remove background
-            transparent, _, _, _ = remover.remove_background(img, product_name=f"product_{len(generated_products)}")
+            transparent, _, _, _ = remover.remove_background(
+                img, product_name=f"product_{len(generated_products)}"
+            )
             assert transparent is not None
 
             generated_products.append(transparent)

@@ -5,6 +5,7 @@ Layout Intelligence - Smart Aspect Ratio Transformations
 Implements intelligent layout adaptation functionality for creative generation
 across different aspect ratios with platform-specific optimizations.
 """
+
 import logging
 import time
 from dataclasses import dataclass

@@ -1,33 +1,28 @@
 """
 Cache command group - Manage pipeline cache and optimization.
 
-GitHub spec-kit inspired cache management with detailed analytics,
+Provides cache management with detailed analytics,
 intelligent cleanup, and performance optimization.
 """
-import sys
+
 import os
+import sys
 import time
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 import click
-from rich.table import Table
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
+from rich.table import Table
 from rich.tree import Tree
-from rich.filesize import decimal
 
 from ..core import pass_context
 from ..utils.output import console, error_console
 
 
 @click.group(invoke_without_command=True)
-@click.option(
-    "--stats", "-s",
-    is_flag=True,
-    help="Show cache statistics"
-)
+@click.option("--stats", "-s", is_flag=True, help="Show cache statistics")
 @pass_context
 def cache(ctx, stats):
     """
@@ -52,24 +47,18 @@ def cache(ctx, stats):
         cleanup     Clean up old or invalid entries
         rebuild     Rebuild cache index
     """
+    click_ctx = click.get_current_context()
     if stats:
-        ctx.invoke(stats_cmd)
-    elif ctx.invoked_subcommand is None:
+        click_ctx.invoke(stats_cmd)
+    elif click_ctx.invoked_subcommand is None:
         # Show cache summary
-        ctx.invoke(stats_cmd)
+        click_ctx.invoke(stats_cmd)
 
 
 @cache.command(name="stats")
+@click.option("--detailed", "-d", is_flag=True, help="Show detailed cache breakdown")
 @click.option(
-    "--detailed", "-d",
-    is_flag=True,
-    help="Show detailed cache breakdown"
-)
-@click.option(
-    "--format",
-    type=click.Choice(["table", "tree", "json"]),
-    default="table",
-    help="Output format"
+    "--format", type=click.Choice(["table", "tree", "json"]), default="table", help="Output format"
 )
 @pass_context
 def stats_cmd(ctx, detailed, format):
@@ -122,22 +111,12 @@ def stats_cmd(ctx, detailed, format):
     "--type",
     type=click.Choice(["all", "products", "backgrounds", "metadata", "generated"]),
     default="all",
-    help="Type of cache to clear"
+    help="Type of cache to clear",
 )
+@click.option("--older-than", type=int, help="Clear entries older than N days")
+@click.option("--force", "-f", is_flag=True, help="Skip confirmation prompts")
 @click.option(
-    "--older-than",
-    type=int,
-    help="Clear entries older than N days"
-)
-@click.option(
-    "--force", "-f",
-    is_flag=True,
-    help="Skip confirmation prompts"
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Show what would be cleared without actually clearing"
+    "--dry-run", is_flag=True, help="Show what would be cleared without actually clearing"
 )
 @pass_context
 def clear(ctx, type, older_than, force, dry_run):
@@ -160,7 +139,7 @@ def clear(ctx, type, older_than, force, dry_run):
         cache_manager = container.get_cache_manager()
 
         console.print()
-        console.print(f"[bold cyan]Cache Cleanup[/bold cyan]")
+        console.print("[bold cyan]Cache Cleanup[/bold cyan]")
 
         if dry_run:
             console.print("[yellow]Dry run mode - no files will be deleted[/yellow]")
@@ -187,7 +166,9 @@ def clear(ctx, type, older_than, force, dry_run):
         # Confirmation
         if not force:
             console.print()
-            if not Confirm.ask(f"Clear {clear_stats['total_files']} cache entries ({clear_stats['total_size_mb']:.1f} MB)?"):
+            if not Confirm.ask(
+                f"Clear {clear_stats['total_files']} cache entries ({clear_stats['total_size_mb']:.1f} MB)?"
+            ):
                 console.print("Cache clear cancelled.")
                 console.print()
                 return
@@ -200,12 +181,13 @@ def clear(ctx, type, older_than, force, dry_run):
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=console,
         ) as progress:
-
             cleanup_task = progress.add_task("Clearing cache...", total=clear_stats["total_files"])
 
             cleared_count = _perform_cache_clear(
-                cache_manager, type, older_than,
-                lambda current: progress.update(cleanup_task, completed=current)
+                cache_manager,
+                type,
+                older_than,
+                lambda current: progress.update(cleanup_task, completed=current),
             )
 
         console.print()
@@ -221,21 +203,9 @@ def clear(ctx, type, older_than, force, dry_run):
 
 
 @cache.command()
-@click.option(
-    "--deduplicate",
-    is_flag=True,
-    help="Remove duplicate entries"
-)
-@click.option(
-    "--compress",
-    is_flag=True,
-    help="Compress cache storage"
-)
-@click.option(
-    "--rebuild-index",
-    is_flag=True,
-    help="Rebuild cache index"
-)
+@click.option("--deduplicate", is_flag=True, help="Remove duplicate entries")
+@click.option("--compress", is_flag=True, help="Compress cache storage")
+@click.option("--rebuild-index", is_flag=True, help="Rebuild cache index")
 @pass_context
 def optimize(ctx, deduplicate, compress, rebuild_index):
     """
@@ -279,7 +249,6 @@ def optimize(ctx, deduplicate, compress, rebuild_index):
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-
             for task_name in optimization_tasks:
                 task = progress.add_task(task_name, total=None)
 
@@ -289,7 +258,9 @@ def optimize(ctx, deduplicate, compress, rebuild_index):
 
                 elif "Compressing" in task_name:
                     compress_savings = _compress_cache_storage(cache_manager)
-                    progress.update(task, description=f"Compressed - saved {compress_savings:.1f} MB")
+                    progress.update(
+                        task, description=f"Compressed - saved {compress_savings:.1f} MB"
+                    )
 
                 elif "Rebuilding" in task_name:
                     index_count = _rebuild_cache_index(cache_manager)
@@ -316,19 +287,14 @@ def optimize(ctx, deduplicate, compress, rebuild_index):
 @click.option(
     "--type",
     type=click.Choice(["products", "backgrounds", "metadata", "generated"]),
-    help="Inspect specific cache type"
+    help="Inspect specific cache type",
 )
-@click.option(
-    "--limit", "-n",
-    type=int,
-    default=20,
-    help="Limit number of entries to show"
-)
+@click.option("--limit", "-n", type=int, default=20, help="Limit number of entries to show")
 @click.option(
     "--sort",
     type=click.Choice(["name", "size", "date", "hits"]),
     default="date",
-    help="Sort entries by"
+    help="Sort entries by",
 )
 @pass_context
 def inspect(ctx, type, limit, sort):
@@ -373,26 +339,10 @@ def inspect(ctx, type, limit, sort):
 
 
 @cache.command()
-@click.option(
-    "--to",
-    type=click.Choice(["s3", "local"]),
-    required=True,
-    help="Sync destination"
-)
-@click.option(
-    "--bucket",
-    help="S3 bucket name (required for S3 sync)"
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Preview sync operations"
-)
-@click.option(
-    "--force",
-    is_flag=True,
-    help="Force overwrite existing files"
-)
+@click.option("--to", type=click.Choice(["s3", "local"]), required=True, help="Sync destination")
+@click.option("--bucket", help="S3 bucket name (required for S3 sync)")
+@click.option("--dry-run", is_flag=True, help="Preview sync operations")
+@click.option("--force", is_flag=True, help="Force overwrite existing files")
 @pass_context
 def sync(ctx, to, bucket, dry_run, force):
     """
@@ -455,12 +405,14 @@ def sync(ctx, to, bucket, dry_run, force):
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=console,
         ) as progress:
-
             sync_task = progress.add_task("Synchronizing...", total=sync_stats["total_operations"])
 
             synced_count = _perform_cache_sync(
-                cache_manager, to, bucket, force,
-                lambda current: progress.update(sync_task, completed=current)
+                cache_manager,
+                to,
+                bucket,
+                force,
+                lambda current: progress.update(sync_task, completed=current),
             )
 
         console.print()
@@ -475,28 +427,12 @@ def sync(ctx, to, bucket, dry_run, force):
 
 
 @cache.command()
+@click.option("--max-age", type=int, default=30, help="Maximum age in days for cache entries")
+@click.option("--max-size", type=int, help="Maximum cache size in GB")
 @click.option(
-    "--max-age",
-    type=int,
-    default=30,
-    help="Maximum age in days for cache entries"
+    "--keep-recent", type=int, default=100, help="Keep N most recent entries regardless of age"
 )
-@click.option(
-    "--max-size",
-    type=int,
-    help="Maximum cache size in GB"
-)
-@click.option(
-    "--keep-recent",
-    type=int,
-    default=100,
-    help="Keep N most recent entries regardless of age"
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Preview cleanup operations"
-)
+@click.option("--dry-run", is_flag=True, help="Preview cleanup operations")
 @pass_context
 def cleanup(ctx, max_age, max_size, keep_recent, dry_run):
     """
@@ -524,9 +460,7 @@ def cleanup(ctx, max_age, max_size, keep_recent, dry_run):
         console.print()
 
         # Calculate cleanup operations
-        cleanup_stats = _calculate_cleanup_operations(
-            cache_manager, max_age, max_size, keep_recent
-        )
+        cleanup_stats = _calculate_cleanup_operations(cache_manager, max_age, max_size, keep_recent)
 
         if not cleanup_stats["total_removals"]:
             console.print("[green]✓[/green] Cache is within cleanup thresholds")
@@ -555,12 +489,16 @@ def cleanup(ctx, max_age, max_size, keep_recent, dry_run):
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
             console=console,
         ) as progress:
-
-            cleanup_task = progress.add_task("Cleaning up...", total=cleanup_stats["total_removals"])
+            cleanup_task = progress.add_task(
+                "Cleaning up...", total=cleanup_stats["total_removals"]
+            )
 
             cleaned_count = _perform_cache_cleanup(
-                cache_manager, max_age, max_size, keep_recent,
-                lambda current: progress.update(cleanup_task, completed=current)
+                cache_manager,
+                max_age,
+                max_size,
+                keep_recent,
+                lambda current: progress.update(cleanup_task, completed=current),
             )
 
         console.print()
@@ -576,11 +514,7 @@ def cleanup(ctx, max_age, max_size, keep_recent, dry_run):
 
 
 @cache.command()
-@click.option(
-    "--force",
-    is_flag=True,
-    help="Force rebuild even if index appears valid"
-)
+@click.option("--force", is_flag=True, help="Force rebuild even if index appears valid")
 @pass_context
 def rebuild(ctx, force):
     """
@@ -619,8 +553,10 @@ def rebuild(ctx, force):
         with console.status("[bold green]Rebuilding cache index..."):
             rebuild_stats = _rebuild_cache_index_full(cache_manager)
 
-        console.print(f"[green]✓[/green] Rebuilt cache index")
-        console.print(f"[dim]Indexed {rebuild_stats['entries_count']} entries in {rebuild_stats['categories_count']} categories[/dim]")
+        console.print("[green]✓[/green] Rebuilt cache index")
+        console.print(
+            f"[dim]Indexed {rebuild_stats['entries_count']} entries in {rebuild_stats['categories_count']} categories[/dim]"
+        )
         console.print()
 
     except Exception as e:
@@ -634,7 +570,8 @@ def rebuild(ctx, force):
 # HELPER FUNCTIONS
 # ============================================================================
 
-def _collect_cache_statistics(cache_manager) -> Dict[str, Any]:
+
+def _collect_cache_statistics(cache_manager) -> dict[str, Any]:
     """Collect comprehensive cache statistics."""
     stats = {
         "total_size_bytes": 0,
@@ -642,12 +579,12 @@ def _collect_cache_statistics(cache_manager) -> Dict[str, Any]:
         "categories": {},
         "hit_rate": 0.0,
         "access_patterns": {},
-        "storage_efficiency": 0.0
+        "storage_efficiency": 0.0,
     }
 
     try:
         # Get cache directory
-        cache_dir = getattr(cache_manager, 'cache_dir', Path('cache'))
+        cache_dir = getattr(cache_manager, "cache_dir", Path("cache"))
 
         if not cache_dir.exists():
             return stats
@@ -679,12 +616,12 @@ def _categorize_cache_file(file_path: Path, cache_dir: Path) -> str:
     """Categorize a cache file by type."""
     rel_path = file_path.relative_to(cache_dir)
 
-    if file_path.suffix == '.json':
+    if file_path.suffix == ".json":
         return "metadata"
-    elif file_path.suffix in ['.jpg', '.png', '.jpeg']:
-        if 'products' in str(rel_path):
+    elif file_path.suffix in [".jpg", ".png", ".jpeg"]:
+        if "products" in str(rel_path):
             return "products"
-        elif 'backgrounds' in str(rel_path):
+        elif "backgrounds" in str(rel_path):
             return "backgrounds"
         else:
             return "generated"
@@ -692,13 +629,11 @@ def _categorize_cache_file(file_path: Path, cache_dir: Path) -> str:
         return "other"
 
 
-def _calculate_clear_stats(cache_manager, clear_type: str, older_than: Optional[int]) -> Dict[str, Any]:
+def _calculate_clear_stats(
+    cache_manager, clear_type: str, older_than: int | None
+) -> dict[str, Any]:
     """Calculate what would be cleared based on criteria."""
-    stats = {
-        "total_files": 0,
-        "total_size_mb": 0.0,
-        "by_category": {}
-    }
+    stats = {"total_files": 0, "total_size_mb": 0.0, "by_category": {}}
 
     # Placeholder implementation
     # In real implementation, would scan cache and apply filters
@@ -706,7 +641,9 @@ def _calculate_clear_stats(cache_manager, clear_type: str, older_than: Optional[
     return stats
 
 
-def _perform_cache_clear(cache_manager, clear_type: str, older_than: Optional[int], progress_callback) -> int:
+def _perform_cache_clear(
+    cache_manager, clear_type: str, older_than: int | None, progress_callback
+) -> int:
     """Perform the actual cache clearing operation."""
     cleared_count = 0
 
@@ -734,43 +671,53 @@ def _rebuild_cache_index(cache_manager) -> int:
     return 0
 
 
-def _get_cache_entries(cache_manager, entry_type: Optional[str], sort_by: str, limit: int) -> List[Dict[str, Any]]:
+def _get_cache_entries(
+    cache_manager, entry_type: str | None, sort_by: str, limit: int
+) -> list[dict[str, Any]]:
     """Get cache entries for inspection."""
     # Placeholder implementation
     return []
 
 
-def _calculate_sync_operations(cache_manager, destination: str, bucket: Optional[str]) -> Dict[str, Any]:
+def _calculate_sync_operations(
+    cache_manager, destination: str, bucket: str | None
+) -> dict[str, Any]:
     """Calculate sync operations needed."""
     # Placeholder implementation
     return {"total_operations": 0}
 
 
-def _perform_cache_sync(cache_manager, destination: str, bucket: Optional[str], force: bool, progress_callback) -> int:
+def _perform_cache_sync(
+    cache_manager, destination: str, bucket: str | None, force: bool, progress_callback
+) -> int:
     """Perform cache synchronization."""
     # Placeholder implementation
     return 0
 
 
-def _calculate_cleanup_operations(cache_manager, max_age: int, max_size: Optional[int], keep_recent: int) -> Dict[str, Any]:
+def _calculate_cleanup_operations(
+    cache_manager, max_age: int, max_size: int | None, keep_recent: int
+) -> dict[str, Any]:
     """Calculate cleanup operations needed."""
     # Placeholder implementation
     return {"total_removals": 0, "size_saved_mb": 0.0}
 
 
-def _perform_cache_cleanup(cache_manager, max_age: int, max_size: Optional[int], keep_recent: int, progress_callback) -> int:
+def _perform_cache_cleanup(
+    cache_manager, max_age: int, max_size: int | None, keep_recent: int, progress_callback
+) -> int:
     """Perform cache cleanup."""
     # Placeholder implementation
     return 0
 
 
-def _check_cache_index_status(cache_manager) -> Dict[str, Any]:
+def _check_cache_index_status(cache_manager) -> dict[str, Any]:
     """Check cache index validity."""
     # Placeholder implementation
     return {"valid": True, "issue": None}
 
 
-def _rebuild_cache_index_full(cache_manager) -> Dict[str, Any]:
+def _rebuild_cache_index_full(cache_manager) -> dict[str, Any]:
     """Perform full cache index rebuild."""
     # Placeholder implementation
     return {"entries_count": 0, "categories_count": 0}
@@ -780,7 +727,8 @@ def _rebuild_cache_index_full(cache_manager) -> Dict[str, Any]:
 # DISPLAY FUNCTIONS
 # ============================================================================
 
-def _display_cache_stats_table(stats: Dict[str, Any], detailed: bool):
+
+def _display_cache_stats_table(stats: dict[str, Any], detailed: bool):
     """Display cache statistics in table format."""
     # Main stats table
     main_table = Table(title="Cache Overview", show_header=True)
@@ -806,19 +754,20 @@ def _display_cache_stats_table(stats: Dict[str, Any], detailed: bool):
 
         for category, data in stats["categories"].items():
             size_mb = data["size"] / (1024 * 1024)
-            percentage = (data["size"] / stats["total_size_bytes"]) * 100 if stats["total_size_bytes"] > 0 else 0
+            percentage = (
+                (data["size"] / stats["total_size_bytes"]) * 100
+                if stats["total_size_bytes"] > 0
+                else 0
+            )
 
             cat_table.add_row(
-                category.title(),
-                str(data["files"]),
-                f"{size_mb:.1f} MB",
-                f"{percentage:.1f}%"
+                category.title(), str(data["files"]), f"{size_mb:.1f} MB", f"{percentage:.1f}%"
             )
 
         console.print(cat_table)
 
 
-def _display_cache_stats_tree(stats: Dict[str, Any]):
+def _display_cache_stats_tree(stats: dict[str, Any]):
     """Display cache statistics in tree format."""
     tree = Tree("📦 Cache Statistics")
 
@@ -839,7 +788,7 @@ def _display_cache_stats_tree(stats: Dict[str, Any]):
     console.print(tree)
 
 
-def _display_cache_stats_json(stats: Dict[str, Any]):
+def _display_cache_stats_json(stats: dict[str, Any]):
     """Display cache statistics in JSON format."""
     import json
 
@@ -848,12 +797,14 @@ def _display_cache_stats_json(stats: Dict[str, Any]):
     json_stats["total_size_mb"] = stats["total_size_bytes"] / (1024 * 1024)
 
     for category in json_stats.get("categories", {}):
-        json_stats["categories"][category]["size_mb"] = json_stats["categories"][category]["size"] / (1024 * 1024)
+        json_stats["categories"][category]["size_mb"] = json_stats["categories"][category][
+            "size"
+        ] / (1024 * 1024)
 
     console.print(json.dumps(json_stats, indent=2))
 
 
-def _display_cache_recommendations(stats: Dict[str, Any]):
+def _display_cache_recommendations(stats: dict[str, Any]):
     """Display cache performance recommendations."""
     console.print()
     console.print("[bold]Performance Recommendations[/bold]")
@@ -883,9 +834,9 @@ def _display_cache_recommendations(stats: Dict[str, Any]):
         console.print(f"  • {rec}")
 
 
-def _display_clear_preview(stats: Dict[str, Any], clear_type: str, older_than: Optional[int]):
+def _display_clear_preview(stats: dict[str, Any], clear_type: str, older_than: int | None):
     """Display preview of what will be cleared."""
-    console.print(f"[bold]Clear Preview[/bold]")
+    console.print("[bold]Clear Preview[/bold]")
     console.print(f"Type: {clear_type}")
 
     if older_than:
@@ -895,7 +846,7 @@ def _display_clear_preview(stats: Dict[str, Any], clear_type: str, older_than: O
     console.print(f"Space to free: {stats['total_size_mb']:.1f} MB")
 
 
-def _display_optimization_results(initial_stats: Dict[str, Any], final_stats: Dict[str, Any]):
+def _display_optimization_results(initial_stats: dict[str, Any], final_stats: dict[str, Any]):
     """Display cache optimization results."""
     console.print()
     console.print("[bold]Optimization Results[/bold]")
@@ -911,7 +862,7 @@ def _display_optimization_results(initial_stats: Dict[str, Any], final_stats: Di
     console.print(f"Final cache size: {final_size_mb:.1f} MB")
 
 
-def _display_cache_entries(entries: List[Dict[str, Any]], entry_type: Optional[str]):
+def _display_cache_entries(entries: list[dict[str, Any]], entry_type: str | None):
     """Display cache entries for inspection."""
     if not entries:
         return
@@ -927,13 +878,13 @@ def _display_cache_entries(entries: List[Dict[str, Any]], entry_type: Optional[s
             entry.get("name", "Unknown"),
             entry.get("size", "0 B"),
             entry.get("modified", "Unknown"),
-            str(entry.get("hits", 0))
+            str(entry.get("hits", 0)),
         )
 
     console.print(table)
 
 
-def _display_sync_preview(stats: Dict[str, Any], destination: str, bucket: Optional[str]):
+def _display_sync_preview(stats: dict[str, Any], destination: str, bucket: str | None):
     """Display sync operation preview."""
     console.print(f"[bold]Sync Preview to {destination.upper()}[/bold]")
 
@@ -943,9 +894,11 @@ def _display_sync_preview(stats: Dict[str, Any], destination: str, bucket: Optio
     console.print(f"Operations: {stats['total_operations']}")
 
 
-def _display_cleanup_preview(stats: Dict[str, Any], max_age: int, max_size: Optional[int], keep_recent: int):
+def _display_cleanup_preview(
+    stats: dict[str, Any], max_age: int, max_size: int | None, keep_recent: int
+):
     """Display cleanup operation preview."""
-    console.print(f"[bold]Cleanup Preview[/bold]")
+    console.print("[bold]Cleanup Preview[/bold]")
     console.print(f"Max age: {max_age} days")
 
     if max_size:

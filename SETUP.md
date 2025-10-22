@@ -37,7 +37,53 @@ cp .env.example .env
 echo "GOOGLE_API_KEY=your_key_here" > .env
 ```
 
-## 4. Run Pipeline
+## 4. Check Configuration Status (Discovery-Driven Setup)
+
+Creatimation uses a smart configuration system that **guides you through setup**:
+
+```bash
+# Check what's configured and what's missing
+./creatimation config show
+
+# The system tells you exactly what to run next:
+# ↓ If no global config: "Run: ./creatimation config init --global"
+# ↓ If no workspace config: "Run: ./creatimation config init"
+```
+
+**What this does:**
+- **Global config** (`~/.creatimation/config.yml`): API keys and defaults shared across workspaces
+- **Workspace config** (`.creatimation.yml`): Auto-detects your campaigns and extracts brand info
+- **Campaign detection**: Automatically finds campaigns in `briefs/` directory
+- **Unified view**: Shows global + local + detected campaigns in one command
+
+**Example output:**
+```
+Global Configuration
+✓ API Keys configured
+✓ Default settings available
+
+Workspace Configuration
+✓ Project: CleanWave Spring Freshness Launch 2025
+✓ Brand: CleanWave (auto-detected from briefs)
+✓ Industry: CPG - Laundry Care (auto-detected)
+
+Workspace Assets
+✓ 2 campaign(s) detected
+  Laundry Care
+    ├─ CleanWave (2 campaigns)
+✓ 1 brand guide(s) available
+```
+
+**Configuration Hierarchy** (highest to lowest priority):
+1. **CLI flags**: `--variants 5` (overrides everything)
+2. **Workspace config**: `.creatimation.yml` (workspace-specific)
+3. **Global config**: `~/.creatimation/config.yml` (shared across workspaces)
+4. **Auto-detection**: Campaigns detected from `briefs/` directory
+5. **Defaults**: Built-in fallbacks
+
+**Tip**: You can run `./creatimation config show` anytime to see your complete configuration setup!
+
+## 5. Run Pipeline
 
 ### Option A: Using CLI (Recommended)
 
@@ -46,22 +92,22 @@ echo "GOOGLE_API_KEY=your_key_here" > .env
 chmod +x creatimation
 
 # Dry-run preview (no API key needed)
-./creatimation generate all --brief briefs/CleanWaveSpring2025.json --dry-run
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --dry-run
 
 # Generate creatives with brand guide (uses API key)
-./creatimation generate all --brief briefs/CleanWaveSpring2025.json --brand-guide brand-guides/cleanwave_blue.yml
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --brand-guide brand-guides/cleanwave_blue.yml
 ```
 
 ### Option B: Direct Python
 
 ```bash
 # Test with CleanWave example
-.venv/bin/python3 -m src.cli generate all --brief briefs/CleanWaveSpring2025.json --brand-guide brand-guides/cleanwave_blue.yml
+.venv/bin/python3 -m src.cli.main generate campaign briefs/CleanWaveSpring2025.json --brand-guide brand-guides/cleanwave_blue.yml
 ```
 
 ## Expected Output
 
-The pipeline generates **72 global variants** (4 regions × 2 products × 3 ratios × 3 true variants):
+The pipeline generates **18 regional variants** (2 regions × 1 product × 3 ratios × 3 true variants):
 
 ```
 output/{product-slug}/hero-product/{region}/{ratio}/
@@ -100,13 +146,13 @@ cache/index.json           # Product registry with campaigns_used tracking
 
 With Gemini 2.5 Flash Image + Product Caching + Multi-Region:
 - **Speed**: ~9 seconds per creative (with cached products)
-- **72 global creatives**: ~11 minutes total (4 regions × 18 variants each)
+- **18 regional creatives**: ~3 minutes total (2 regions × 9 variants each)
 - **Cost**:
-  - First run: $2.89 (2 products + 72 fusions = 74 calls)
-  - Subsequent runs: $2.81 (0 products + 72 fusions) - products cached!
-- **Cache Efficiency**: **97% cost reduction** (2 products vs 72 variants = 70 calls eliminated)
-- **Cache Hit Rate**: 100% (each product reused 36 times: 4 regions × 3 ratios × 3 variants)
-- **Global ROI**: 99.4% cheaper than manual ($2.89 vs $500-2000)
+  - First run: $0.74 (1 product + 18 fusions = 19 calls)
+  - Subsequent runs: $0.70 (0 products + 18 fusions) - products cached!
+- **Cache Efficiency**: **95% cost reduction** (1 product vs 18 variants = 17 calls eliminated)
+- **Cache Hit Rate**: 100% (product reused 18 times: 2 regions × 3 ratios × 3 variants)
+- **ROI**: 99.8% cheaper than manual ($0.74 vs $500-2000)
 
 ## Semantic Asset Organization
 
@@ -190,31 +236,183 @@ python -c "from google import genai; print('✓ Gemini SDK installed')"
 ## CLI Commands Quick Reference
 
 ```bash
-# Dry-run preview (no API calls)
-./creatimation generate all --brief <brief.json> --dry-run
+# Configuration (smart auto-detection)
+./creatimation config show               # Unified view: global + workspace + campaigns
+./creatimation config init --global      # Setup shared settings (API keys, defaults)
+./creatimation config init               # Setup workspace (auto-detects campaigns)
+./creatimation config validate           # Validate all configurations
 
-# Generate with brand guide
-./creatimation generate all --brief <brief.json> --brand-guide brand-guides/minimal_blue.yml
+# Generation
+./creatimation generate campaign <brief.json> --dry-run    # Preview (no API calls)
+./creatimation generate campaign <brief.json> --brand-guide brand-guides/cleanwave_blue.yml
 
-# Validate brief
+# Validation
 ./creatimation validate brief <brief.json>
 
-# Check cache stats
+# Cache management
 ./creatimation cache stats
-
-# Clear cache
 ./creatimation cache clear
 
-# Show config
-./creatimation config show
+# Analytics and monitoring
+./creatimation analytics summary              # Usage overview and performance metrics
+./creatimation analytics commands            # Command usage statistics
+./creatimation analytics generation          # Generation performance tracking
+./creatimation analytics clear               # Clear analytics data
 ```
+
+## 6. Monitoring Agent (Optional) - MCP-Compliant Intelligence
+
+The Creative Automation Agent provides intelligent monitoring with **Model Context Protocol (MCP)** for LLM-generated alerts:
+
+### What It Monitors
+- **Campaign briefs**: `briefs/*.json` (new/modified campaigns)
+- **Configuration files**: `.creatimation.yml`, `global_config/*.yml`, `brand-guides/*.yml`
+- **Generation progress**: Variant counts, missing assets, completion status
+- **Performance metrics**: Cache hit rates, processing times, error rates
+
+### MCP Schema Compliance
+The agent implements a comprehensive MCP schema with structured context for LLM alert generation:
+```python
+# Example MCP Context Structure
+{
+  "campaign_id": "cleanwave_spring_2025",
+  "timestamp": "2025-10-22T10:30:00Z",
+  "alert_type": "insufficient_variants",
+  "severity": "warning",
+  "total_variants_expected": 18,
+  "total_variants_generated": 12,
+  "insufficient_variants": ["CleanWave Pods"],
+  "recommendations": [
+    "Re-run generation to complete all variant types",
+    "Check generation logs for errors"
+  ]
+}
+```
+
+### Start Monitoring
+```bash
+# Install and activate environment
+uv run python src/creative_automation_agent.py --watch
+
+# Alternative: Direct execution
+.venv/bin/python3 src/creative_automation_agent.py --watch
+
+# Monitor specific directory
+uv run python src/creative_automation_agent.py --briefs-dir custom_briefs --watch
+
+# Single monitoring cycle (for testing)
+uv run python src/creative_automation_agent.py --once
+
+# Verbose logging
+uv run python src/creative_automation_agent.py --watch --verbose
+```
+
+### Alert Types
+- **🆕 configuration_change**: Config files modified (brand guides, workspace settings)
+- **⚠️ insufficient_variants**: Products with < 9 variants (3 ratios × 3 types)
+- **❌ generation_failed**: Errors during creative generation
+- **✅ generation_complete**: All variants successfully generated
+- **📊 performance_alert**: Cache efficiency or processing time issues
+
+### Agent Features
+- **Real-time monitoring**: 5-second scan intervals
+- **Change detection**: Hash-based file monitoring for campaigns and configs
+- **State persistence**: Maintains monitoring state across restarts
+- **Intelligent alerts**: Context-aware recommendations based on MCP schema
+- **Multiple outputs**: Console logging + JSON state files + structured alerts
+
+### Example Output
+```
+ℹ️ ALERT: CONFIGURATION_CHANGE
+Campaign: Configuration Monitoring
+Issues: Configuration file modified: .creatimation.yml
+Recommendations: Review configuration changes for impact on campaigns, Consider re-running generation if settings affect creative output
+
+⚠️ ALERT: INSUFFICIENT_VARIANTS
+Campaign: CleanWave Spring Freshness Launch 2025
+Variants: 12/18
+Issues: 1 products have < 9 variants (3 ratios × 3 variant types)
+Recommendations: Re-run generation to complete all variant types (base, color_shift, text_style)
+```
+
+### Integration with Pipeline
+The agent automatically detects when you run generation commands and:
+1. **Tracks progress**: Monitors variant counts in `output/` directory
+2. **Flags issues**: Alerts on missing or insufficient assets
+3. **Provides context**: MCP-structured data for LLM interpretation
+4. **Maintains state**: Remembers campaign status across sessions
+
+### Use Cases
+- **Development**: Monitor config changes during setup and testing
+- **Production**: Continuous campaign monitoring for quality assurance
+- **Debugging**: Structured alerts help identify generation issues quickly
+- **Analytics**: Performance tracking and optimization insights
+- **Integration**: MCP schema enables LLM-powered alert systems
+
+## 7. Analytics & Performance Insights (Optional) - Built-in Intelligence
+
+Creatimation includes a sophisticated **analytics plugin** that automatically tracks usage patterns and performance metrics with **privacy-first design**:
+
+### What It Tracks
+- **Command Performance**: Execution frequency, success rates, processing times
+- **Generation Metrics**: Campaign processing, cache efficiency, asset creation
+- **Error Analytics**: Failure patterns, error frequency, reliability tracking
+- **Cache Intelligence**: Hit/miss ratios, cost optimization insights
+
+### Analytics Commands
+```bash
+# Comprehensive usage overview
+./creatimation analytics summary
+
+# Detailed command statistics (sorted by usage, duration, or errors)
+./creatimation analytics commands --sort duration --limit 10
+
+# Generation performance and cache efficiency
+./creatimation analytics generation --limit 10
+
+# Clear all analytics data (privacy control)
+./creatimation analytics clear --confirm
+```
+
+### Enhanced Monitoring Integration
+The monitoring agent now uses analytics data for **intelligent, context-aware alerts**:
+
+**Smart Alert Context:**
+- Real-time cache efficiency in MCP context
+- Performance baselines for anomaly detection
+- Historical success rates for reliability assessment
+- Processing time trends for performance monitoring
+
+**Example Enhanced Alert:**
+```
+ℹ️ ALERT: CONFIGURATION_CHANGE
+Campaign: Configuration Monitoring
+Issues: Configuration file modified: .creatimation.yml
+Cache Efficiency: 85.2% (historical average)
+Success Rate: 95.8% (last 10 operations)
+Recommendations: Review configuration changes for impact on campaigns, Current system performance: 95.8% success rate
+```
+
+### Privacy & Data Control
+- **Local-only storage**: Data in `~/.creatimation/analytics.json`
+- **No telemetry**: Zero external data transmission
+- **Fail-silent design**: Analytics failures never impact core functionality
+- **Complete control**: Clear data anytime with `analytics clear`
+
+### Performance Benefits
+- **Cost optimization**: Track cache efficiency trends
+- **Reliability monitoring**: Success rate tracking over time
+- **Performance tuning**: Identify bottlenecks and optimization opportunities
+- **Usage insights**: Understand command patterns and workflow efficiency
 
 ## Next Steps
 
 1. ✅ Review generated creatives in `output/`
 2. ✅ Try different brand guides from `brand-guides/`
 3. ✅ Create your own campaign brief (JSON format)
-4. ✅ Check the full README for advanced features
+4. ✅ Start monitoring agent for intelligent alerts
+5. ✅ Explore analytics for performance insights
+6. ✅ Check the full README for advanced features
 
 ## Free Tier Limits
 

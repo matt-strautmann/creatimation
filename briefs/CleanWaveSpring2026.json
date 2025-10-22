@@ -1,6 +1,6 @@
 {
-  "campaign_id": "cleanwave_spring_2025",
-  "campaign_name": "CleanWave Spring Freshness Launch 2025",
+  "campaign_id": "cleanwave_spring_2026",
+  "campaign_name": "CleanWave Spring Freshness Launch 2026",
   "products": [
     {
       "name": "CleanWave Original Liquid Detergent",
@@ -13,7 +13,7 @@
       "description": "Convenient pre-measured pods with fresh spring scent"
     }
   ],
-  "target_regions": ["US", "EMEA"],
+  "target_regions": ["US", "APAC"],
   "target_audience": "Busy families with active kids",
   "campaign_message": "Spring Into Freshness",
   "creative_requirements": {
@@ -28,10 +28,10 @@
       "currency": "USD",
       "legal_disclaimer": "*Limited time offer. See store for details."
     },
-    "EMEA": {
+    "APAC": {
       "call_to_action": "Choose CleanWave",
       "cultural_notes": "Emphasize quality and reliability",
-      "currency": "EUR",
+      "currency": "AUD",
       "legal_disclaimer": "*Limited time offer. Terms and conditions apply."
     }
   }

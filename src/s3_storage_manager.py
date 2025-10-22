@@ -15,16 +15,15 @@ Features:
 - S3 lifecycle policy management
 - Comprehensive error handling and logging
 """
-import hashlib
-import json
+
 import logging
 import os
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any
 from urllib.parse import quote
 
 try:
@@ -32,9 +31,7 @@ try:
     from botocore.config import Config
     from botocore.exceptions import BotoCoreError, ClientError
 except ImportError:
-    raise ImportError(
-        "boto3 is required for S3 storage. Install with: pip install boto3"
-    )
+    raise ImportError("boto3 is required for S3 storage. Install with: pip install boto3")
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +48,7 @@ class S3Config:
     bucket_name: str
     region: str = "us-east-1"
     prefix: str = "creative-assets"
-    cloudfront_distribution_id: Optional[str] = None
+    cloudfront_distribution_id: str | None = None
     storage_class: str = "STANDARD"
     enable_encryption: bool = True
     enable_versioning: bool = True
@@ -66,8 +63,7 @@ class S3Config:
         bucket_name = os.getenv("S3_BUCKET_NAME")
         if not bucket_name:
             raise ValueError(
-                "S3_BUCKET_NAME environment variable is required. "
-                "Set it in your .env file."
+                "S3_BUCKET_NAME environment variable is required. Set it in your .env file."
             )
 
         return cls(
@@ -76,10 +72,8 @@ class S3Config:
             prefix=prefix,
             cloudfront_distribution_id=os.getenv("CLOUDFRONT_DISTRIBUTION_ID"),
             storage_class=os.getenv("S3_STORAGE_CLASS", "STANDARD"),
-            enable_encryption=os.getenv("S3_ENABLE_ENCRYPTION", "true").lower()
-            == "true",
-            enable_versioning=os.getenv("S3_ENABLE_VERSIONING", "true").lower()
-            == "true",
+            enable_encryption=os.getenv("S3_ENABLE_ENCRYPTION", "true").lower() == "true",
+            enable_versioning=os.getenv("S3_ENABLE_VERSIONING", "true").lower() == "true",
             max_parallel_uploads=int(os.getenv("S3_MAX_PARALLEL_UPLOADS", "10")),
         )
 
@@ -127,8 +121,8 @@ class S3FolderStructure:
     def get_background_path(
         self,
         style: str,
-        region: Optional[str] = None,
-        season: Optional[str] = None,
+        region: str | None = None,
+        season: str | None = None,
         filename: str = None,
     ) -> str:
         """Generate S3 path for background asset"""
@@ -162,7 +156,7 @@ class S3FolderStructure:
         """Get path to centralized metadata index in S3"""
         return f"{self.prefix}/metadata/index.json"
 
-    def parse_s3_key(self, s3_key: str) -> Dict[str, str]:
+    def parse_s3_key(self, s3_key: str) -> dict[str, str]:
         """Parse S3 key to extract semantic components"""
         if not s3_key.startswith(self.prefix):
             return {}
@@ -208,11 +202,11 @@ class UploadResult:
     s3_key: str
     local_path: str
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
     size_bytes: int = 0
     duration_seconds: float = 0.0
-    etag: Optional[str] = None
-    version_id: Optional[str] = None
+    etag: str | None = None
+    version_id: str | None = None
 
 
 @dataclass
@@ -310,13 +304,9 @@ class S3StorageManager:
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code")
             if error_code == "404":
-                raise ValueError(
-                    f"S3 bucket '{self.config.bucket_name}' does not exist"
-                )
+                raise ValueError(f"S3 bucket '{self.config.bucket_name}' does not exist")
             elif error_code == "403":
-                raise PermissionError(
-                    f"Access denied to S3 bucket '{self.config.bucket_name}'"
-                )
+                raise PermissionError(f"Access denied to S3 bucket '{self.config.bucket_name}'")
             else:
                 raise RuntimeError(f"Failed to access S3 bucket: {e}")
 
@@ -339,9 +329,7 @@ class S3StorageManager:
                 ServerSideEncryptionConfiguration={
                     "Rules": [
                         {
-                            "ApplyServerSideEncryptionByDefault": {
-                                "SSEAlgorithm": "AES256"
-                            },
+                            "ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"},
                             "BucketKeyEnabled": True,
                         }
                     ]
@@ -359,9 +347,9 @@ class S3StorageManager:
         self,
         local_path: Path,
         s3_key: str,
-        metadata: Optional[Dict[str, str]] = None,
-        tags: Optional[Dict[str, str]] = None,
-        content_type: Optional[str] = None,
+        metadata: dict[str, str] | None = None,
+        tags: dict[str, str] | None = None,
+        content_type: str | None = None,
     ) -> UploadResult:
         """
         Upload a single file to S3 with metadata and tags.
@@ -409,9 +397,7 @@ class S3StorageManager:
 
             if tags:
                 # S3 tags as URL-encoded string
-                tag_string = "&".join(
-                    f"{quote(k)}={quote(str(v))}" for k, v in tags.items()
-                )
+                tag_string = "&".join(f"{quote(k)}={quote(str(v))}" for k, v in tags.items())
                 extra_args["Tagging"] = tag_string
 
             # Upload file
@@ -420,9 +406,7 @@ class S3StorageManager:
             )
 
             # Get object metadata for ETag and VersionId
-            response = self.s3_client.head_object(
-                Bucket=self.config.bucket_name, Key=s3_key
-            )
+            response = self.s3_client.head_object(Bucket=self.config.bucket_name, Key=s3_key)
 
             duration = time.time() - start_time
 
@@ -456,9 +440,9 @@ class S3StorageManager:
 
     def batch_upload(
         self,
-        file_mappings: List[Tuple[Path, str, Optional[Dict[str, str]]]],
-        progress_callback: Optional[Callable[[UploadProgress], None]] = None,
-    ) -> Tuple[List[UploadResult], UploadProgress]:
+        file_mappings: list[tuple[Path, str, dict[str, str] | None]],
+        progress_callback: Callable[[UploadProgress], None] | None = None,
+    ) -> tuple[list[UploadResult], UploadProgress]:
         """
         Upload multiple files in parallel with progress tracking.
 
@@ -471,9 +455,7 @@ class S3StorageManager:
         """
         progress = UploadProgress(
             total_files=len(file_mappings),
-            total_bytes=sum(
-                p.stat().st_size for p, _, _ in file_mappings if p.exists()
-            ),
+            total_bytes=sum(p.stat().st_size for p, _, _ in file_mappings if p.exists()),
         )
 
         results = []
@@ -484,9 +466,7 @@ class S3StorageManager:
         )
 
         # Parallel upload with ThreadPoolExecutor
-        with ThreadPoolExecutor(
-            max_workers=self.config.max_parallel_uploads
-        ) as executor:
+        with ThreadPoolExecutor(max_workers=self.config.max_parallel_uploads) as executor:
             # Submit all upload tasks
             future_to_mapping = {
                 executor.submit(
@@ -555,9 +535,7 @@ class S3StorageManager:
     # DOWNLOAD OPERATIONS
     # ========================================================================
 
-    def download_file(
-        self, s3_key: str, local_path: Path, version_id: Optional[str] = None
-    ) -> bool:
+    def download_file(self, s3_key: str, local_path: Path, version_id: str | None = None) -> bool:
         """
         Download file from S3 to local path.
 
@@ -589,8 +567,8 @@ class S3StorageManager:
             return False
 
     def get_file_metadata(
-        self, s3_key: str, version_id: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, s3_key: str, version_id: str | None = None
+    ) -> dict[str, Any] | None:
         """
         Get metadata for S3 object.
 
@@ -632,10 +610,10 @@ class S3StorageManager:
 
     def list_objects(
         self,
-        prefix: Optional[str] = None,
+        prefix: str | None = None,
         max_keys: int = 1000,
         include_metadata: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         List objects in S3 with optional prefix filter.
 
@@ -669,9 +647,7 @@ class S3StorageManager:
                     }
 
                     # Parse semantic components from S3 key
-                    obj_info["parsed"] = self.folder_structure.parse_s3_key(
-                        obj["Key"]
-                    )
+                    obj_info["parsed"] = self.folder_structure.parse_s3_key(obj["Key"])
 
                     if include_metadata:
                         metadata = self.get_file_metadata(obj["Key"])
@@ -689,12 +665,12 @@ class S3StorageManager:
 
     def find_assets_by_semantic_filter(
         self,
-        asset_type: Optional[str] = None,
-        category: Optional[str] = None,
-        region: Optional[str] = None,
-        season: Optional[str] = None,
-        campaign_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        asset_type: str | None = None,
+        category: str | None = None,
+        region: str | None = None,
+        season: str | None = None,
+        campaign_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Find assets using semantic filters.
 
@@ -750,7 +726,7 @@ class S3StorageManager:
     def setup_lifecycle_policy(
         self,
         transition_days: int = 90,
-        expiration_days: Optional[int] = None,
+        expiration_days: int | None = None,
         archive_storage_class: str = "GLACIER",
     ) -> bool:
         """
@@ -797,8 +773,8 @@ class S3StorageManager:
             return False
 
     def invalidate_cloudfront_cache(
-        self, paths: List[str], caller_reference: Optional[str] = None
-    ) -> Optional[str]:
+        self, paths: list[str], caller_reference: str | None = None
+    ) -> str | None:
         """
         Invalidate CloudFront cache for updated assets.
 
@@ -835,7 +811,7 @@ class S3StorageManager:
             logger.error(f"Failed to invalidate CloudFront cache: {e}")
             return None
 
-    def delete_object(self, s3_key: str, version_id: Optional[str] = None) -> bool:
+    def delete_object(self, s3_key: str, version_id: str | None = None) -> bool:
         """
         Delete object from S3.
 
@@ -865,7 +841,7 @@ class S3StorageManager:
 
     def get_presigned_url(
         self, s3_key: str, expiration: int = 3600, method: str = "get_object"
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Generate presigned URL for temporary access.
 
@@ -890,7 +866,7 @@ class S3StorageManager:
             logger.error(f"Failed to generate presigned URL: {e}")
             return None
 
-    def get_bucket_size(self) -> Dict[str, Any]:
+    def get_bucket_size(self) -> dict[str, Any]:
         """
         Calculate total size of assets in bucket under prefix.
 

@@ -1,16 +1,18 @@
 """
 Plugin system for Creatimation CLI.
 
-GitHub spec-kit inspired plugin architecture that allows extending
+Provides plugin architecture that allows extending
 the CLI with custom commands, hooks, and functionality.
 """
-import os
-import sys
+
 import importlib
 import importlib.util
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Callable
+import os
+import sys
+from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import click
 
@@ -20,13 +22,14 @@ from ..utils.output import console, error_console, print_warning
 @dataclass
 class PluginInfo:
     """Information about a loaded plugin."""
+
     name: str
     version: str
     description: str
     author: str
     module: Any
-    commands: List[str]
-    hooks: List[str]
+    commands: list[str]
+    hooks: list[str]
     enabled: bool = True
 
 
@@ -39,9 +42,9 @@ class PluginManager:
     """
 
     def __init__(self):
-        self.plugins: Dict[str, PluginInfo] = {}
-        self.hooks: Dict[str, List[Callable]] = {}
-        self.plugin_paths: List[Path] = []
+        self.plugins: dict[str, PluginInfo] = {}
+        self.hooks: dict[str, list[Callable]] = {}
+        self.plugin_paths: list[Path] = []
         self._setup_plugin_paths()
 
     def _setup_plugin_paths(self):
@@ -69,7 +72,7 @@ class PluginManager:
                 if path.exists():
                     self.plugin_paths.append(path)
 
-    def discover_plugins(self) -> List[str]:
+    def discover_plugins(self) -> list[str]:
         """
         Discover available plugins in configured paths.
 
@@ -120,8 +123,7 @@ class PluginManager:
             if package_path.is_dir() and (package_path / "__init__.py").exists():
                 try:
                     spec = importlib.util.spec_from_file_location(
-                        f"creatimation_plugin_{plugin_name}",
-                        package_path / "__init__.py"
+                        f"creatimation_plugin_{plugin_name}", package_path / "__init__.py"
                     )
                     plugin_module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(plugin_module)
@@ -135,8 +137,7 @@ class PluginManager:
             if file_path.is_file():
                 try:
                     spec = importlib.util.spec_from_file_location(
-                        f"creatimation_plugin_{plugin_name}",
-                        file_path
+                        f"creatimation_plugin_{plugin_name}", file_path
                     )
                     plugin_module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(plugin_module)
@@ -170,7 +171,7 @@ class PluginManager:
             author=plugin_info_dict["author"],
             module=plugin_module,
             commands=getattr(plugin_module, "COMMANDS", []),
-            hooks=getattr(plugin_module, "HOOKS", [])
+            hooks=getattr(plugin_module, "HOOKS", []),
         )
 
         # Initialize plugin
@@ -238,7 +239,8 @@ class PluginManager:
         # Remove hooks registered by this plugin
         for hook_name in list(self.hooks.keys()):
             self.hooks[hook_name] = [
-                hook for hook in self.hooks[hook_name]
+                hook
+                for hook in self.hooks[hook_name]
                 if getattr(hook, "_plugin_name", None) != plugin_name
             ]
             if not self.hooks[hook_name]:
@@ -250,7 +252,7 @@ class PluginManager:
         console.print(f"[green]✓[/green] Unloaded plugin: {plugin_info.name}")
         return True
 
-    def get_plugin_commands(self) -> Dict[str, click.Command]:
+    def get_plugin_commands(self) -> dict[str, click.Command]:
         """
         Get all commands provided by loaded plugins.
 
@@ -271,7 +273,9 @@ class PluginManager:
                         cmd_obj._plugin_name = plugin_info.name
                         commands[cmd_name] = cmd_obj
                 except Exception as e:
-                    error_console.print(f"Error getting commands from plugin '{plugin_info.name}': {e}")
+                    error_console.print(
+                        f"Error getting commands from plugin '{plugin_info.name}': {e}"
+                    )
 
         return commands
 
@@ -288,7 +292,7 @@ class PluginManager:
 
         self.hooks[hook_name].append(hook_func)
 
-    def call_hook(self, hook_name: str, *args, **kwargs) -> List[Any]:
+    def call_hook(self, hook_name: str, *args, **kwargs) -> list[Any]:
         """
         Call all registered functions for a hook.
 
@@ -313,7 +317,7 @@ class PluginManager:
 
         return results
 
-    def list_plugins(self) -> List[PluginInfo]:
+    def list_plugins(self) -> list[PluginInfo]:
         """
         Get list of all loaded plugins.
 
@@ -322,7 +326,7 @@ class PluginManager:
         """
         return list(self.plugins.values())
 
-    def get_plugin_info(self, plugin_name: str) -> Optional[PluginInfo]:
+    def get_plugin_info(self, plugin_name: str) -> PluginInfo | None:
         """
         Get information about a specific plugin.
 

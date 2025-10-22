@@ -5,6 +5,7 @@ Background Remover - AI-powered background removal with SHA-256 caching
 Converts images with solid backgrounds to transparent PNGs using rembg AI segmentation.
 Implements hash-based caching for performance and cost optimization.
 """
+
 import hashlib
 import json
 import logging

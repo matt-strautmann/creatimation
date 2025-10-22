@@ -14,7 +14,6 @@ Test Coverage:
 7. CLI Integration - End-to-end workflow testing
 """
 
-import hashlib
 import json
 import shutil
 import sys
@@ -30,7 +29,6 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from cache_manager import CacheManager
-
 
 # ============================================================================
 # TEST FIXTURES
@@ -170,9 +168,7 @@ class TestSemanticAssetMatching:
         """Test finding assets by metadata tags (season, region, type)"""
         # Find all spring products
         all_products = cache_manager.list_all_products()
-        spring_products = [
-            p for slug, p in all_products.items() if "spring" in p.get("tags", [])
-        ]
+        spring_products = [p for slug, p in all_products.items() if "spring" in p.get("tags", [])]
 
         assert len(spring_products) > 0
 
@@ -213,9 +209,7 @@ class TestSemanticAssetMatching:
         # Register products with different timestamps
         now = datetime.now()
 
-        cache_manager.register_product(
-            "Product A", "product_a.png", "campaign_old", tags=["old"]
-        )
+        cache_manager.register_product("Product A", "product_a.png", "campaign_old", tags=["old"])
 
         # Manually update timestamp for testing
         product_slug = cache_manager._slugify_product_name("Product A")
@@ -224,9 +218,7 @@ class TestSemanticAssetMatching:
         ).isoformat()
         cache_manager._save_index()
 
-        cache_manager.register_product(
-            "Product B", "product_b.png", "campaign_new", tags=["new"]
-        )
+        cache_manager.register_product("Product B", "product_b.png", "campaign_new", tags=["new"])
 
         # Verify different timestamps
         product_a = cache_manager.lookup_product("Product A")
@@ -398,14 +390,10 @@ class TestAssetVersioning:
         product_name = "Power Dish Soap"
 
         # Register v1
-        cache_manager.register_product(
-            product_name, "product_v1.png", "campaign_q1", tags=["v1"]
-        )
+        cache_manager.register_product(product_name, "product_v1.png", "campaign_q1", tags=["v1"])
 
         # Register v2 (updated packaging)
-        cache_manager.register_product(
-            product_name, "product_v2.png", "campaign_q2", tags=["v2"]
-        )
+        cache_manager.register_product(product_name, "product_v2.png", "campaign_q2", tags=["v2"])
 
         product = cache_manager.lookup_product(product_name)
 
@@ -551,7 +539,9 @@ class TestCachePerformance:
             result = cache_manager.lookup_product(product)
             assert result is not None
 
-    def test_cache_validation_performance(self, cache_manager, temp_cache_dir, sample_product_image):
+    def test_cache_validation_performance(
+        self, cache_manager, temp_cache_dir, sample_product_image
+    ):
         """Test performance of cache validation"""
         # Register products with actual files
         for i in range(50):
@@ -671,9 +661,7 @@ class TestEdgeCases:
         """Test handling same product with different regional variants"""
         product_name = "Global Product"
 
-        cache_manager.register_product(
-            product_name, "global_us.png", "campaign_us", tags=["US"]
-        )
+        cache_manager.register_product(product_name, "global_us.png", "campaign_us", tags=["US"])
         cache_manager.register_product(
             product_name, "global_emea.png", "campaign_emea", tags=["EMEA"]
         )
@@ -892,13 +880,9 @@ class TestIntegrationScenarios:
 
         # Step 3: Calculate reuse metrics
         all_products = cache_manager.list_all_products()
-        multi_use_products = [
-            p for slug, p in all_products.items() if len(p["campaigns_used"]) > 1
-        ]
+        multi_use_products = [p for slug, p in all_products.items() if len(p["campaigns_used"]) > 1]
 
-        reuse_rate = (
-            len(multi_use_products) / len(all_products) if len(all_products) > 0 else 0
-        )
+        reuse_rate = len(multi_use_products) / len(all_products) if len(all_products) > 0 else 0
 
         # Step 4: Verify improvements
         assert reuse_rate > 0  # Some reuse should occur

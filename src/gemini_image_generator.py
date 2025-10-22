@@ -7,6 +7,7 @@ and theme/color variations in a single API call.
 
 Replaces: ImageGenerator (DALL-E), BackgroundRemover (rembg), CreativeCompositor (PIL)
 """
+
 import logging
 import os
 import time
@@ -29,16 +30,16 @@ class GeminiImageGenerator:
 
     # Gemini 2.5 Flash Image supports 10 aspect ratios
     ASPECT_RATIOS = {
-        "1x1": "1:1",      # Square (1080x1080)
-        "9x16": "9:16",    # Vertical/Stories (1080x1920)
-        "16x9": "16:9",    # Horizontal/Landscape (1920x1080)
-        "4x5": "4:5",      # Portrait (864x1080)
-        "5x4": "5:4",      # Landscape (1350x1080)
-        "3x4": "3:4",      # Vertical (810x1080)
-        "4x3": "4:3",      # Horizontal (1440x1080)
-        "2x3": "2:3",      # Vertical (720x1080)
-        "3x2": "3:2",      # Horizontal (1620x1080)
-        "21x9": "21:9",    # Cinematic (2520x1080)
+        "1x1": "1:1",  # Square (1080x1080)
+        "9x16": "9:16",  # Vertical/Stories (1080x1920)
+        "16x9": "16:9",  # Horizontal/Landscape (1920x1080)
+        "4x5": "4:5",  # Portrait (864x1080)
+        "5x4": "5:4",  # Landscape (1350x1080)
+        "3x4": "3:4",  # Vertical (810x1080)
+        "4x3": "4:3",  # Horizontal (1440x1080)
+        "2x3": "2:3",  # Vertical (720x1080)
+        "3x2": "3:2",  # Horizontal (1620x1080)
+        "21x9": "21:9",  # Cinematic (2520x1080)
     }
 
     def __init__(self, api_key: str | None = None, skip_init: bool = False):
@@ -57,7 +58,9 @@ class GeminiImageGenerator:
                 raise ValueError("GOOGLE_API_KEY not found in environment")
 
             self.client = genai.Client(api_key=self.api_key)
-            logger.info("GeminiImageGenerator initialized with Nano Banana (Gemini 2.5 Flash Image)")
+            logger.info(
+                "GeminiImageGenerator initialized with Nano Banana (Gemini 2.5 Flash Image)"
+            )
         else:
             logger.info("GeminiImageGenerator initialized in dry-run mode (client not initialized)")
 
@@ -101,6 +104,7 @@ class GeminiImageGenerator:
             for part in response.parts:
                 if part.inline_data is not None:
                     from io import BytesIO
+
                     image_data = part.inline_data.data
                     image = Image.open(BytesIO(image_data))
 
@@ -204,6 +208,7 @@ class GeminiImageGenerator:
                 if part.inline_data is not None:
                     # Convert to PIL Image
                     from io import BytesIO
+
                     image_data = part.inline_data.data
                     image = Image.open(BytesIO(image_data))
 
@@ -265,6 +270,7 @@ class GeminiImageGenerator:
                 if part.inline_data is not None:
                     # Convert to PIL Image
                     from io import BytesIO
+
                     image_data = part.inline_data.data
                     image = Image.open(BytesIO(image_data))
                     generation_time = time.time() - start_time
@@ -344,6 +350,7 @@ class GeminiImageGenerator:
             for part in response.parts:
                 if part.inline_data is not None:
                     from io import BytesIO
+
                     image_data = part.inline_data.data
                     image = Image.open(BytesIO(image_data))
 
@@ -380,62 +387,69 @@ class GeminiImageGenerator:
         - Theme and color variations
         - Regional aesthetics
         """
-        # Regional aesthetic mappings
-        regional_aesthetics = {
-            "US": "clean modern American aesthetic, bright natural lighting, contemporary home setting",
-            "LATAM": "warm vibrant family aesthetic, natural sunlight, tropical warmth, colorful accents",
-            "APAC": "minimalist clean aesthetic, zen organized environment, soft neutral tones",
-            "EMEA": "sophisticated European modern style, premium materials, refined elegance",
-        }
+        # AI-first approach: Let Gemini infer appropriate aesthetic unless brand guide specifies
+        aesthetic_style = None
+        if brand_guide and "regional_guidelines" in brand_guide:
+            regional_guide = brand_guide["regional_guidelines"].get(region, {})
+            if "visual_preference" in regional_guide:
+                aesthetic_style = regional_guide["visual_preference"]
 
-        aesthetic = regional_aesthetics.get(region, regional_aesthetics["US"])
+        # AI-first approach: Let Gemini determine optimal text positioning unless brand guide specifies
+        text_position = None
+        if brand_guide and "variants" in brand_guide and variant_id in brand_guide["variants"]:
+            variant_spec = brand_guide["variants"][variant_id]
+            text_position = variant_spec.get("text_positioning") or variant_spec.get(
+                "text_treatment"
+            )
 
-        # Text positioning variants for A/B testing
-        text_positions = {
-            "variant_1": "top center of the image, leaving product clearly visible below",
-            "variant_2": "bottom of the image, with product featured prominently above",
-            "variant_3": "upper left corner with dynamic diagonal text layout, product right-of-center",
-            "variant_4": "centered vertically on the left side, product on right side",
-            "variant_5": "top right corner, product featured left and center",
-        }
+        # Build AI-first prompt: minimal base + explicit brand guide specifications
+        prompt_parts = [f"Create a professional advertising creative featuring {product_name}."]
 
-        text_position = text_positions.get(variant_id, text_positions["variant_1"])
+        # Add scene description if provided
+        if scene_description:
+            prompt_parts.append(f"\nScene & Background: {scene_description}")
 
-        # Build comprehensive unified prompt
-        prompt_parts = [
-            f"Create a professional advertising creative featuring {product_name}.",
-            f"\nScene & Background: {scene_description}",
-            f"\nAesthetic Style: {aesthetic}",
-        ]
+        # Add aesthetic style only if explicitly specified in brand guide
+        if aesthetic_style:
+            prompt_parts.append(f"\nAesthetic Style: {aesthetic_style}")
 
+        # Add theme if provided
         if theme:
             prompt_parts.append(f"\nTheme: {theme} style with matching visual elements")
 
+        # Add color scheme if provided
         if color_scheme:
             prompt_parts.append(f"\nColor Scheme: {color_scheme} tones and palette")
 
         # Get typography from brand guide if available
         typography_style = "bold modern sans-serif font"
         if brand_guide and "typography" in brand_guide:
-            font_family = brand_guide["typography"].get("font_family", "").split(",")[0]
-            font_weight = brand_guide["typography"].get("font_weight", "700")
-            if font_family:
+            font_family = brand_guide["typography"].get("font_family", "")
+            if font_family:  # Only split if font_family is not empty
+                font_family = font_family.split(",")[0]
+                font_weight = brand_guide["typography"].get("font_weight", "700")
                 weight_desc = "bold" if font_weight in ["700", "bold"] else "regular"
                 typography_style = f"{weight_desc} {font_family} font style"
 
-        # Critical: Text overlay instructions
-        prompt_parts.append(f"""
-\nText Overlay Requirements:
-- Display the text: "{campaign_message}"
-- Position: {text_position}
-- Typography: {typography_style}, clean and professional
-- Size: Large and prominent (12-15% of image height)
-- Style: Clean, modern advertising typography with crisp edges
-- Color: High contrast against background (white on dark, dark on light)
-- NO heavy outlines, NO thick shadows - use subtle drop shadow only if needed for legibility
-- Professional advertising quality text rendering
-- Text should be perfectly spelled as written above
+        # Build text overlay instructions - AI-first approach
+        text_overlay_parts = [
+            f'- Display the text: "{campaign_message}"',
+            f"- Typography: {typography_style}, clean and professional",
+            "- Size: Large and prominent (12-15% of image height)",
+            "- Style: Clean, modern advertising typography with crisp edges",
+            "- Color: High contrast against background (white on dark, dark on light)",
+            "- NO heavy outlines, NO thick shadows - use subtle drop shadow only if needed for legibility",
+            "- Professional advertising quality text rendering",
+            "- Text should be perfectly spelled as written above",
+        ]
 
+        # Only specify position if explicitly defined in brand guide
+        if text_position:
+            text_overlay_parts.insert(1, f"- Position: {text_position}")
+
+        prompt_parts.append("\nText Overlay Requirements:\n" + "\n".join(text_overlay_parts))
+
+        prompt_parts.append("""
 \nComposition Guidelines:
 - Product should be hero-sized (60-70% of frame) and clearly visible
 - Professional product photography lighting with natural shadows
@@ -508,9 +522,10 @@ class GeminiImageGenerator:
         # Get typography from brand guide
         typography_style = "bold modern sans-serif font"
         if brand_guide and "typography" in brand_guide:
-            font_family = brand_guide["typography"].get("font_family", "").split(",")[0]
-            font_weight = brand_guide["typography"].get("font_weight", "700")
-            if font_family:
+            font_family = brand_guide["typography"].get("font_family", "")
+            if font_family:  # Only split if font_family is not empty
+                font_family = font_family.split(",")[0]
+                font_weight = brand_guide["typography"].get("font_weight", "700")
                 weight_desc = "bold" if font_weight in ["700", "bold"] else "regular"
                 typography_style = f"{weight_desc} {font_family} font style"
 
@@ -524,7 +539,7 @@ class GeminiImageGenerator:
 
         # Build fusion prompt
         prompt_parts = [
-            f"Compose this product into a professional advertising creative.",
+            "Compose this product into a professional advertising creative.",
             f"\nScene & Background: {scene_description}",
             f"\nAesthetic Style: {aesthetic}",
         ]
@@ -534,6 +549,43 @@ class GeminiImageGenerator:
 
         if color_scheme_text:
             prompt_parts.append(f"\nColor Scheme: {color_scheme_text}")
+
+        # Get variant-specific composition from brand guide
+        composition_instructions = "Place the product as the hero element (60-70% of frame)"
+        layout_instructions = "Professional product photography lighting"
+
+        # Debug logging for brand guide variant application
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"DEBUG: variant_id = {variant_id}")
+            logger.debug(f"DEBUG: brand_guide type = {type(brand_guide)}")
+            if brand_guide:
+                logger.debug(f"DEBUG: brand_guide keys = {list(brand_guide.keys())}")
+                if "variants" in brand_guide:
+                    logger.debug(
+                        f"DEBUG: variants available = {list(brand_guide['variants'].keys())}"
+                    )
+
+        if brand_guide and "variants" in brand_guide and variant_id in brand_guide["variants"]:
+            variant_spec = brand_guide["variants"][variant_id]
+            variant_composition = variant_spec.get("composition", "")
+            variant_layout = variant_spec.get("layout_style", "")
+
+            logger.info(f"🎯 Applying variant composition: {variant_composition}")
+            logger.info(f"🎯 Applying variant layout: {variant_layout}")
+
+            if variant_composition:
+                # Use brand guide composition directly with generic enhancement
+                composition_instructions = variant_composition
+                # Add universal instruction to avoid literal text labels in before/after compositions
+                if any(
+                    word in variant_composition.lower()
+                    for word in ["left", "right", "before", "after"]
+                ):
+                    composition_instructions += "\nIMPORTANT: Show transformation visually without text labels like 'BEFORE', 'AFTER', or directional words"
+            if variant_layout:
+                layout_instructions = f"{variant_layout} with {layout_instructions}"
+        else:
+            logger.warning(f"⚠️ No variant composition found for {variant_id} in brand guide")
 
         # Text overlay instructions
         prompt_parts.append(f"""
@@ -548,8 +600,8 @@ class GeminiImageGenerator:
 - Professional advertising quality text rendering
 
 \nComposition:
-- Place the product as the hero element (60-70% of frame)
-- Professional product photography lighting
+- {composition_instructions}
+- {layout_instructions}
 - Scene elements complement but don't overpower product
 - Natural, realistic rendering with photographic quality
 - Clean, high-end advertising aesthetic for social media

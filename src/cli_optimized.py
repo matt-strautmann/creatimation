@@ -11,19 +11,19 @@ Usage:
     creatimation cache stats
     creatimation config init
 """
+
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import click
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
-from rich import print as rprint
+
+from .config import ConfigManager
 
 # Import the new architecture
-from .container import get_container, configure_container
-from .config import ConfigManager
+from .container import configure_container, get_container
 
 console = Console()
 
@@ -40,6 +40,7 @@ class CLIContext:
 # MAIN CLI GROUP
 # ============================================================================
 
+
 @click.group()
 @click.version_option(version="2.0.0", prog_name="creatimation")
 @click.option(
@@ -48,12 +49,7 @@ class CLIContext:
     type=click.Path(exists=True),
     help="Path to .creatimation.yml config file",
 )
-@click.option(
-    "--verbose",
-    "-v",
-    is_flag=True,
-    help="Enable verbose logging"
-)
+@click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.pass_context
 def cli(ctx, config, verbose):
     """
@@ -77,12 +73,14 @@ def cli(ctx, config, verbose):
     # Configure logging
     if verbose:
         import logging
+
         logging.basicConfig(level=logging.DEBUG)
 
 
 # ============================================================================
 # GENERATE COMMANDS
 # ============================================================================
+
 
 @cli.group()
 def generate():
@@ -96,35 +94,15 @@ def generate():
     "-b",
     required=True,
     type=click.Path(exists=True),
-    help="Path to campaign brief JSON file"
+    help="Path to campaign brief JSON file",
 )
 @click.option(
-    "--brand-guide",
-    "-g",
-    type=click.Path(exists=True),
-    help="Path to brand guide YAML file"
+    "--brand-guide", "-g", type=click.Path(exists=True), help="Path to brand guide YAML file"
 )
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(),
-    help="Output directory (overrides config)"
-)
-@click.option(
-    "--no-cache",
-    is_flag=True,
-    help="Disable cache usage"
-)
-@click.option(
-    "--resume",
-    is_flag=True,
-    help="Resume from previous execution"
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Preview execution without generating assets"
-)
+@click.option("--output", "-o", type=click.Path(), help="Output directory (overrides config)")
+@click.option("--no-cache", is_flag=True, help="Disable cache usage")
+@click.option("--resume", is_flag=True, help="Resume from previous execution")
+@click.option("--dry-run", is_flag=True, help="Preview execution without generating assets")
 @click.pass_context
 def generate_all(ctx, brief, brand_guide, output, no_cache, resume, dry_run):
     """Generate all variants for a campaign."""
@@ -139,29 +117,26 @@ def generate_all(ctx, brief, brand_guide, output, no_cache, resume, dry_run):
 
         # Extract campaign ID from brief for state tracking
         import json
-        with open(brief, 'r') as f:
+
+        with open(brief) as f:
             brief_data = json.load(f)
-        campaign_id = brief_data.get('campaign_id', Path(brief).stem)
+        campaign_id = brief_data.get("campaign_id", Path(brief).stem)
 
         # Create pipeline
         pipeline = container.get_pipeline(
-            campaign_id=campaign_id,
-            no_cache=no_cache,
-            dry_run=dry_run
+            campaign_id=campaign_id, no_cache=no_cache, dry_run=dry_run
         )
 
         # Execute pipeline
         console.print("\n[bold blue]Starting Creative Automation Pipeline v2.0[/bold blue]")
         console.print(f"Brief: {brief}")
-        console.print(f"Config: optimized architecture")
+        console.print("Config: optimized architecture")
         if brand_guide:
             console.print(f"Brand Guide: {brand_guide}")
 
         with console.status("[bold green]Processing campaign...") as status:
             results = pipeline.process_campaign(
-                brief_path=brief,
-                brand_guide_path=brand_guide,
-                resume=resume
+                brief_path=brief, brand_guide_path=brand_guide, resume=resume
             )
 
         # Display results
@@ -169,8 +144,9 @@ def generate_all(ctx, brief, brand_guide, output, no_cache, resume, dry_run):
 
     except Exception as e:
         console.print(f"\n[red]❌ Pipeline failed: {e}[/red]")
-        if ctx.obj.config_manager.config.get('debug', False):
+        if ctx.obj.config_manager.config.get("debug", False):
             import traceback
+
             console.print(traceback.format_exc())
         sys.exit(1)
 
@@ -178,6 +154,7 @@ def generate_all(ctx, brief, brand_guide, output, no_cache, resume, dry_run):
 # ============================================================================
 # VALIDATION COMMANDS
 # ============================================================================
+
 
 @cli.group()
 def validate():
@@ -208,13 +185,16 @@ def validate_brief(ctx, brief_path):
             table.add_column("Property", style="cyan")
             table.add_column("Value", style="white")
 
-            table.add_row("Campaign ID", brief_data.get('campaign_id', 'N/A'))
-            table.add_row("Products", str(len(brief_data.get('products', []))))
-            table.add_row("Target Regions", str(brief_data.get('target_regions', brief_data.get('target_region', 'N/A'))))
+            table.add_row("Campaign ID", brief_data.get("campaign_id", "N/A"))
+            table.add_row("Products", str(len(brief_data.get("products", []))))
+            table.add_row(
+                "Target Regions",
+                str(brief_data.get("target_regions", brief_data.get("target_region", "N/A"))),
+            )
 
-            creative_reqs = brief_data.get('creative_requirements', {})
-            table.add_row("Aspect Ratios", str(len(creative_reqs.get('aspect_ratios', []))))
-            table.add_row("Variant Types", str(len(creative_reqs.get('variant_types', []))))
+            creative_reqs = brief_data.get("creative_requirements", {})
+            table.add_row("Aspect Ratios", str(len(creative_reqs.get("aspect_ratios", []))))
+            table.add_row("Variant Types", str(len(creative_reqs.get("variant_types", []))))
 
             console.print(table)
         else:
@@ -249,13 +229,13 @@ def validate_brand_guide(ctx, guide_path):
             table.add_column("Property", style="cyan")
             table.add_column("Value", style="white")
 
-            table.add_row("Brand Name", guide_data.get('brand_name', 'N/A'))
-            table.add_row("Industry", guide_data.get('industry', 'N/A'))
+            table.add_row("Brand Name", guide_data.get("brand_name", "N/A"))
+            table.add_row("Industry", guide_data.get("industry", "N/A"))
 
-            colors = guide_data.get('colors', {})
-            table.add_row("Primary Color", colors.get('primary', 'N/A'))
-            table.add_row("Secondary Color", colors.get('secondary', 'N/A'))
-            table.add_row("Accent Color", colors.get('accent', 'N/A'))
+            colors = guide_data.get("colors", {})
+            table.add_row("Primary Color", colors.get("primary", "N/A"))
+            table.add_row("Secondary Color", colors.get("secondary", "N/A"))
+            table.add_row("Accent Color", colors.get("accent", "N/A"))
 
             console.print(table)
         else:
@@ -271,6 +251,7 @@ def validate_brand_guide(ctx, guide_path):
 # CACHE COMMANDS
 # ============================================================================
 
+
 @cli.group()
 def cache():
     """Manage the asset cache."""
@@ -278,11 +259,7 @@ def cache():
 
 
 @cache.command("clear")
-@click.option(
-    "--force",
-    is_flag=True,
-    help="Force clear without confirmation"
-)
+@click.option("--force", is_flag=True, help="Force clear without confirmation")
 @click.pass_context
 def clear_cache(ctx, force):
     """Clear all cached assets."""
@@ -318,13 +295,13 @@ def cache_stats(ctx):
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="white")
 
-        table.add_row("Total Entries", str(stats['total_entries']))
+        table.add_row("Total Entries", str(stats["total_entries"]))
         table.add_row("Total Size", f"{stats['total_size_mb']} MB")
-        table.add_row("Cache Directory", stats['cache_directory'])
-        table.add_row("S3 Enabled", str(stats['s3_enabled']))
+        table.add_row("Cache Directory", stats["cache_directory"])
+        table.add_row("S3 Enabled", str(stats["s3_enabled"]))
 
         # Add type breakdown
-        for asset_type, count in stats.get('type_breakdown', {}).items():
+        for asset_type, count in stats.get("type_breakdown", {}).items():
             table.add_row(f"  {asset_type}", str(count))
 
         console.print(table)
@@ -335,11 +312,7 @@ def cache_stats(ctx):
 
 
 @cache.command("cleanup")
-@click.option(
-    "--max-age",
-    default=30,
-    help="Maximum age in days for cached assets"
-)
+@click.option("--max-age", default=30, help="Maximum age in days for cached assets")
 @click.pass_context
 def cleanup_cache(ctx, max_age):
     """Clean up stale cache entries."""
@@ -359,6 +332,7 @@ def cleanup_cache(ctx, max_age):
 # CONFIG COMMANDS
 # ============================================================================
 
+
 @cli.group()
 def config():
     """Manage configuration."""
@@ -367,10 +341,7 @@ def config():
 
 @config.command("init")
 @click.option(
-    "--output",
-    type=click.Path(),
-    default=".creatimation.yml",
-    help="Output file for configuration"
+    "--output", type=click.Path(), default=".creatimation.yml", help="Output file for configuration"
 )
 @click.pass_context
 def init_config(ctx, output):
@@ -384,22 +355,14 @@ def init_config(ctx, output):
 
         # Create default configuration
         default_config = {
-            "cache": {
-                "directory": "cache",
-                "enable_s3": False
-            },
-            "output": {
-                "directory": "output",
-                "semantic_structure": True
-            },
-            "generation": {
-                "default_aspect_ratios": ["1x1", "9x16", "16x9"],
-                "quality": 95
-            }
+            "cache": {"directory": "cache", "enable_s3": False},
+            "output": {"directory": "output", "semantic_structure": True},
+            "generation": {"default_aspect_ratios": ["1x1", "9x16", "16x9"], "quality": 95},
         }
 
         import yaml
-        with open(config_path, 'w') as f:
+
+        with open(config_path, "w") as f:
             yaml.dump(default_config, f, indent=2)
 
         console.print(f"[green]✓ Configuration created: {output}[/green]")
@@ -428,7 +391,8 @@ def show_config(ctx):
 # UTILITY FUNCTIONS
 # ============================================================================
 
-def _display_results(results: Dict[str, Any]) -> None:
+
+def _display_results(results: dict[str, Any]) -> None:
     """Display pipeline execution results."""
     console.print("\n[bold green]✨ Pipeline Completed Successfully![/bold green]")
 
@@ -437,28 +401,28 @@ def _display_results(results: Dict[str, Any]) -> None:
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="white")
 
-    table.add_row("Campaign ID", results.get('campaign_id', 'N/A'))
-    table.add_row("Products Processed", str(len(results.get('products_processed', []))))
-    table.add_row("Total Creatives", str(results.get('total_creatives', 0)))
-    table.add_row("Cache Hits", str(results.get('cache_hits', 0)))
-    table.add_row("Cache Misses", str(results.get('cache_misses', 0)))
+    table.add_row("Campaign ID", results.get("campaign_id", "N/A"))
+    table.add_row("Products Processed", str(len(results.get("products_processed", []))))
+    table.add_row("Total Creatives", str(results.get("total_creatives", 0)))
+    table.add_row("Cache Hits", str(results.get("cache_hits", 0)))
+    table.add_row("Cache Misses", str(results.get("cache_misses", 0)))
 
-    processing_time = results.get('processing_time', 0)
+    processing_time = results.get("processing_time", 0)
     table.add_row("Processing Time", f"{processing_time:.1f} seconds")
 
-    if processing_time > 0 and results.get('total_creatives', 0) > 0:
-        rate = results['total_creatives'] / processing_time
+    if processing_time > 0 and results.get("total_creatives", 0) > 0:
+        rate = results["total_creatives"] / processing_time
         table.add_row("Generation Rate", f"{rate:.2f} creatives/second")
 
     console.print(table)
 
     # Show target regions
-    regions = results.get('target_regions', [])
+    regions = results.get("target_regions", [])
     if regions:
         console.print(f"\n[bold]Target Regions:[/bold] {', '.join(regions)}")
 
     # Show dry run info
-    if results.get('dry_run'):
+    if results.get("dry_run"):
         console.print("\n[yellow]ℹ️  This was a dry run - no assets were generated[/yellow]")
 
 

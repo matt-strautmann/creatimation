@@ -10,11 +10,11 @@ Optimized Structure: output/campaigns/{campaign_id}/outputs/{region}/{ratio}/
                     output/library/products/{product_slug}/transparent/
                     output/library/backgrounds/seasonal/{season}/{region}/{ratio}/
 """
+
 import json
 import logging
 import time
 from pathlib import Path
-from typing import Optional
 
 from PIL import Image
 
@@ -101,7 +101,9 @@ class EnhancedOutputManager:
         image.save(image_path, "JPEG", quality=95, optimize=True)
 
         file_size = image_path.stat().st_size
-        logger.info(f"💾 Saved campaign creative: {filename} ({file_size:,} bytes) -> {creative_dir}")
+        logger.info(
+            f"💾 Saved campaign creative: {filename} ({file_size:,} bytes) -> {creative_dir}"
+        )
 
         # Save metadata
         enhanced_metadata = {
@@ -111,7 +113,7 @@ class EnhancedOutputManager:
             "template": template,
             "region": region,
             "variant_id": variant_id,
-            "asset_type": "campaign_creative"
+            "asset_type": "campaign_creative",
         }
         self._save_metadata(creative_dir, enhanced_metadata, filename)
 
@@ -123,7 +125,7 @@ class EnhancedOutputManager:
         product_name: str,
         asset_type: str,  # "transparent", "source", "variant"
         metadata: dict,
-        variant_name: Optional[str] = None
+        variant_name: str | None = None,
     ) -> str:
         """
         Save product asset to library for cross-campaign reuse.
@@ -143,10 +145,18 @@ class EnhancedOutputManager:
         # Library structure: output/library/products/{product_slug}/{asset_type}/
         if variant_name:
             asset_dir = self.library_dir / "products" / product_slug / "variants" / variant_name
-            filename = f"{product_slug}_{variant_name}.png" if asset_type == "transparent" else f"{product_slug}_{variant_name}.jpg"
+            filename = (
+                f"{product_slug}_{variant_name}.png"
+                if asset_type == "transparent"
+                else f"{product_slug}_{variant_name}.jpg"
+            )
         else:
             asset_dir = self.library_dir / "products" / product_slug / asset_type
-            filename = f"{product_slug}_{asset_type}.png" if asset_type == "transparent" else f"{product_slug}_{asset_type}.jpg"
+            filename = (
+                f"{product_slug}_{asset_type}.png"
+                if asset_type == "transparent"
+                else f"{product_slug}_{asset_type}.jpg"
+            )
 
         asset_dir.mkdir(parents=True, exist_ok=True)
         image_path = asset_dir / filename
@@ -166,7 +176,7 @@ class EnhancedOutputManager:
             "product_name": product_name,
             "asset_type": f"product_{asset_type}",
             "variant_name": variant_name,
-            "library_asset": True
+            "library_asset": True,
         }
         self._save_metadata(asset_dir, enhanced_metadata, filename)
 
@@ -180,7 +190,7 @@ class EnhancedOutputManager:
         region: str,
         ratio: str,
         metadata: dict,
-        bg_name: Optional[str] = None
+        bg_name: str | None = None,
     ) -> str:
         """
         Save background asset to library for cross-campaign reuse.
@@ -205,7 +215,14 @@ class EnhancedOutputManager:
             # Neutral backgrounds don't need region subdivision
             bg_dir = self.library_dir / "backgrounds" / category_type / ratio
         else:
-            bg_dir = self.library_dir / "backgrounds" / category_type / category_slug / region_slug / ratio
+            bg_dir = (
+                self.library_dir
+                / "backgrounds"
+                / category_type
+                / category_slug
+                / region_slug
+                / ratio
+            )
 
         bg_dir.mkdir(parents=True, exist_ok=True)
 
@@ -233,13 +250,13 @@ class EnhancedOutputManager:
             "region": region,
             "ratio": ratio,
             "asset_type": "library_background",
-            "bg_name": bg_name
+            "bg_name": bg_name,
         }
         self._save_metadata(bg_dir, enhanced_metadata, filename)
 
         return str(image_path)
 
-    def discover_library_products(self, product_name: Optional[str] = None) -> list:
+    def discover_library_products(self, product_name: str | None = None) -> list:
         """
         Discover available product assets in library.
 
@@ -263,10 +280,7 @@ class EnhancedOutputManager:
             if product_name and self._slugify(product_name) != product_dir.name:
                 continue
 
-            product_info = {
-                "product_slug": product_dir.name,
-                "available_assets": {}
-            }
+            product_info = {"product_slug": product_dir.name, "available_assets": {}}
 
             # Check each asset type
             for asset_type_dir in product_dir.iterdir():
@@ -275,7 +289,10 @@ class EnhancedOutputManager:
 
                 asset_files = []
                 for asset_file in asset_type_dir.glob("*"):
-                    if asset_file.suffix.lower() in ['.jpg', '.png'] and asset_file.name != 'metadata.json':
+                    if (
+                        asset_file.suffix.lower() in [".jpg", ".png"]
+                        and asset_file.name != "metadata.json"
+                    ):
                         # Try to load metadata
                         metadata_path = asset_type_dir / "metadata.json"
                         file_metadata = {}
@@ -286,12 +303,14 @@ class EnhancedOutputManager:
                             except Exception as e:
                                 logger.warning(f"Failed to load metadata for {asset_file}: {e}")
 
-                        asset_files.append({
-                            "filename": asset_file.name,
-                            "path": str(asset_file),
-                            "size_bytes": asset_file.stat().st_size,
-                            "metadata": file_metadata
-                        })
+                        asset_files.append(
+                            {
+                                "filename": asset_file.name,
+                                "path": str(asset_file),
+                                "size_bytes": asset_file.stat().st_size,
+                                "metadata": file_metadata,
+                            }
+                        )
 
                 if asset_files:
                     product_info["available_assets"][asset_type_dir.name] = asset_files
@@ -303,10 +322,10 @@ class EnhancedOutputManager:
 
     def discover_library_backgrounds(
         self,
-        category_type: Optional[str] = None,
-        category_value: Optional[str] = None,
-        region: Optional[str] = None,
-        ratio: Optional[str] = None
+        category_type: str | None = None,
+        category_value: str | None = None,
+        region: str | None = None,
+        ratio: str | None = None,
     ) -> list:
         """
         Discover available background assets in library.
@@ -345,7 +364,9 @@ class EnhancedOutputManager:
                         continue
 
                     for bg_file in ratio_dir.glob("*.jpg"):
-                        bg_info = self._get_background_info(bg_file, "neutral", None, None, ratio_dir.name)
+                        bg_info = self._get_background_info(
+                            bg_file, "neutral", None, None, ratio_dir.name
+                        )
                         available_backgrounds.append(bg_info)
 
             else:
@@ -376,13 +397,24 @@ class EnhancedOutputManager:
 
                             for bg_file in ratio_dir.glob("*.jpg"):
                                 bg_info = self._get_background_info(
-                                    bg_file, cat_type_dir.name, cat_value_dir.name, region_dir.name, ratio_dir.name
+                                    bg_file,
+                                    cat_type_dir.name,
+                                    cat_value_dir.name,
+                                    region_dir.name,
+                                    ratio_dir.name,
                                 )
                                 available_backgrounds.append(bg_info)
 
         return available_backgrounds
 
-    def _get_background_info(self, bg_file: Path, category_type: str, category_value: Optional[str], region: Optional[str], ratio: str) -> dict:
+    def _get_background_info(
+        self,
+        bg_file: Path,
+        category_type: str,
+        category_value: str | None,
+        region: str | None,
+        ratio: str,
+    ) -> dict:
         """Extract background asset information."""
         # Try to load metadata
         metadata_path = bg_file.parent / "metadata.json"
@@ -402,7 +434,7 @@ class EnhancedOutputManager:
             "region": region,
             "ratio": ratio,
             "size_bytes": bg_file.stat().st_size,
-            "metadata": file_metadata
+            "metadata": file_metadata,
         }
 
     def save_campaign_brief(self, campaign_id: str, brief_data: dict) -> str:
@@ -427,7 +459,7 @@ class EnhancedOutputManager:
         logger.info(f"📄 Saved campaign brief: {brief_path}")
         return str(brief_path)
 
-    def get_campaign_summary(self, campaign_id: Optional[str] = None) -> dict:
+    def get_campaign_summary(self, campaign_id: str | None = None) -> dict:
         """
         Get summary of campaign outputs.
 
@@ -439,15 +471,15 @@ class EnhancedOutputManager:
         """
         if campaign_id:
             campaign_slug = self._slugify(campaign_id)
-            campaign_dirs = [self.campaigns_dir / campaign_slug] if (self.campaigns_dir / campaign_slug).exists() else []
+            campaign_dirs = (
+                [self.campaigns_dir / campaign_slug]
+                if (self.campaigns_dir / campaign_slug).exists()
+                else []
+            )
         else:
             campaign_dirs = [d for d in self.campaigns_dir.iterdir() if d.is_dir()]
 
-        summary = {
-            "campaigns": [],
-            "total_creatives": 0,
-            "total_size_bytes": 0
-        }
+        summary = {"campaigns": [], "total_creatives": 0, "total_size_bytes": 0}
 
         for campaign_dir in campaign_dirs:
             campaign_info = {
@@ -456,7 +488,7 @@ class EnhancedOutputManager:
                 "size_bytes": 0,
                 "regions": [],
                 "ratios": [],
-                "brief_exists": (campaign_dir / "brief.json").exists()
+                "brief_exists": (campaign_dir / "brief.json").exists(),
             }
 
             outputs_dir = campaign_dir / "outputs"
@@ -495,7 +527,7 @@ class EnhancedOutputManager:
         summary = {
             "products": {"count": 0, "asset_types": [], "total_size_bytes": 0},
             "backgrounds": {"count": 0, "categories": [], "total_size_bytes": 0},
-            "total_size_bytes": 0
+            "total_size_bytes": 0,
         }
 
         # Products summary
@@ -515,7 +547,7 @@ class EnhancedOutputManager:
                         summary["products"]["asset_types"].append(asset_type_dir.name)
 
                     for asset_file in asset_type_dir.glob("*"):
-                        if asset_file.suffix.lower() in ['.jpg', '.png']:
+                        if asset_file.suffix.lower() in [".jpg", ".png"]:
                             summary["products"]["total_size_bytes"] += asset_file.stat().st_size
 
         # Backgrounds summary
@@ -532,7 +564,9 @@ class EnhancedOutputManager:
                     summary["backgrounds"]["count"] += 1
                     summary["backgrounds"]["total_size_bytes"] += file_path.stat().st_size
 
-        summary["total_size_bytes"] = summary["products"]["total_size_bytes"] + summary["backgrounds"]["total_size_bytes"]
+        summary["total_size_bytes"] = (
+            summary["products"]["total_size_bytes"] + summary["backgrounds"]["total_size_bytes"]
+        )
         summary["total_size_mb"] = round(summary["total_size_bytes"] / (1024 * 1024), 2)
 
         return summary
@@ -593,8 +627,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Enhanced output manager utilities")
     parser.add_argument("--campaign-summary", metavar="CAMPAIGN_ID", help="Show campaign summary")
     parser.add_argument("--library-summary", action="store_true", help="Show library summary")
-    parser.add_argument("--discover-products", metavar="PRODUCT_NAME", nargs="?", const="", help="Discover library products")
-    parser.add_argument("--discover-backgrounds", action="store_true", help="Discover library backgrounds")
+    parser.add_argument(
+        "--discover-products",
+        metavar="PRODUCT_NAME",
+        nargs="?",
+        const="",
+        help="Discover library products",
+    )
+    parser.add_argument(
+        "--discover-backgrounds", action="store_true", help="Discover library backgrounds"
+    )
     parser.add_argument("--output-dir", default="output", help="Output directory to analyze")
 
     args = parser.parse_args()
@@ -602,7 +644,9 @@ if __name__ == "__main__":
     manager = EnhancedOutputManager(args.output_dir)
 
     if args.campaign_summary:
-        summary = manager.get_campaign_summary(args.campaign_summary if args.campaign_summary != "" else None)
+        summary = manager.get_campaign_summary(
+            args.campaign_summary if args.campaign_summary != "" else None
+        )
         print("\n📊 Campaign Summary:")
         for campaign in summary["campaigns"]:
             print(f"  Campaign: {campaign['campaign_id']}")
@@ -615,16 +659,20 @@ if __name__ == "__main__":
     elif args.library_summary:
         summary = manager.get_library_summary()
         print("\n📚 Library Summary:")
-        print(f"  Products: {summary['products']['count']} ({', '.join(summary['products']['asset_types'])})")
-        print(f"  Backgrounds: {summary['backgrounds']['count']} ({', '.join(summary['backgrounds']['categories'])})")
+        print(
+            f"  Products: {summary['products']['count']} ({', '.join(summary['products']['asset_types'])})"
+        )
+        print(
+            f"  Backgrounds: {summary['backgrounds']['count']} ({', '.join(summary['backgrounds']['categories'])})"
+        )
         print(f"  Total: {summary['total_size_mb']} MB")
 
     elif args.discover_products is not None:
         products = manager.discover_library_products(args.discover_products or None)
-        print(f"\n🔍 Library Products:")
+        print("\n🔍 Library Products:")
         for product in products:
             print(f"  Product: {product['product_slug']}")
-            for asset_type, assets in product['available_assets'].items():
+            for asset_type, assets in product["available_assets"].items():
                 print(f"    {asset_type}: {len(assets)} assets")
 
     elif args.discover_backgrounds:
@@ -641,4 +689,6 @@ if __name__ == "__main__":
             print(f"  {category}: {count} backgrounds")
 
     else:
-        print("Use --campaign-summary, --library-summary, --discover-products, or --discover-backgrounds")
+        print(
+            "Use --campaign-summary, --library-summary, --discover-products, or --discover-backgrounds"
+        )
