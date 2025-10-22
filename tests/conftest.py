@@ -95,9 +95,7 @@ def mock_output_structure(temp_dir):
 
             # Create sample variant files
             for i in range(3):
-                variant_file = (
-                    ratio_dir / f"{product}_hero-product_us_{ratio}_variant_{i + 1}.jpg"
-                )
+                variant_file = ratio_dir / f"{product}_hero-product_us_{ratio}_variant_{i + 1}.jpg"
                 # Create empty file
                 variant_file.touch()
 

@@ -6,41 +6,42 @@ and rich console functionality.
 """
 
 import io
+
+# Add src to path for imports
+import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from rich.console import Console
 from rich.table import Table
 
-# Add src to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from pathlib import Path
+
 from cli.utils.output import (
+    ProgressTracker,
     console,
-    error_console,
-    create_progress_bar,
-    create_status_indicator,
-    print_header,
-    print_success,
-    print_error,
-    print_warning,
-    print_info,
-    create_table,
-    create_info_panel,
-    create_tree,
-    format_size,
-    format_duration,
-    format_percentage,
     create_command_help_table,
     create_config_table,
+    create_info_panel,
+    create_progress_bar,
+    create_status_indicator,
     create_status_table,
+    create_table,
+    create_tree,
+    error_console,
+    format_duration,
+    format_percentage,
+    format_size,
+    print_error,
+    print_header,
+    print_info,
+    print_success,
+    print_warning,
     print_welcome_banner,
     with_spinner,
-    ProgressTracker,
 )
-from pathlib import Path
 
 
 class TestConsoleSetup:
@@ -73,11 +74,7 @@ class TestProgressAndStatus:
 
     def test_create_progress_bar_with_options(self):
         """Test creating progress bar with options"""
-        progress = create_progress_bar(
-            show_speed=True,
-            show_time=False,
-            show_percentage=True
-        )
+        progress = create_progress_bar(show_speed=True, show_time=False, show_percentage=True)
         assert progress is not None
 
     def test_create_status_indicator(self):
@@ -197,22 +194,14 @@ class TestTableCreation:
         config_data = {
             "api_key": "secret",
             "timeout": 30,
-            "nested": {
-                "option1": "value1",
-                "option2": "value2"
-            }
+            "nested": {"option1": "value1", "option2": "value2"},
         }
         table = create_config_table(config_data)
         assert isinstance(table, Table)
 
     def test_create_status_table(self):
         """Test creating status table"""
-        items = {
-            "Database": "ok",
-            "Cache": "warning",
-            "API": "error",
-            "Unknown": "unknown"
-        }
+        items = {"Database": "ok", "Cache": "warning", "API": "error", "Unknown": "unknown"}
         table = create_status_table(items)
         assert isinstance(table, Table)
 
@@ -229,7 +218,7 @@ class TestFormatFunctions:
 
     def test_format_size_large(self):
         """Test formatting very large sizes"""
-        size_tb = 1024 ** 4
+        size_tb = 1024**4
         result = format_size(size_tb)
         assert "TB" in result
 
@@ -311,6 +300,7 @@ class TestSpinnerContext:
 
     def test_with_spinner_basic(self):
         """Test with_spinner function"""
+
         def test_func():
             return "result"
 
@@ -319,6 +309,7 @@ class TestSpinnerContext:
 
     def test_with_spinner_with_args(self):
         """Test with_spinner with function arguments"""
+
         def test_func(a, b, c=None):
             return a + b + (c or 0)
 
@@ -327,6 +318,7 @@ class TestSpinnerContext:
 
     def test_with_spinner_exception_handling(self):
         """Test with_spinner handles exceptions"""
+
         def error_func():
             raise ValueError("Test error")
 

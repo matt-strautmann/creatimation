@@ -5,17 +5,14 @@ These tests verify that the system handles error conditions gracefully
 and provides meaningful error messages to users.
 """
 
-import json
-import os
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
-import yaml
-
 # Add src to path for imports
 import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from config import ConfigManager
@@ -57,7 +54,7 @@ class TestConfigErrorHandling:
         """Test handling of corrupted config file"""
         config_file = temp_dir / "corrupted.yml"
         # Write binary data to simulate corruption
-        config_file.write_bytes(b'\x00\x01\x02\x03invalid\xff\xfe')
+        config_file.write_bytes(b"\x00\x01\x02\x03invalid\xff\xfe")
 
         config_manager = ConfigManager(str(config_file))
 
@@ -154,7 +151,7 @@ class TestContainerErrorHandling:
     def test_create_from_corrupted_config(self, temp_dir):
         """Test creating container from corrupted config file"""
         config_file = temp_dir / "corrupted.yml"
-        config_file.write_bytes(b'\x00\x01corrupted\xff\xfe')
+        config_file.write_bytes(b"\x00\x01corrupted\xff\xfe")
 
         container = DIContainer()
 
@@ -167,13 +164,13 @@ class TestContainerErrorHandling:
 class TestSubprocessErrorHandling:
     """Test subprocess operation error handling"""
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_subprocess_timeout_handling(self, mock_run):
         """Test subprocess timeout handling"""
         import subprocess
 
         # Mock timeout exception
-        mock_run.side_effect = subprocess.TimeoutExpired('cmd', 30)
+        mock_run.side_effect = subprocess.TimeoutExpired("cmd", 30)
 
         # Test the error handling pattern used in completion command
         try:
@@ -189,7 +186,7 @@ class TestSubprocessErrorHandling:
         else:
             pytest.fail("Expected TimeoutExpired exception")
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_subprocess_file_not_found_handling(self, mock_run):
         """Test subprocess file not found handling"""
         import subprocess
@@ -210,7 +207,7 @@ class TestSubprocessErrorHandling:
         else:
             pytest.fail("Expected FileNotFoundError exception")
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_subprocess_permission_denied_handling(self, mock_run):
         """Test subprocess permission denied handling"""
         import subprocess
@@ -310,6 +307,7 @@ class TestFileSystemErrorHandling:
 
     def test_workspace_detection_pattern(self, temp_dir):
         """Test workspace detection error handling pattern"""
+
         # Test the actual workspace detection logic pattern
         def find_workspace_safe(start_path):
             """Safe workspace detection that handles errors"""
@@ -359,7 +357,7 @@ class TestFileSystemErrorHandling:
         try:
             # Test the error handling pattern used in file operations
             try:
-                with open(test_file, 'r') as f:
+                with open(test_file) as f:
                     content = f.read()
             except PermissionError as e:
                 error_msg = f"Permission denied reading file {test_file}: {e}"
@@ -375,7 +373,7 @@ class TestFileSystemErrorHandling:
 class TestNetworkErrorHandling:
     """Test network operation error handling"""
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_api_timeout_handling(self, mock_post):
         """Test API timeout handling"""
         import requests
@@ -385,9 +383,9 @@ class TestNetworkErrorHandling:
 
         # This would be tested in actual image generation components
         # For now, just verify the exception type is importable
-        assert hasattr(requests.exceptions, 'Timeout')
+        assert hasattr(requests.exceptions, "Timeout")
 
-    @patch('requests.post')
+    @patch("requests.post")
     def test_api_connection_error_handling(self, mock_post):
         """Test API connection error handling"""
         import requests
@@ -396,7 +394,7 @@ class TestNetworkErrorHandling:
         mock_post.side_effect = requests.exceptions.ConnectionError("Connection failed")
 
         # Verify exception type is available for proper handling
-        assert hasattr(requests.exceptions, 'ConnectionError')
+        assert hasattr(requests.exceptions, "ConnectionError")
 
 
 class TestConcurrentErrorHandling:
@@ -405,7 +403,6 @@ class TestConcurrentErrorHandling:
     def test_multiple_config_access(self, temp_dir):
         """Test multiple concurrent config access"""
         import threading
-        import time
 
         config_file = temp_dir / "concurrent_config.yml"
         config_file.write_text("project:\n  name: concurrent_test")

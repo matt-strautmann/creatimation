@@ -200,12 +200,12 @@ class CreativePipeline:
 
         product_results = {
             "creatives_generated": 0,
-            "cache_hits": 1
-            if self._is_cache_hit(product_name) or self._has_provided_image(product)
-            else 0,
-            "cache_misses": 0
-            if self._is_cache_hit(product_name) or self._has_provided_image(product)
-            else 1,
+            "cache_hits": (
+                1 if self._is_cache_hit(product_name) or self._has_provided_image(product) else 0
+            ),
+            "cache_misses": (
+                0 if self._is_cache_hit(product_name) or self._has_provided_image(product) else 1
+            ),
         }
 
         # Step 2: Generate variants for all regions

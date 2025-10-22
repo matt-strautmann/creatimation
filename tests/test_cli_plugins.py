@@ -5,24 +5,25 @@ These tests cover the plugin architecture, discovery, loading,
 and the built-in analytics plugin functionality.
 """
 
-import json
+# Add src to path for imports
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest
 import click
+import pytest
 
-# Add src to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
-    from cli.plugins import PluginManager, PluginInfo, get_plugin_manager
+    from cli.plugins import PluginInfo, PluginManager, get_plugin_manager
 except ImportError:
     # Create minimal mock classes for testing
     class PluginInfo:
-        def __init__(self, name, version, description, author, module, commands, hooks, enabled=True):
+        def __init__(
+            self, name, version, description, author, module, commands, hooks, enabled=True
+        ):
             self.name = name
             self.version = version
             self.description = description
@@ -38,18 +39,38 @@ except ImportError:
             self.hooks = {}
             self.plugin_paths = []
 
-        def discover_plugins(self): return ["analytics"]
-        def load_plugin(self, name): return name == "analytics"
-        def unload_plugin(self, name): return name in self.plugins
-        def get_plugin_commands(self): return {}
-        def register_hook(self, name, func): pass
-        def call_hook(self, name, *args, **kwargs): return []
-        def list_plugins(self): return []
-        def get_plugin_info(self, name): return None
-        def enable_plugin(self, name): return True
-        def disable_plugin(self, name): return True
+        def discover_plugins(self):
+            return ["analytics"]
 
-    def get_plugin_manager(): return PluginManager()
+        def load_plugin(self, name):
+            return name == "analytics"
+
+        def unload_plugin(self, name):
+            return name in self.plugins
+
+        def get_plugin_commands(self):
+            return {}
+
+        def register_hook(self, name, func):
+            pass
+
+        def call_hook(self, name, *args, **kwargs):
+            return []
+
+        def list_plugins(self):
+            return []
+
+        def get_plugin_info(self, name):
+            return None
+
+        def enable_plugin(self, name):
+            return True
+
+        def disable_plugin(self, name):
+            return True
+
+    def get_plugin_manager():
+        return PluginManager()
 
 
 class TestPluginManager:
@@ -277,11 +298,12 @@ class TestAnalyticsPlugin:
         assert "after_command" in manager.hooks
         assert "generation_complete" in manager.hooks
 
-    @patch('cli.plugins.builtin.analytics.analytics_store')
+    @patch("cli.plugins.builtin.analytics.analytics_store")
     def test_before_command_hook(self, mock_store):
         """Test before_command hook functionality"""
-        from cli.plugins.builtin.analytics import before_command_hook
         import time
+
+        from cli.plugins.builtin.analytics import before_command_hook
 
         before_time = time.time()
         before_command_hook("test_command")
@@ -289,13 +311,14 @@ class TestAnalyticsPlugin:
 
         # Check that start time was recorded (within reasonable range)
         from cli.plugins.builtin.analytics import command_start_times
+
         assert "test_command" in command_start_times
         assert before_time <= command_start_times["test_command"] <= after_time
 
-    @patch('cli.plugins.builtin.analytics.analytics_store')
+    @patch("cli.plugins.builtin.analytics.analytics_store")
     def test_after_command_hook(self, mock_store):
         """Test after_command hook functionality"""
-        from cli.plugins.builtin.analytics import before_command_hook, after_command_hook
+        from cli.plugins.builtin.analytics import after_command_hook, before_command_hook
 
         # Set up start time
         before_command_hook("test_command")
@@ -306,7 +329,7 @@ class TestAnalyticsPlugin:
         # Verify analytics store was called
         mock_store.record_command.assert_called_once()
 
-    @patch('cli.plugins.builtin.analytics.analytics_store')
+    @patch("cli.plugins.builtin.analytics.analytics_store")
     def test_generation_complete_hook(self, mock_store):
         """Test generation_complete hook functionality"""
         from cli.plugins.builtin.analytics import generation_complete_hook
@@ -407,7 +430,7 @@ class TestGlobalPluginManager:
 
         assert manager1 is manager2
 
-    @patch('cli.plugins.get_plugin_manager')
+    @patch("cli.plugins.get_plugin_manager")
     def test_call_hook_convenience_function(self, mock_get_manager):
         """Test convenience call_hook function"""
         from cli.plugins import call_hook

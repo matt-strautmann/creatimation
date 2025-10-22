@@ -4,15 +4,14 @@ Tests for configuration management.
 These tests cover the ConfigManager class and configuration handling.
 """
 
-import json
+# Add src to path for imports
+import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
-# Add src to path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
@@ -30,8 +29,8 @@ class TestConfigManager:
         """Test ConfigManager initialization"""
         config_manager = ConfigManager()
         assert config_manager is not None
-        assert hasattr(config_manager, 'config_path')
-        assert hasattr(config_manager, '_config')
+        assert hasattr(config_manager, "config_path")
+        assert hasattr(config_manager, "_config")
 
     def test_config_manager_with_file(self, temp_dir):
         """Test ConfigManager with config file"""
@@ -47,8 +46,8 @@ class TestConfigManager:
         # Should load defaults even if file doesn't exist
         config = config_manager.load()
         assert config is not None
-        assert hasattr(config, 'project')
-        assert hasattr(config, 'generation')
+        assert hasattr(config, "project")
+        assert hasattr(config, "generation")
 
     def test_load_config_with_cli_overrides(self, temp_dir):
         """Test loading configuration with CLI overrides"""
@@ -139,7 +138,7 @@ project:
         """Test OpenAI API key from environment"""
         config_manager = ConfigManager()
 
-        with patch.dict('os.environ', {'OPENAI_API_KEY': 'test_key'}):
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "test_key"}):
             config = config_manager.load()
             assert config.openai.api_key == "test_key"
 

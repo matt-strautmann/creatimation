@@ -162,7 +162,9 @@ if loaded_count > 0:
             try:
                 main.add_command(cmd_obj, name=cmd_name)
             except Exception as e:
-                error_console.print(f"[yellow]Warning: Failed to register plugin command '{cmd_name}': {e}[/yellow]")
+                error_console.print(
+                    f"[yellow]Warning: Failed to register plugin command '{cmd_name}': {e}[/yellow]"
+                )
     except Exception as e:
         error_console.print(f"[yellow]Warning: Plugin command registration failed: {e}[/yellow]")
 
@@ -172,8 +174,8 @@ if loaded_count > 0:
 @click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
 def completion(shell):
     """Generate shell completion scripts."""
-    import subprocess
     import os
+    import subprocess
 
     try:
         # Set up environment for completion generation

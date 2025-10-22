@@ -361,9 +361,9 @@ class EnhancedCacheManager(CacheManager):
         self.index["library_index"][cache_key] = {
             "file_path": file_path,
             "asset_type": metadata.asset_type.value,
-            "product_category": metadata.product_category.value
-            if metadata.product_category
-            else None,
+            "product_category": (
+                metadata.product_category.value if metadata.product_category else None
+            ),
             "season": metadata.season.value if metadata.season else None,
             "region": metadata.region,
             "added_at": self._get_timestamp(),

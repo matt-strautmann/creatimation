@@ -6,20 +6,21 @@ to creative output, testing real workflows and data flows.
 """
 
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
 
 # Add src to path for imports
 import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
-    from creative_automation_agent import CreativeAutomationAgent
-    from container import DIContainer, get_container
     from config import ConfigManager
+    from container import DIContainer, get_container
+    from creative_automation_agent import CreativeAutomationAgent
 except ImportError:
     # Create minimal mocks for testing if modules are not available
     class CreativeAutomationAgent:
@@ -94,12 +95,12 @@ class TestE2EPipelineBasics:
             "products": {
                 "test_product": {
                     "name": "Test Product",
-                    "description": "A product for end-to-end testing"
+                    "description": "A product for end-to-end testing",
                 }
             },
             "regions": ["us"],
             "target_audience": "E2E testers",
-            "key_message": "Testing the complete pipeline"
+            "key_message": "Testing the complete pipeline",
         }
 
         brief_path = briefs_dir / "e2e_test_campaign.json"
@@ -122,12 +123,12 @@ class TestE2EPipelineBasics:
             "products": {
                 "test_product": {
                     "name": "Test Product",
-                    "description": "Product for dry run testing"
+                    "description": "Product for dry run testing",
                 }
             },
             "regions": ["us"],
             "target_audience": "Dry run testers",
-            "key_message": "Testing dry run functionality"
+            "key_message": "Testing dry run functionality",
         }
 
         brief_path = briefs_dir / "dry_run_test.json"
@@ -167,7 +168,7 @@ class TestE2EContainerIntegration:
         config_data = {
             "cache": {"directory": str(temp_workspace / "cache")},
             "output": {"directory": str(temp_workspace / "output")},
-            "generation": {"variants_per_ratio": 2}
+            "generation": {"variants_per_ratio": 2},
         }
 
         container = get_container(config_data)
@@ -234,7 +235,7 @@ generation:
         # Test with CLI overrides
         cli_overrides = {
             "project": {"name": "overridden_project"},
-            "generation": {"variants_per_ratio": 1}
+            "generation": {"variants_per_ratio": 1},
         }
 
         config = config_manager.load(cli_overrides)
@@ -257,19 +258,19 @@ class TestE2EDataFlow:
                 "premium_soap": {
                     "name": "Premium Soap",
                     "description": "Luxury handcrafted soap with natural ingredients",
-                    "key_features": ["Natural ingredients", "Handcrafted", "Luxury"]
+                    "key_features": ["Natural ingredients", "Handcrafted", "Luxury"],
                 },
                 "basic_soap": {
                     "name": "Basic Soap",
                     "description": "Affordable everyday soap for the whole family",
-                    "key_features": ["Affordable", "Family-friendly", "Everyday use"]
-                }
+                    "key_features": ["Affordable", "Family-friendly", "Everyday use"],
+                },
             },
             "regions": ["us", "eu"],
             "target_audience": "Health-conscious consumers aged 25-45",
             "key_message": "Clean living starts with clean ingredients",
             "brand_voice": "Trustworthy, natural, premium",
-            "call_to_action": "Try our natural soap collection today"
+            "call_to_action": "Try our natural soap collection today",
         }
 
         brief_path = briefs_dir / "data_flow_test.json"
@@ -300,7 +301,7 @@ class TestE2EDataFlow:
                 "products": {"product1": {"name": "Product 1", "description": "First product"}},
                 "regions": ["us"],
                 "target_audience": "Target 1",
-                "key_message": "Message 1"
+                "key_message": "Message 1",
             },
             {
                 "campaign_id": "campaign_2",
@@ -308,8 +309,8 @@ class TestE2EDataFlow:
                 "products": {"product2": {"name": "Product 2", "description": "Second product"}},
                 "regions": ["eu"],
                 "target_audience": "Target 2",
-                "key_message": "Message 2"
-            }
+                "key_message": "Message 2",
+            },
         ]
 
         for campaign in campaigns:
@@ -407,7 +408,7 @@ class TestE2EPerformanceAndScaling:
             "products": {},
             "regions": ["us", "eu", "asia"],
             "target_audience": "Global consumers",
-            "key_message": "Global quality for everyone"
+            "key_message": "Global quality for everyone",
         }
 
         # Add many products
@@ -415,7 +416,7 @@ class TestE2EPerformanceAndScaling:
             large_brief["products"][f"product_{i}"] = {
                 "name": f"Product {i}",
                 "description": f"Description for product {i}",
-                "category": f"Category {i % 5}"
+                "category": f"Category {i % 5}",
             }
 
         brief_path = briefs_dir / "large_campaign.json"
@@ -441,7 +442,7 @@ class TestE2EPerformanceAndScaling:
                 "products": {f"product_{i}": {"name": f"Product {i}", "description": f"Desc {i}"}},
                 "regions": ["us"],
                 "target_audience": "Test audience",
-                "key_message": "Test message"
+                "key_message": "Test message",
             }
 
             brief_path = briefs_dir / f"concurrent_{i}.json"
@@ -468,7 +469,7 @@ class TestE2ESystemIntegration:
         config_data = {
             "project": {"name": "integration_test", "output_dir": "output/"},
             "cache": {"directory": "cache/", "enabled": True},
-            "generation": {"variants_per_ratio": 2}
+            "generation": {"variants_per_ratio": 2},
         }
 
         # Test container initialization
@@ -476,9 +477,7 @@ class TestE2ESystemIntegration:
         assert container is not None
 
         # Test agent initialization
-        agent = CreativeAutomationAgent(
-            briefs_dir=str(temp_workspace / "briefs")
-        )
+        agent = CreativeAutomationAgent(briefs_dir=str(temp_workspace / "briefs"))
         assert agent is not None
 
         # Test configuration
@@ -506,7 +505,7 @@ generation:
             "products": {"test_product": {"name": "Test", "description": "Test product"}},
             "regions": ["us"],
             "target_audience": "Test users",
-            "key_message": "Consistency matters"
+            "key_message": "Consistency matters",
         }
 
         brief_path = briefs_dir / "consistency_test.json"
@@ -593,7 +592,7 @@ cache:
                     "name": "Hero Product",
                     "description": "Our flagship product that showcases quality",
                     "key_features": ["Premium quality", "Innovative design", "Trusted brand"],
-                    "price_point": "Premium"
+                    "price_point": "Premium",
                 }
             },
             "regions": ["us"],
@@ -603,7 +602,7 @@ cache:
             "call_to_action": "Discover the difference today",
             "campaign_goals": ["Brand awareness", "Product education", "Lead generation"],
             "budget_level": "High",
-            "timeline": "Q1 2024"
+            "timeline": "Q1 2024",
         }
 
         brief_path = briefs_dir / "workflow_test_campaign.json"
@@ -618,7 +617,9 @@ cache:
             assert config is not None
 
             # 2. Initialize container with config
-            container = get_container(config_manager.config if hasattr(config_manager, 'config') else {})
+            container = get_container(
+                config_manager.config if hasattr(config_manager, "config") else {}
+            )
             assert container is not None
 
             # 3. Initialize agent
@@ -656,7 +657,7 @@ cache:
             "products": {"product1": {"name": "Product 1", "description": "Test product"}},
             "regions": ["us"],
             "target_audience": "Test audience",
-            "key_message": "Testing state transitions"
+            "key_message": "Testing state transitions",
         }
 
         brief_path = briefs_dir / "state_test.json"
@@ -667,7 +668,7 @@ cache:
         agent = CreativeAutomationAgent(briefs_dir=str(briefs_dir))
 
         # Test state progression
-        initial_state = len(getattr(agent, 'monitored_campaigns', {}))
+        initial_state = len(getattr(agent, "monitored_campaigns", {}))
 
         # Scan (should detect new brief)
         new_briefs = agent.scan_for_new_briefs()
@@ -679,5 +680,5 @@ cache:
         assert True
 
         # Verify state progression is handled
-        final_state = len(getattr(agent, 'monitored_campaigns', {}))
+        final_state = len(getattr(agent, "monitored_campaigns", {}))
         assert isinstance(final_state, int)
