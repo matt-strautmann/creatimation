@@ -11,12 +11,12 @@ Optimized: output/campaigns/{campaign_id}/outputs/{region}/{ratio}/
           output/library/products/{product_slug}/transparent/
           output/library/backgrounds/seasonal/{season}/{region}/{ratio}/
 """
+
 import json
 import logging
 import shutil
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class FolderStructureMigrator:
 
         logger.info(f"Initialized migrator for: {self.current_dir}")
 
-    def analyze_current_structure(self) -> Dict:
+    def analyze_current_structure(self) -> dict:
         """
         Analyze current folder structure and identify migration needs.
 
@@ -60,7 +60,7 @@ class FolderStructureMigrator:
             "regions": [],
             "ratios": [],
             "migration_plan": [],
-            "warnings": []
+            "warnings": [],
         }
 
         if not self.current_dir.exists():
@@ -84,7 +84,18 @@ class FolderStructureMigrator:
                 analysis["current_structure"] = "optimized"
                 analysis["warnings"].append("Structure appears already optimized")
                 return analysis
-            elif item.name in ["1x1", "9x16", "16x9", "4x5", "5x4", "4x3", "3x4", "2x3", "3x2", "21x9"]:
+            elif item.name in [
+                "1x1",
+                "9x16",
+                "16x9",
+                "4x5",
+                "5x4",
+                "4x3",
+                "3x4",
+                "2x3",
+                "3x2",
+                "21x9",
+            ]:
                 # Direct aspect ratio directories (like output-examples structure)
                 has_direct_ratio_dirs = True
                 analysis = self._analyze_direct_ratio_structure(item, analysis)
@@ -99,7 +110,9 @@ class FolderStructureMigrator:
                                 ratio_dirs = [d for d in region_dir.iterdir() if d.is_dir()]
                                 if ratio_dirs:
                                     has_product_dirs = True
-                                    analysis = self._analyze_product_structure(item, template_dir, region_dir, analysis)
+                                    analysis = self._analyze_product_structure(
+                                        item, template_dir, region_dir, analysis
+                                    )
 
         # Determine structure type
         if has_direct_ratio_dirs:
@@ -122,7 +135,7 @@ class FolderStructureMigrator:
 
         return analysis
 
-    def _analyze_examples_structure(self, examples_dir: Path, analysis: Dict) -> Dict:
+    def _analyze_examples_structure(self, examples_dir: Path, analysis: dict) -> dict:
         """Analyze output-examples structure."""
         for ratio_dir in examples_dir.iterdir():
             if not ratio_dir.is_dir():
@@ -131,39 +144,45 @@ class FolderStructureMigrator:
             analysis["ratios"].append(ratio_dir.name)
 
             for file in ratio_dir.glob("*"):
-                if file.suffix.lower() in ['.jpg', '.png']:
+                if file.suffix.lower() in [".jpg", ".png"]:
                     analysis["total_files"] += 1
                     analysis["total_size_bytes"] += file.stat().st_size
 
                     # Plan migration to library
-                    analysis["migration_plan"].append({
-                        "source": str(file),
-                        "destination": f"library/backgrounds/neutral/{ratio_dir.name}/{file.name}",
-                        "type": "example_background"
-                    })
+                    analysis["migration_plan"].append(
+                        {
+                            "source": str(file),
+                            "destination": f"library/backgrounds/neutral/{ratio_dir.name}/{file.name}",
+                            "type": "example_background",
+                        }
+                    )
 
         return analysis
 
-    def _analyze_direct_ratio_structure(self, ratio_dir: Path, analysis: Dict) -> Dict:
+    def _analyze_direct_ratio_structure(self, ratio_dir: Path, analysis: dict) -> dict:
         """Analyze direct aspect ratio structure (like output-examples)."""
         analysis["ratios"].append(ratio_dir.name)
 
         for file in ratio_dir.glob("*"):
-            if file.suffix.lower() in ['.jpg', '.png']:
+            if file.suffix.lower() in [".jpg", ".png"]:
                 analysis["total_files"] += 1
                 analysis["total_size_bytes"] += file.stat().st_size
 
                 # Plan migration to library neutral backgrounds
-                analysis["migration_plan"].append({
-                    "source": str(file),
-                    "destination": f"library/backgrounds/neutral/{ratio_dir.name}/{file.name}",
-                    "type": "neutral_background",
-                    "ratio": ratio_dir.name
-                })
+                analysis["migration_plan"].append(
+                    {
+                        "source": str(file),
+                        "destination": f"library/backgrounds/neutral/{ratio_dir.name}/{file.name}",
+                        "type": "neutral_background",
+                        "ratio": ratio_dir.name,
+                    }
+                )
 
         return analysis
 
-    def _analyze_product_structure(self, product_dir: Path, template_dir: Path, region_dir: Path, analysis: Dict) -> Dict:
+    def _analyze_product_structure(
+        self, product_dir: Path, template_dir: Path, region_dir: Path, analysis: dict
+    ) -> dict:
         """Analyze product/{template}/{region}/{ratio} structure."""
         analysis["products"].append(product_dir.name)
         analysis["templates"].append(template_dir.name)
@@ -176,7 +195,7 @@ class FolderStructureMigrator:
             analysis["ratios"].append(ratio_dir.name)
 
             for file in ratio_dir.glob("*"):
-                if file.suffix.lower() in ['.jpg', '.png']:
+                if file.suffix.lower() in [".jpg", ".png"]:
                     analysis["total_files"] += 1
                     analysis["total_size_bytes"] += file.stat().st_size
 
@@ -195,15 +214,17 @@ class FolderStructureMigrator:
                         dest = f"campaigns/{campaign_id}/outputs/{region_dir.name}/{ratio_dir.name}/{file.name}"
                         migration_type = "campaign_creative"
 
-                    analysis["migration_plan"].append({
-                        "source": str(file),
-                        "destination": dest,
-                        "type": migration_type,
-                        "product": product_dir.name,
-                        "template": template_dir.name,
-                        "region": region_dir.name,
-                        "ratio": ratio_dir.name
-                    })
+                    analysis["migration_plan"].append(
+                        {
+                            "source": str(file),
+                            "destination": dest,
+                            "type": migration_type,
+                            "product": product_dir.name,
+                            "template": template_dir.name,
+                            "region": region_dir.name,
+                            "ratio": ratio_dir.name,
+                        }
+                    )
 
         return analysis
 
@@ -228,7 +249,7 @@ class FolderStructureMigrator:
             logger.error(f"Failed to create backup: {e}")
             return False
 
-    def migrate(self, dry_run: bool = False, create_backup: bool = True) -> Dict:
+    def migrate(self, dry_run: bool = False, create_backup: bool = True) -> dict:
         """
         Perform migration from current to optimized structure.
 
@@ -245,17 +266,13 @@ class FolderStructureMigrator:
         analysis = self.analyze_current_structure()
 
         if analysis["current_structure"] == "optimized":
-            return {
-                "success": True,
-                "message": "Structure already optimized",
-                "analysis": analysis
-            }
+            return {"success": True, "message": "Structure already optimized", "analysis": analysis}
 
         if analysis["current_structure"] == "unknown":
             return {
                 "success": False,
                 "message": "Could not identify current structure",
-                "analysis": analysis
+                "analysis": analysis,
             }
 
         # Create backup if requested
@@ -264,7 +281,7 @@ class FolderStructureMigrator:
                 return {
                     "success": False,
                     "message": "Failed to create backup",
-                    "analysis": analysis
+                    "analysis": analysis,
                 }
 
         # Create new directory structure
@@ -276,7 +293,7 @@ class FolderStructureMigrator:
             "moved_files": 0,
             "failed_moves": 0,
             "created_directories": 0,
-            "errors": []
+            "errors": [],
         }
 
         for plan_item in analysis["migration_plan"]:
@@ -314,7 +331,7 @@ class FolderStructureMigrator:
             "message": f"Migration completed: {migration_results['moved_files']} files moved, {migration_results['failed_moves']} failed",
             "analysis": analysis,
             "migration_results": migration_results,
-            "backup_location": str(self.backup_dir) if create_backup else None
+            "backup_location": str(self.backup_dir) if create_backup else None,
         }
 
     def _create_optimized_structure(self):
@@ -328,14 +345,14 @@ class FolderStructureMigrator:
             self.library_dir / "brand-elements" / "logos",
             self.library_dir / "brand-elements" / "patterns",
             self.current_dir / "cache",
-            self.temp_dir
+            self.temp_dir,
         ]
 
         for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)
             logger.debug(f"Created directory: {directory}")
 
-    def _create_migration_metadata(self, dest_path: Path, plan_item: Dict):
+    def _create_migration_metadata(self, dest_path: Path, plan_item: dict):
         """Create metadata file for migrated asset."""
         metadata = {
             "migrated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -344,7 +361,7 @@ class FolderStructureMigrator:
             "product": plan_item.get("product"),
             "template": plan_item.get("template"),
             "region": plan_item.get("region"),
-            "ratio": plan_item.get("ratio")
+            "ratio": plan_item.get("ratio"),
         }
 
         metadata_path = dest_path.parent / "metadata.json"
@@ -362,6 +379,7 @@ class FolderStructureMigrator:
 
     def _cleanup_empty_directories(self):
         """Remove empty directories after migration."""
+
         def remove_empty_dirs(path: Path):
             if not path.exists() or not path.is_dir():
                 return
@@ -384,7 +402,7 @@ class FolderStructureMigrator:
             if item.is_dir() and item.name not in ["campaigns", "library", "cache", "temp"]:
                 remove_empty_dirs(item)
 
-    def validate_migration(self) -> Dict:
+    def validate_migration(self) -> dict:
         """
         Validate migration by checking if optimized structure exists and is functional.
 
@@ -396,14 +414,14 @@ class FolderStructureMigrator:
             "required_directories": [],
             "missing_directories": [],
             "file_counts": {},
-            "warnings": []
+            "warnings": [],
         }
 
         required_dirs = [
             self.campaigns_dir,
             self.library_dir / "products",
             self.library_dir / "backgrounds",
-            self.library_dir / "brand-elements"
+            self.library_dir / "brand-elements",
         ]
 
         for req_dir in required_dirs:
@@ -414,13 +432,19 @@ class FolderStructureMigrator:
 
         # Count files in each section
         if self.campaigns_dir.exists():
-            validation["file_counts"]["campaigns"] = len(list(self.campaigns_dir.rglob("*.jpg"))) + len(list(self.campaigns_dir.rglob("*.png")))
+            validation["file_counts"]["campaigns"] = len(
+                list(self.campaigns_dir.rglob("*.jpg"))
+            ) + len(list(self.campaigns_dir.rglob("*.png")))
 
         if (self.library_dir / "products").exists():
-            validation["file_counts"]["library_products"] = len(list((self.library_dir / "products").rglob("*.jpg"))) + len(list((self.library_dir / "products").rglob("*.png")))
+            validation["file_counts"]["library_products"] = len(
+                list((self.library_dir / "products").rglob("*.jpg"))
+            ) + len(list((self.library_dir / "products").rglob("*.png")))
 
         if (self.library_dir / "backgrounds").exists():
-            validation["file_counts"]["library_backgrounds"] = len(list((self.library_dir / "backgrounds").rglob("*.jpg"))) + len(list((self.library_dir / "backgrounds").rglob("*.png")))
+            validation["file_counts"]["library_backgrounds"] = len(
+                list((self.library_dir / "backgrounds").rglob("*.jpg"))
+            ) + len(list((self.library_dir / "backgrounds").rglob("*.png")))
 
         return validation
 
@@ -429,11 +453,15 @@ def main():
     """CLI interface for migration script."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Migrate folder structure to optimized semantic organization")
+    parser = argparse.ArgumentParser(
+        description="Migrate folder structure to optimized semantic organization"
+    )
     parser.add_argument("--output-dir", default="output", help="Output directory to migrate")
     parser.add_argument("--analyze", action="store_true", help="Analyze current structure only")
     parser.add_argument("--migrate", action="store_true", help="Perform migration")
-    parser.add_argument("--dry-run", action="store_true", help="Simulate migration without moving files")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Simulate migration without moving files"
+    )
     parser.add_argument("--no-backup", action="store_true", help="Skip backup creation")
     parser.add_argument("--validate", action="store_true", help="Validate migrated structure")
 
@@ -447,16 +475,18 @@ def main():
 
         print(f"Current structure: {analysis['current_structure']}")
         print(f"Total files: {analysis['total_files']}")
-        print(f"Total size: {analysis['total_size_bytes'] / (1024*1024):.1f} MB")
-        print(f"Products: {len(analysis['products'])} ({', '.join(analysis['products'][:5])}{'...' if len(analysis['products']) > 5 else ''})")
+        print(f"Total size: {analysis['total_size_bytes'] / (1024 * 1024):.1f} MB")
+        print(
+            f"Products: {len(analysis['products'])} ({', '.join(analysis['products'][:5])}{'...' if len(analysis['products']) > 5 else ''})"
+        )
         print(f"Templates: {', '.join(analysis['templates'])}")
         print(f"Regions: {', '.join(analysis['regions'])}")
         print(f"Ratios: {', '.join(analysis['ratios'])}")
         print(f"Migration plan: {len(analysis['migration_plan'])} items")
 
-        if analysis['warnings']:
+        if analysis["warnings"]:
             print("\n⚠️  Warnings:")
-            for warning in analysis['warnings']:
+            for warning in analysis["warnings"]:
                 print(f"  - {warning}")
 
     elif args.migrate:
@@ -466,17 +496,17 @@ def main():
         print(f"Success: {result['success']}")
         print(f"Message: {result['message']}")
 
-        if result.get('backup_location'):
+        if result.get("backup_location"):
             print(f"Backup created: {result['backup_location']}")
 
-        if result.get('migration_results'):
-            mr = result['migration_results']
+        if result.get("migration_results"):
+            mr = result["migration_results"]
             print(f"Files moved: {mr['moved_files']}")
             print(f"Failed moves: {mr['failed_moves']}")
 
-            if mr['errors']:
+            if mr["errors"]:
                 print("\n❌ Errors:")
-                for error in mr['errors'][:5]:
+                for error in mr["errors"][:5]:
                     print(f"  - {error}")
 
     elif args.validate:
@@ -486,14 +516,14 @@ def main():
         print(f"Structure valid: {validation['structure_valid']}")
         print(f"File counts: {validation['file_counts']}")
 
-        if validation['missing_directories']:
+        if validation["missing_directories"]:
             print("\n❌ Missing directories:")
-            for missing in validation['missing_directories']:
+            for missing in validation["missing_directories"]:
                 print(f"  - {missing}")
 
-        if validation['warnings']:
+        if validation["warnings"]:
             print("\n⚠️  Warnings:")
-            for warning in validation['warnings']:
+            for warning in validation["warnings"]:
                 print(f"  - {warning}")
 
     else:

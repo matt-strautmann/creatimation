@@ -451,7 +451,7 @@ class TestE2EPerformanceAndScaling:
 
         # Test that multiple agents can be created (prerequisite for concurrency)
         agents = []
-        for i in range(3):
+        for _i in range(3):
             agent = CreativeAutomationAgent(briefs_dir=str(briefs_dir))
             agents.append(agent)
 

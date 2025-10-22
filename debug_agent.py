@@ -2,14 +2,15 @@
 """Quick debug script to test agent behavior"""
 
 import json
+import sys
 import tempfile
 from pathlib import Path
-import sys
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from creative_automation_agent import CreativeAutomationAgent
+
 
 def main():
     # Create temp structure
@@ -45,6 +46,7 @@ def main():
         new_briefs = agent.scan_for_new_briefs()
         print(f"New briefs found: {new_briefs}")
         print(f"Monitored campaigns: {agent.monitored_campaigns}")
+
 
 if __name__ == "__main__":
     main()

@@ -17,12 +17,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from cache_manager import (
-    CacheManager,
-    SemanticMetadata,
     AssetType,
+    CacheManager,
     ProductCategory,
-    VisualStyle,
     Season,
+    SemanticMetadata,
+    VisualStyle,
 )
 
 
@@ -116,7 +116,7 @@ def example_3_cross_campaign_discovery():
         asset_types=[AssetType.SCENE_BACKGROUND, AssetType.PRODUCT_TRANSPARENT],
     )
 
-    print(f"\nDiscovered assets from previous campaigns:")
+    print("\nDiscovered assets from previous campaigns:")
     for asset_type, assets in discovered.items():
         print(f"\n  {asset_type}: {len(assets)} assets")
         for cache_key, asset_entry in assets[:3]:  # Show first 3
@@ -146,7 +146,7 @@ def example_4_seasonal_backgrounds():
     if background:
         cache_key, asset_entry = background
         metadata = asset_entry.get("semantic_metadata", {})
-        print(f"\nSelected seasonal background:")
+        print("\nSelected seasonal background:")
         print(f"  Cache Key: {cache_key}")
         print(f"  Season: {metadata.get('season', 'unknown')}")
         print(f"  Style: {metadata.get('visual_style', 'unknown')}")
@@ -243,7 +243,7 @@ def example_6_pipeline_integration():
             success=True,
             context=f"{product_category.value}_{region}",
         )
-        print(f"  Recorded reuse pattern")
+        print("  Recorded reuse pattern")
 
     else:
         print("  No reusable backgrounds found")
@@ -280,7 +280,7 @@ def example_7_asset_analytics():
 
     # Get analytics for specific campaign
     campaign_analytics = manager.get_reuse_analytics(campaign_id="summer_2025")
-    print(f"\nSummer 2025 Campaign:")
+    print("\nSummer 2025 Campaign:")
     print(f"  Campaign reuses: {campaign_analytics['total_reuses']}")
     print(f"  Success rate: {campaign_analytics['average_success_rate']:.1%}")
 
@@ -313,7 +313,7 @@ def example_8_seasonal_variants():
         for v in versions:
             print(f"  - {v.version}: {v.change_notes}")
     else:
-        print(f"\nFailed to create variant (source not found)")
+        print("\nFailed to create variant (source not found)")
 
 
 def main():
