@@ -1,0 +1,93 @@
+{
+  "campaign_id": "cleanwave_spring_2025_with_images",
+  "campaign_name": "CleanWave Spring Freshness Launch (With Product Images)",
+  "products": [
+    {
+      "name": "CleanWave Original Liquid Detergent",
+      "category": "Laundry Care",
+      "description": "Powerful clean with long-lasting freshness",
+      "key_benefits": [
+        "Removes tough stains",
+        "Fresh scent lasts for weeks",
+        "Works in all temperatures"
+      ],
+      "image": "assets/products/cleanwave-original-detergent.png"
+    },
+    {
+      "name": "CleanWave PODS Spring Meadow",
+      "category": "Laundry Care",
+      "description": "3-in-1 laundry pacs with spring-fresh scent",
+      "key_benefits": [
+        "Pre-measured convenience",
+        "Dissolves quickly",
+        "No measuring, no spills"
+      ],
+      "product_image": "assets/products/cleanwave-pods-spring.jpg"
+    }
+  ],
+  "target_regions": ["US", "LATAM", "APAC", "EMEA"],
+  "target_audience": "Busy families with active kids and parents aged 25-45",
+  "campaign_message": "Spring Into Freshness",
+  "campaign_context": {
+    "season": "Spring 2025",
+    "key_messaging": "Refresh your home for spring with CleanWave's powerful, long-lasting clean",
+    "content_pillars": [
+      "Powerful cleaning performance",
+      "Long-lasting freshness",
+      "Family-friendly solutions"
+    ]
+  },
+  "creative_requirements": {
+    "aspect_ratios": ["1x1", "9x16", "16x9", "4x5", "5x4"],
+    "variant_types": ["base", "color_shift", "premium"],
+    "variant_themes": {
+      "base": "clean modern style with fresh spring colors",
+      "color_shift": "bold dynamic style with vibrant gradients",
+      "premium": "elegant premium style with sophisticated tones"
+    },
+    "variant_color_rules": {
+      "base": "use_primary",
+      "color_shift": "use_accent",
+      "premium": "use_premium_palette"
+    }
+  },
+  "brand_meta": {
+    "brand_colors": {
+      "primary": "#2E7D32",
+      "secondary": "#66BB6A",
+      "accent": "#FFC107"
+    },
+    "brand_voice": "Fresh, reliable, family-focused",
+    "layout_style": "hero-product"
+  },
+  "enhanced_context": {
+    "setting": "bright modern kitchen with spring sunlight",
+    "mood": "fresh, clean, and energizing",
+    "lifestyle_elements": ["fresh flowers", "natural light", "clean surfaces"],
+    "call_to_action": "Spring Into Freshness"
+  },
+  "regional_adaptations": {
+    "US": {
+      "call_to_action": "Try CleanWave Today",
+      "messaging_notes": "Emphasis on convenience and powerful cleaning"
+    },
+    "LATAM": {
+      "call_to_action": "Descubre CleanWave",
+      "messaging_notes": "Focus on family care and freshness"
+    },
+    "APAC": {
+      "call_to_action": "Experience CleanWave",
+      "messaging_notes": "Highlight innovation and effectiveness"
+    },
+    "EMEA": {
+      "call_to_action": "Choose CleanWave",
+      "messaging_notes": "Emphasize quality and reliability"
+    }
+  },
+  "_comments": {
+    "product_images": "Products can include 'image', 'image_path', or 'product_image' fields with paths to pre-created product images. This enables the KEY INNOVATION: Generate product ONCE → fuse into 72 regional scenes for 97% cost efficiency.",
+    "image_formats": "Supported formats: PNG (recommended for transparency), JPG, JPEG",
+    "image_paths": "Paths can be relative to the brief file or absolute paths",
+    "fallback": "If image not found or not provided, system will generate product image automatically"
+  }
+}
