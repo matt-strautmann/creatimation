@@ -18,17 +18,17 @@ from dotenv import load_dotenv
 from rich.console import Console
 from rich.traceback import install
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Install rich tracebacks for better error display
-install(show_locals=True)
-
 # Import CLI modules
 from .commands import cache, config, generate, validate, workspace
 from .core import CreatimationContext, CreatimationGroup, show_welcome
 from .plugins import get_plugin_manager, load_plugins
 from .utils.output import error_console, setup_console
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Install rich tracebacks for better error display
+install(show_locals=True)
 
 # Global console instance
 console = Console()

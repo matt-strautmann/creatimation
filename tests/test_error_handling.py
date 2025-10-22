@@ -174,7 +174,7 @@ class TestSubprocessErrorHandling:
 
         # Test the error handling pattern used in completion command
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["test_command"],
                 capture_output=True,
                 text=True,
@@ -196,7 +196,7 @@ class TestSubprocessErrorHandling:
 
         # Test error handling pattern
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["nonexistent_command"],
                 capture_output=True,
                 text=True,
@@ -217,7 +217,7 @@ class TestSubprocessErrorHandling:
 
         # Test error handling pattern
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["restricted_command"],
                 capture_output=True,
                 text=True,
@@ -358,7 +358,7 @@ class TestFileSystemErrorHandling:
             # Test the error handling pattern used in file operations
             try:
                 with open(test_file) as f:
-                    content = f.read()
+                    f.read()
             except PermissionError as e:
                 error_msg = f"Permission denied reading file {test_file}: {e}"
                 assert "permission denied" in error_msg.lower()

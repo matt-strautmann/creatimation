@@ -197,7 +197,7 @@ class CampaignVariantGenerator:
 
     def _generate_visual_concept(self, brief: dict[str, Any]) -> dict[str, Any]:
         """Generate visual concept with solid color backgrounds and simple product placement"""
-        products = brief.get("products", [])
+        brief.get("products", [])
         region = brief.get("target_region", "US")
 
         # Get regional colors for backgrounds
@@ -305,7 +305,7 @@ class CampaignVariantGenerator:
         region = brief.get("target_region", "US")
 
         # Generate headline variants
-        base_words = campaign_message.split()
+        campaign_message.split()
         headline_variants = [
             campaign_message,  # Original
             f"Discover {campaign_message}",  # Discovery variant

@@ -603,7 +603,6 @@ def migrate_with_progress_bar(
         from rich.progress import (
             BarColumn,
             Progress,
-            TaskID,
             TextColumn,
             TimeRemainingColumn,
         )

@@ -133,15 +133,15 @@ class DIContainer:
                 config = yaml.safe_load(f)
             return DIContainer(config)
         except PermissionError as e:
-            raise RuntimeError(f"Permission denied reading config file {config_path}: {e}")
+            raise RuntimeError(f"Permission denied reading config file {config_path}: {e}") from e
         except yaml.YAMLError as e:
-            raise RuntimeError(f"Invalid YAML in config file {config_path}: {e}")
+            raise RuntimeError(f"Invalid YAML in config file {config_path}: {e}") from e
         except UnicodeDecodeError as e:
-            raise RuntimeError(f"Encoding error in config file {config_path}: {e}")
+            raise RuntimeError(f"Encoding error in config file {config_path}: {e}") from e
         except OSError as e:
-            raise RuntimeError(f"Failed to read config file {config_path}: {e}")
+            raise RuntimeError(f"Failed to read config file {config_path}: {e}") from e
         except Exception as e:
-            raise RuntimeError(f"Unexpected error reading config file {config_path}: {e}")
+            raise RuntimeError(f"Unexpected error reading config file {config_path}: {e}") from e
 
     def reset(self) -> None:
         """Reset all cached instances."""

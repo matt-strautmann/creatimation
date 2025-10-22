@@ -334,7 +334,7 @@ def stats():
     from .cache_manager import CacheManager
 
     try:
-        cache_mgr = CacheManager()
+        CacheManager()
 
         # Calculate cache size
         cache_dir = Path("cache")
@@ -342,7 +342,7 @@ def stats():
         file_count = 0
 
         if cache_dir.exists():
-            for root, dirs, files in os.walk(cache_dir):
+            for root, _dirs, files in os.walk(cache_dir):
                 for file in files:
                     if file.endswith((".jpg", ".png", ".json")):
                         file_path = Path(root) / file

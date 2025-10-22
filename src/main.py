@@ -20,9 +20,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 from PIL import Image
 
-# Load environment variables
-load_dotenv()
-
 # Import pipeline components
 from .brand_guide_loader import BrandGuideLoader
 from .cache_manager import CacheManager
@@ -30,6 +27,9 @@ from .enhanced_brief_loader import EnhancedBriefLoader
 from .gemini_image_generator import GeminiImageGenerator
 from .output_manager import OutputManager
 from .state_tracker import StateTracker
+
+# Load environment variables
+load_dotenv()
 
 # Legacy components - archived but kept for reference
 # from .background_remover import BackgroundRemover
@@ -206,7 +206,7 @@ class CreativePipeline:
 
                     # Use region-specific messaging if available
                     region_cta = region_config.get("call_to_action", campaign_message)
-                    region_disclaimer = region_config.get("legal_disclaimer", "")
+                    region_config.get("legal_disclaimer", "")
 
                     for ratio in aspect_ratios:
                         logger.info(f"      🎨 Generating {ratio} creatives...")
@@ -273,7 +273,7 @@ class CreativePipeline:
                             results["total_creatives"] += 1
 
                 # Update state
-                product_category = self.brief_loader._infer_product_category(product_name).lower()
+                self.brief_loader._infer_product_category(product_name).lower()
 
                 state_tracker.update_product_state(
                     product_slug,

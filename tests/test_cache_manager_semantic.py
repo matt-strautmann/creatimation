@@ -755,7 +755,7 @@ class TestCLIIntegration:
         assert len(all_products) > 0
 
         # Verify structure
-        for slug, product in all_products.items():
+        for _slug, product in all_products.items():
             assert "name" in product
             assert "slug" in product
             assert "campaigns_used" in product
@@ -868,7 +868,7 @@ class TestIntegrationScenarios:
         """
         # Step 1: Initial state
         initial_stats = cache_manager.get_cache_stats()
-        initial_entries = initial_stats["total_entries"]
+        initial_stats["total_entries"]
 
         # Step 2: Register products for multiple campaigns
         campaigns = ["campaign_1", "campaign_2", "campaign_3"]

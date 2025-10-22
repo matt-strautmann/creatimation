@@ -146,7 +146,7 @@ class CreativePipeline:
 
         for idx, product in enumerate(products, 1):
             product_name = self._extract_product_name(product)
-            product_slug = self._slugify(product_name)
+            self._slugify(product_name)
 
             logger.info(f"\n[{idx}/{total_products}] 🎨 Processing: {product_name}")
             logger.info("-" * 60)

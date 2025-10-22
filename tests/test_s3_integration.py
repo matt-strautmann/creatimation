@@ -265,7 +265,7 @@ class TestS3StorageManagerMocked:
         manager = S3StorageManager(config=mock_s3_config)
 
         output_path = temp_cache_dir / "downloaded.png"
-        success = manager.download_file(
+        manager.download_file(
             s3_key="test/image.png",
             local_path=output_path,
         )

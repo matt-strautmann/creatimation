@@ -393,7 +393,7 @@ class WorkspaceManager:
             import time
 
             return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stat.st_ctime))
-        except:
+        except (OSError, ValueError, OverflowError):
             return None
 
 

@@ -100,7 +100,7 @@ class ImageProcessor:
         for font_path in self.FONT_PATHS:
             try:
                 return ImageFont.truetype(font_path, size)
-            except:
+            except OSError:
                 continue
 
         logger.warning("System fonts not found - using default font")
