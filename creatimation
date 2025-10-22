@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Creatimation CLI Entry Point
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Use the virtual environment Python with the new modernized CLI
+"${SCRIPT_DIR}/.venv/bin/python3" -m src.cli.main "$@"

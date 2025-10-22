@@ -9,7 +9,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from PIL import Image
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -27,8 +26,10 @@ class TestCacheManager:
         cache_mgr = CacheManager(cache_dir=str(temp_dir / "cache"))
 
         assert cache_mgr.cache_dir.exists()
-        assert (cache_mgr.cache_dir / "products").exists()
         assert cache_mgr.index_path.exists()
+        # Verify index structure has required sections
+        assert "products" in cache_mgr.index
+        assert "cache_entries" in cache_mgr.index
 
     def test_register_and_get_cache_entry(self, temp_dir):
         """Test registering and retrieving cache entries"""
@@ -157,12 +158,8 @@ class TestOutputManager:
         metadata = {"campaign_id": "test"}
 
         # Save multiple creatives
-        output_mgr.save_creative(
-            sample_image, "Product A", "1x1", metadata, "hero-product", "US"
-        )
-        output_mgr.save_creative(
-            sample_image, "Product B", "9x16", metadata, "hero-product", "US"
-        )
+        output_mgr.save_creative(sample_image, "Product A", "1x1", metadata, "hero-product", "US")
+        output_mgr.save_creative(sample_image, "Product B", "9x16", metadata, "hero-product", "US")
 
         summary = output_mgr.get_output_summary()
         assert summary["total_creatives"] == 2
@@ -178,8 +175,9 @@ class TestStateTracker:
         state_tracker = StateTracker(campaign_id="test_campaign", state_dir=str(temp_dir))
 
         assert state_tracker.campaign_id == "test_campaign"
-        assert state_tracker.state_file.exists()
         assert state_tracker.state["campaign_id"] == "test_campaign"
+        # State file is created lazily when state is modified
+        assert not state_tracker.state_file.exists()
 
     def test_update_product_state(self, temp_dir):
         """Test updating product state"""

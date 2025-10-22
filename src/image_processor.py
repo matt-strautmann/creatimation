@@ -5,6 +5,7 @@ Image Processor - Text overlay with multi-line wrapping and professional typogra
 Adds campaign messages to images with intelligent word wrapping, responsive font sizing,
 and high-contrast styling for readability across all aspect ratios.
 """
+
 import logging
 
 from PIL import Image, ImageDraw, ImageFont
@@ -99,7 +100,7 @@ class ImageProcessor:
         for font_path in self.FONT_PATHS:
             try:
                 return ImageFont.truetype(font_path, size)
-            except:
+            except OSError:
                 continue
 
         logger.warning("System fonts not found - using default font")

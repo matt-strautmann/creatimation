@@ -11,7 +11,11 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from cache_manager import CacheManager
+# Support both relative imports (when run as module) and direct imports (when run in tests)
+try:
+    from cache_manager import CacheManager  # Direct import for tests
+except ImportError:
+    from .cache_manager import CacheManager  # Relative import for module execution
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +28,28 @@ class EnhancedBriefLoader:
     while preserving all enhanced metadata for context-rich generation.
     """
 
-    def __init__(self):
+    def __init__(self, cache_manager=None, cache_dir=None):
         self.product_contexts = self._load_product_contexts()
         self.regional_aesthetics = self._load_regional_aesthetics()
-        self.cache_manager = CacheManager()
+
+        if cache_manager is not None:
+            self.cache_manager = cache_manager
+        elif cache_dir is not None:
+            self.cache_manager = CacheManager(cache_dir=cache_dir)
+        else:
+            self.cache_manager = CacheManager()
+
         self.brand_guidelines = self._load_brand_guidelines_index()
+
+    def load_brief(self, brief_path: str) -> dict[str, Any]:
+        """Load brief - interface method that delegates to enhanced version."""
+        return self.load_and_enhance_brief(brief_path)
+
+    def validate_brief(self, brief: dict[str, Any]) -> bool:
+        """Validate brief structure and content."""
+        # Basic validation - check for required fields
+        required_fields = ["products", "campaign_id"]
+        return all(field in brief for field in required_fields)
 
     def load_and_enhance_brief(self, brief_path: str) -> dict[str, Any]:
         """
@@ -164,7 +185,7 @@ class EnhancedBriefLoader:
 
         products = simple_brief.get("products", [])
         region = simple_brief.get("target_region", "US")
-        message = simple_brief.get("campaign_message", "Quality Product")
+        simple_brief.get("campaign_message", "Quality Product")
         campaign_id = simple_brief.get(
             "campaign_id", Path(simple_brief.get("_brief_path", "unknown")).stem
         )
@@ -177,7 +198,11 @@ class EnhancedBriefLoader:
         # Add enhanced context for each product
         enhanced_contexts = []
         for product in products:
-            product_category = self._infer_product_category(product)
+            # Handle both string and dict products
+            product_name = (
+                product if isinstance(product, str) else product.get("name", str(product))
+            )
+            product_category = self._infer_product_category(product_name)
             context = self._generate_product_context(product_category, region)
             enhanced_contexts.append(context)
 
@@ -237,7 +262,12 @@ class EnhancedBriefLoader:
 
         logger.info(f"🔍 Checking cache for {len(products)} products...")
 
-        for product_name in products:
+        for product in products:
+            # Handle both string and dict products
+            product_name = (
+                product if isinstance(product, str) else product.get("name", str(product))
+            )
+
             # Look up product in cache registry
             cached_product = self.cache_manager.lookup_product(product_name)
 
@@ -245,7 +275,7 @@ class EnhancedBriefLoader:
                 # Generate slug for logging (since we simplified cache structure)
                 product_slug = product_name.lower().replace(" ", "-").replace("&", "-").strip("-")
                 logger.info(f"   ✓ Cache HIT: {product_name} -> {product_slug}")
-                cached_products.append(product_name)
+                cached_products.append(product)
                 cache_info[product_name] = cached_product
 
                 # Update campaign usage tracking
@@ -258,7 +288,7 @@ class EnhancedBriefLoader:
                     )
             else:
                 logger.info(f"   ✗ Cache MISS: {product_name} (will generate)")
-                new_products.append(product_name)
+                new_products.append(product)
 
         return {
             "products": products,  # Keep original product list for pipeline
@@ -338,7 +368,7 @@ class EnhancedBriefLoader:
                 with open(index_path) as f:
                     return json.load(f)
             else:
-                logger.warning("Brand guidelines index not found, using empty index")
+                logger.debug("Brand guidelines index not found, using empty index")
                 return {"registered_brands": {}}
         except Exception as e:
             logger.error(f"Failed to load brand guidelines index: {e}")

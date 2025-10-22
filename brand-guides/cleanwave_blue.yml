@@ -1,0 +1,48 @@
+# CleanWave Brand Guide
+# Premium laundry care brand with ocean blue identity
+# Inspired by leading CPG detergent brands
+
+brand:
+  name: CleanWave
+  industry: CPG - Laundry Care
+  target_audience: Families and value-conscious consumers
+  tagline: "Freshness That Lasts"
+  values:
+    - Trust
+    - Performance
+    - Family
+    - Innovation
+
+colors:
+  primary: "#0066CC"           # Ocean Blue
+  secondary: "#FFFFFF"         # Fresh White
+  accent: "#FFB900"            # Bright Yellow
+  background: "#F5F5F5"        # Light Gray
+  text: "#000000"              # Black
+
+typography:
+  font_family: "Futura, Helvetica, Arial, sans-serif"
+  headline_size: 48
+  body_size: 16
+  font_weight: "700"           # Bold for impact
+
+visual:
+  layout_style: "hero-product"
+  text_positioning: "bottom"   # Brand standard
+  scene_style: "lifestyle"
+  mood: "fresh and energetic"
+
+messaging:
+  tone: "confident"
+  max_headline_length: 40
+  max_subheadline_length: 80
+  avoid_words:
+    - "cheap"
+    - "bargain"
+    - "low-quality"
+  preferred_phrases:
+    - "America's trusted choice"
+    - "Long-lasting freshness"
+    - "Powerful clean"
+    - "Family trusted"
+    - "Proven performance"

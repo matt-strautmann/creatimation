@@ -46,6 +46,18 @@ output/
 cache/
 .agent_state.json
 .pipeline_state_*.json
+pipeline.log
+
+# Documentation (internal notes, not deliverables)
+docs/
+PRD.pdf
+takehome.md
+
+
+# Config files (user-specific)
+.creatimation.yml
+tests/test-config.yml
+*_enhanced.json
 
 # OS
 .DS_Store

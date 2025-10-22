@@ -2,9 +2,10 @@
 """
 Layout Intelligence - Smart Aspect Ratio Transformations
 
-Implements Canva-style Magic Resize functionality for intelligent layout adaptation
+Implements intelligent layout adaptation functionality for creative generation
 across different aspect ratios with platform-specific optimizations.
 """
+
 import logging
 import time
 from dataclasses import dataclass
@@ -55,7 +56,7 @@ class LayoutIntelligence:
     """
     Smart layout transformation engine for aspect ratio adaptations
 
-    Implements Canva-style Magic Resize with intelligent element repositioning,
+    Implements intelligent layout adaptation with smart element repositioning,
     platform-specific optimizations, and layout rule application.
     """
 
@@ -490,7 +491,7 @@ class LayoutIntelligence:
         try:
             # Try to load system font with bigger size
             font = ImageFont.truetype("Arial.ttf", font_size)
-        except:
+        except OSError:
             font = ImageFont.load_default()
 
         # Smart multiline text wrapping
@@ -541,7 +542,7 @@ class LayoutIntelligence:
                 color = canvas.getpixel((x, y))
                 if isinstance(color, (list, tuple)) and len(color) >= 3:
                     colors.append(color[:3])  # Take RGB only
-            except:
+            except (IndexError, ValueError):
                 continue
 
         if colors:

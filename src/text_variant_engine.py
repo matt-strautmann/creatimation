@@ -5,6 +5,7 @@ Text Variant Engine - Professional Ad-Quality Text Generation
 Creates dynamic text variants with professional fonts, colors, effects, and
 platform-specific optimizations for social media advertising.
 """
+
 import colorsys
 import logging
 import random
@@ -238,8 +239,8 @@ class TextVariantEngine:
         """Calculate optimal font and sizing for message and platform with professional constraints"""
 
         canvas_width, canvas_height = canvas_size
-        zone_width = int((text_zone[2] - text_zone[0]) * canvas_width)
-        zone_height = int((text_zone[3] - text_zone[1]) * canvas_height)
+        int((text_zone[2] - text_zone[0]) * canvas_width)
+        int((text_zone[3] - text_zone[1]) * canvas_height)
 
         # Platform-specific font selection using system fonts
         font_category = platform_preset.get("preferred_font_category", "system_sans")
@@ -412,20 +413,20 @@ class TextVariantEngine:
         try:
             font_path = f"{font_spec['family']}.ttf"
             return ImageFont.truetype(font_path, font_size)
-        except:
+        except OSError:
             pass
 
         # Try fallback fonts
         for fallback in font_spec.get("fallbacks", ["Arial", "Helvetica"]):
             try:
                 return ImageFont.truetype(f"{fallback}.ttf", font_size)
-            except:
+            except OSError:
                 continue
 
         # Ultimate fallback
         try:
             return ImageFont.truetype("Arial.ttf", font_size)
-        except:
+        except OSError:
             return ImageFont.load_default()
 
     def _wrap_text_intelligently(
@@ -499,11 +500,11 @@ class TextVariantEngine:
         shadow_color = (*colors["shadow"], shadow_alpha)
 
         # Draw shadow
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text((x + shadow_offset, y + shadow_offset), line, font=font, fill=shadow_color)
 
         # Draw main text
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text((x, y), line, font=font, fill=colors["primary"])
 
     def _render_shadow_glow_text(
@@ -521,7 +522,7 @@ class TextVariantEngine:
         glow_radius = effects.get("glow_radius", 5)
 
         # Draw shadow
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text(
                 (x + shadow_offset, y + shadow_offset), line, font=font, fill=colors["shadow"]
             )
@@ -531,14 +532,14 @@ class TextVariantEngine:
             alpha = int(255 * 0.3 * (glow_radius - radius) / glow_radius)
             glow_color = (*colors["accent"], alpha)
 
-            for line, (x, y) in zip(lines, positions):
+            for line, (x, y) in zip(lines, positions, strict=False):
                 for dx in range(-radius, radius + 1):
                     for dy in range(-radius, radius + 1):
                         if dx**2 + dy**2 <= radius**2:
                             draw.text((x + dx, y + dy), line, font=font, fill=glow_color)
 
         # Draw main text
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text((x, y), line, font=font, fill=colors["primary"])
 
     def _render_stroke_text(
@@ -555,7 +556,7 @@ class TextVariantEngine:
         stroke_width = effects.get("stroke_width", 2)
 
         # Draw stroke
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text(
                 (x, y),
                 line,
@@ -581,13 +582,13 @@ class TextVariantEngine:
 
         # Draw shadow first
         shadow_offset = 2
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text(
                 (x + shadow_offset, y + shadow_offset), line, font=font, fill=colors["shadow"]
             )
 
         # Draw main text with accent color
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text((x, y), line, font=font, fill=accent_color)
 
     def _render_soft_shadow_text(
@@ -609,11 +610,11 @@ class TextVariantEngine:
             alpha = int(255 * intensity * (shadow_offset - offset + 1) / shadow_offset / 2)
             shadow_color = (*colors["shadow"], alpha)
 
-            for line, (x, y) in zip(lines, positions):
+            for line, (x, y) in zip(lines, positions, strict=False):
                 draw.text((x + offset, y + offset), line, font=font, fill=shadow_color)
 
         # Draw main text
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text((x, y), line, font=font, fill=colors["primary"])
 
     def _render_high_contrast_text(
@@ -631,13 +632,13 @@ class TextVariantEngine:
         shadow_offset = effects.get("shadow_offset", 1)
 
         # Draw shadow first
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text(
                 (x + shadow_offset, y + shadow_offset), line, font=font, fill=colors["shadow"]
             )
 
         # Draw text with stroke
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text(
                 (x, y),
                 line,
@@ -665,11 +666,11 @@ class TextVariantEngine:
         alpha = int(255 * intensity)
         shadow_color = (*colors["shadow"], alpha)
 
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text((x + shadow_offset, y + shadow_offset), line, font=font, fill=shadow_color)
 
         # Draw main text
-        for line, (x, y) in zip(lines, positions):
+        for line, (x, y) in zip(lines, positions, strict=False):
             draw.text((x, y), line, font=font, fill=colors["primary"])
 
     def _calculate_luminance(self, rgb: tuple[int, int, int]) -> float:
@@ -719,7 +720,7 @@ class TextVariantEngine:
     def _calculate_readability_score(self, message: str, font_spec: dict[str, Any]) -> float:
         """Calculate readability score for the text configuration"""
         word_count = len(message.split())
-        char_count = len(message)
+        len(message)
         font_size = font_spec["size"]
 
         # Base score
@@ -1064,4 +1065,4 @@ if __name__ == "__main__":
     variants = engine.get_available_variants(args.message)
     print(f"\nAvailable Variants ({len(variants)}):")
     for i, var in enumerate(variants[:5]):  # Show first 5
-        print(f"  {i+1}. {var['message']} (ID: {var['id']})")
+        print(f"  {i + 1}. {var['message']} (ID: {var['id']})")
