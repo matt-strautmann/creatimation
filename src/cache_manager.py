@@ -609,20 +609,22 @@ class CacheManager:
     def register_product(
         self,
         product_name: str,
+        file_path: str,
+        campaign_id: str,
+        tags: list[str] = None,
         cache_filename: str = None,
         product_cache_filename: str = None,
-        campaign_id: str = None,
-        tags: list[str] = None,
     ) -> str:
         """
         Register a product in the product registry.
 
         Args:
             product_name: Full product name
-            cache_filename: Background-removed cache filename
-            product_cache_filename: Original product cache filename
+            file_path: Path to the product file
             campaign_id: Campaign that created this product
             tags: Optional tags for categorization
+            cache_filename: Background-removed cache filename (optional, for backwards compatibility)
+            product_cache_filename: Original product cache filename (optional, for backwards compatibility)
 
         Returns:
             Product slug
@@ -643,8 +645,9 @@ class CacheManager:
         product_entry = {
             "name": product_name,
             "slug": product_slug,
-            "cache_filename": cache_filename,
-            "product_cache_filename": product_cache_filename,
+            "file_path": file_path,
+            "cache_filename": cache_filename or file_path,  # For backwards compatibility
+            "product_cache_filename": product_cache_filename or file_path,  # For backwards compatibility
             "created_at": datetime.now().isoformat(),
             "campaigns_used": [campaign_id] if campaign_id else [],
             "status": "ready",
