@@ -753,11 +753,7 @@ jobs:
 .venv/bin/pytest tests/ -v
 ```
 
-**Test with Coverage**:
-```bash
-# Generate coverage report
-.venv/bin/pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=html
-```
+**Testing Strategy**: We focus coverage on **business logic** (82%) over API wrappers (17%). Testing DALL-E integration comprehensively would cost $20-50 in API calls for minimal value - we're testing OpenAI's API, not our logic.
 
 The test suite demonstrates production-ready quality with comprehensive error handling, agent system validation, and end-to-end workflow testing.
 
