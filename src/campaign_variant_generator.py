@@ -6,6 +6,7 @@ Takes simple campaign briefs and intelligently expands them into comprehensive
 campaign variant specifications with backgrounds, text variants, layouts,
 regional adaptations, and cached asset references.
 """
+
 import json
 import logging
 import time
@@ -79,7 +80,7 @@ class CampaignVariantGenerator:
             "variant_options": self._generate_variant_options(simple_brief),
             # Background and scene specifications
             "background_specifications": self._generate_background_specs(simple_brief),
-            # Layout specifications for Magic Resize
+            # Layout specifications for intelligent adaptation
             "layout_specifications": self._generate_layout_specs(simple_brief),
             # Generation parameters
             "generation_parameters": self._generate_generation_params(simple_brief, cached_assets),
@@ -141,14 +142,20 @@ class CampaignVariantGenerator:
         products = brief.get("products", [])
         primary_product = products[0] if products else "Unknown Product"
 
+        # Extract product name - handle both string and dict formats
+        if isinstance(primary_product, dict):
+            product_name = primary_product.get("name", "Unknown Product")
+        else:
+            product_name = primary_product if primary_product else "Unknown Product"
+
         # Extract brand name from first product
-        brand_name = primary_product.split()[0] if primary_product else "Brand"
+        brand_name = product_name.split()[0] if product_name else "Brand"
 
         return {
             "brand_name": brand_name,
             "brand_tone": "confident",
             "brand_colors": ["#2E8B57", "#FFFFFF", "#FFD700"],  # Default CPG colors
-            "primary_product_category": self._infer_product_category(primary_product),
+            "primary_product_category": self._infer_product_category(product_name),
             "brand_promise": "Quality products for modern families",
             "brand_values": ["quality", "effectiveness", "family-safe"],
         }
@@ -190,7 +197,7 @@ class CampaignVariantGenerator:
 
     def _generate_visual_concept(self, brief: dict[str, Any]) -> dict[str, Any]:
         """Generate visual concept with solid color backgrounds and simple product placement"""
-        products = brief.get("products", [])
+        brief.get("products", [])
         region = brief.get("target_region", "US")
 
         # Get regional colors for backgrounds
@@ -266,7 +273,13 @@ class CampaignVariantGenerator:
         region = brief.get("target_region", "US")
 
         primary_product = products[0] if products else "Unknown"
-        product_category = self._infer_product_category(primary_product)
+        # Extract product name - handle both string and dict formats
+        if isinstance(primary_product, dict):
+            product_name = primary_product.get("name", "Unknown")
+        else:
+            product_name = primary_product if primary_product else "Unknown"
+
+        product_category = self._infer_product_category(product_name)
         context = self.product_contexts.get(product_category, {})
         regional_colors = self.regional_aesthetics.get(region, {}).get("colors", ["#FFFFFF"])
 
@@ -292,7 +305,7 @@ class CampaignVariantGenerator:
         region = brief.get("target_region", "US")
 
         # Generate headline variants
-        base_words = campaign_message.split()
+        campaign_message.split()
         headline_variants = [
             campaign_message,  # Original
             f"Discover {campaign_message}",  # Discovery variant
@@ -339,7 +352,13 @@ class CampaignVariantGenerator:
         region = brief.get("target_region", "US")
 
         primary_product = products[0] if products else "Unknown"
-        product_category = self._infer_product_category(primary_product)
+        # Extract product name - handle both string and dict formats
+        if isinstance(primary_product, dict):
+            product_name = primary_product.get("name", "Unknown")
+        else:
+            product_name = primary_product if primary_product else "Unknown"
+
+        product_category = self._infer_product_category(product_name)
         context = self.product_contexts.get(product_category, {})
         regional_colors = self.regional_aesthetics.get(region, {}).get("colors", ["#FFFFFF"])
 
@@ -380,7 +399,7 @@ class CampaignVariantGenerator:
         }
 
     def _generate_layout_specs(self, brief: dict[str, Any]) -> dict[str, Any]:
-        """Generate layout specifications for Magic Resize from external config"""
+        """Generate layout specifications for intelligent adaptation from external config"""
         # Load layout rules from external file
         layout_rules_path = self.cache_dir / "layouts" / "layout_rules.json"
 
@@ -442,7 +461,7 @@ class CampaignVariantGenerator:
             "generation_quality": {
                 "image_quality": "high",
                 "resolution": "1024x1024_minimum",
-                "aspect_ratio_handling": "magic_resize",
+                "aspect_ratio_handling": "intelligent_adaptation",
                 "text_rendering": "high_contrast",
             },
             "performance_targets": {

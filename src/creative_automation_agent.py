@@ -4,15 +4,66 @@ Creative Automation Agent - MCP-Based Intelligent Monitoring System
 
 This agent implements the requirements from PRD Task 2:
 - Monitor incoming campaign briefs
+- Monitor configuration files (.creatimation.yml, global_config/, brand-guides/)
 - Trigger automated generation tasks
 - Track count and diversity of creative variants
-- Flag missing or insufficient assets (< 3 variants)
+- Flag missing or insufficient assets (< 9 variants per product: 3 ratios × 3 variant types)
 - Alert and logging mechanism
 - Model Context Protocol for LLM-generated human-readable alerts
 
-Model Context Protocol (MCP):
-The agent provides structured context to an LLM to draft human-readable alerts.
-Context includes: campaign details, variant counts, missing assets, quality metrics.
+Model Context Protocol (MCP) Schema:
+===============================
+
+The agent implements a comprehensive MCP schema that provides structured context
+to LLMs for generating human-readable alerts. The schema includes:
+
+1. Campaign Context:
+   - campaign_id: Unique identifier for the campaign
+   - campaign_name: Human-readable campaign name
+   - timestamp: ISO timestamp of the alert
+   - target_region: Geographic target (US, EMEA, etc.)
+   - target_audience: Defined audience segment
+
+2. Product Processing Status:
+   - total_products: Number of products in campaign
+   - products_processed: Number of products with generated variants
+   - products_pending: List of products awaiting processing
+   - products_failed: List of products that failed generation
+
+3. Variant Generation Metrics:
+   - total_variants_expected: Expected total variants (products × 3 ratios × 3 types)
+   - total_variants_generated: Actual variants generated
+   - variants_by_ratio: Count breakdown by aspect ratio (1x1, 9x16, 16x9)
+   - variants_per_product: Count breakdown by product name
+
+4. Asset Quality Tracking:
+   - missing_assets: Products with zero generated variants
+   - insufficient_variants: Products with < 9 variants (below 3×3 target)
+
+5. Performance Metrics:
+   - cache_hit_rate: Percentage of assets reused from cache
+   - processing_time: Total generation time in seconds
+   - error_count: Number of errors encountered
+
+6. Alert Metadata:
+   - alert_type: Type of alert (insufficient_variants, generation_complete, configuration_change)
+   - severity: Alert level (info, warning, error, critical)
+   - issues: List of specific problems identified
+   - recommendations: List of suggested actions
+
+The MCP context is serializable to JSON and provides a to_llm_prompt() method
+that formats the data for LLM consumption, enabling intelligent, context-aware
+alert generation that marketing managers can understand and act upon.
+
+Configuration Monitoring:
+========================
+
+The agent monitors configuration files for changes:
+- .creatimation.yml (workspace configuration)
+- global_config/*.yml (global settings)
+- brand-guides/*.yml (brand guideline files)
+
+Changes trigger configuration_change alerts through the MCP system.
 """
 
 import hashlib
@@ -23,6 +74,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 # Set up logging
 logging.basicConfig(
@@ -115,8 +167,8 @@ CAMPAIGN DETAILS:
 
 PROCESSING STATUS:
 - Products: {self.products_processed}/{self.total_products} processed
-- Pending: {', '.join(self.products_pending) if self.products_pending else 'None'}
-- Failed: {', '.join(self.products_failed) if self.products_failed else 'None'}
+- Pending: {", ".join(self.products_pending) if self.products_pending else "None"}
+- Failed: {", ".join(self.products_failed) if self.products_failed else "None"}
 
 VARIANT GENERATION:
 - Total Variants: {self.total_variants_generated}/{self.total_variants_expected}
@@ -124,8 +176,8 @@ VARIANT GENERATION:
 - Per Product: {json.dumps(self.variants_per_product, indent=2)}
 
 ASSET TRACKING:
-- Missing Assets: {', '.join(self.missing_assets) if self.missing_assets else 'None'}
-- Insufficient Variants (< 3): {', '.join(self.insufficient_variants) if self.insufficient_variants else 'None'}
+- Missing Assets: {", ".join(self.missing_assets) if self.missing_assets else "None"}
+- Insufficient Variants (< 3): {", ".join(self.insufficient_variants) if self.insufficient_variants else "None"}
 
 PERFORMANCE METRICS:
 - Cache Hit Rate: {self.cache_hit_rate:.1f}%
@@ -135,8 +187,8 @@ PERFORMANCE METRICS:
 ALERT INFORMATION:
 - Type: {self.alert_type}
 - Severity: {self.severity}
-- Issues: {', '.join(self.issues)}
-- Recommendations: {', '.join(self.recommendations)}
+- Issues: {", ".join(self.issues)}
+- Recommendations: {", ".join(self.recommendations)}
 
 Generate a clear, actionable alert message (2-3 sentences) that a marketing manager would understand. Focus on business impact and next steps.
 """
@@ -201,17 +253,35 @@ class CreativeAutomationAgent:
         self.monitored_campaigns: dict[str, CampaignMonitoringState] = {}
         self.state_file = Path(".agent_state.json")
 
+        # Configuration monitoring paths
+        self.workspace_config = Path(".creatimation.yml")
+        self.global_config_dir = Path("global_config")
+        self.brand_guides_dir = Path("brand-guides")
+
+        # Track config file hashes for change detection
+        self.config_hashes: dict[str, str] = {}
+
         # Load previous state if exists
         self._load_state()
 
         logger.info("Creative Automation Agent initialized")
         logger.info(f"Monitoring directory: {self.briefs_dir}")
+        logger.info(
+            f"Monitoring config files: {self.workspace_config}, {self.global_config_dir}, {self.brand_guides_dir}"
+        )
         logger.info(f"Watch interval: {self.watch_interval}s")
+
+    def _calculate_file_hash(self, file_path: Path) -> str:
+        """Calculate hash of file content for change detection"""
+        try:
+            with open(file_path, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()[:8]
+        except (FileNotFoundError, PermissionError):
+            return ""
 
     def _calculate_brief_hash(self, brief_path: Path) -> str:
         """Calculate hash of brief file content for change detection"""
-        with open(brief_path, "rb") as f:
-            return hashlib.sha256(f.read()).hexdigest()[:8]
+        return self._calculate_file_hash(brief_path)
 
     def _load_state(self):
         """Load previous agent state from disk"""
@@ -269,6 +339,96 @@ class CreativeAutomationAgent:
                 new_or_modified_briefs.append(brief_file)
 
         return new_or_modified_briefs
+
+    def scan_for_config_changes(self) -> list[str]:
+        """
+        Scan for configuration file changes.
+
+        Returns:
+            List of changed configuration files
+        """
+        changed_configs = []
+
+        # Monitor workspace config
+        if self.workspace_config.exists():
+            config_hash = self._calculate_file_hash(self.workspace_config)
+            stored_hash = self.config_hashes.get(str(self.workspace_config), "")
+            if config_hash != stored_hash:
+                if stored_hash:  # Don't alert on first scan
+                    logger.info(f"Workspace config changed: {self.workspace_config}")
+                    changed_configs.append(str(self.workspace_config))
+                self.config_hashes[str(self.workspace_config)] = config_hash
+
+        # Monitor global config directory
+        if self.global_config_dir.exists():
+            for config_file in self.global_config_dir.glob("*.yml"):
+                config_hash = self._calculate_file_hash(config_file)
+                stored_hash = self.config_hashes.get(str(config_file), "")
+                if config_hash != stored_hash:
+                    if stored_hash:  # Don't alert on first scan
+                        logger.info(f"Global config changed: {config_file}")
+                        changed_configs.append(str(config_file))
+                    self.config_hashes[str(config_file)] = config_hash
+
+        # Monitor brand guides directory
+        if self.brand_guides_dir.exists():
+            for brand_file in self.brand_guides_dir.glob("*.yml"):
+                brand_hash = self._calculate_file_hash(brand_file)
+                stored_hash = self.config_hashes.get(str(brand_file), "")
+                if brand_hash != stored_hash:
+                    if stored_hash:  # Don't alert on first scan
+                        logger.info(f"Brand guide changed: {brand_file}")
+                        changed_configs.append(str(brand_file))
+                    self.config_hashes[str(brand_file)] = brand_hash
+
+        return changed_configs
+
+    def generate_config_change_alert(self, changed_configs: list[str]):
+        """
+        Generate MCP-compliant alert for configuration changes.
+
+        Args:
+            changed_configs: List of changed configuration file paths
+        """
+        if not changed_configs:
+            return
+
+        # Load analytics for enhanced context
+        analytics_data = self._load_analytics_data()
+        performance_metrics = self._calculate_performance_metrics(analytics_data)
+
+        # Create a configuration change alert using MCP structure
+        mcp_context = MCPContext(
+            campaign_id="config_monitor",
+            campaign_name="Configuration Monitoring",
+            timestamp=datetime.now().isoformat(),
+            target_region="GLOBAL",
+            target_audience="Development Team",
+            total_products=0,
+            products_processed=0,
+            products_pending=[],
+            products_failed=[],
+            total_variants_expected=0,
+            total_variants_generated=0,
+            variants_by_ratio={},
+            variants_per_product={},
+            missing_assets=[],
+            insufficient_variants=[],
+            cache_hit_rate=performance_metrics.get("cache_efficiency", 0.0),
+            processing_time=performance_metrics.get("avg_command_duration", 0.0),
+            error_count=0,
+            alert_type="configuration_change",
+            severity=AlertSeverity.INFO.value,
+            issues=[f"Configuration file modified: {config}" for config in changed_configs],
+            recommendations=[
+                "Review configuration changes for impact on campaigns",
+                "Consider re-running generation if settings affect creative output",
+                "Validate configuration syntax and values",
+                f"Current system performance: {performance_metrics.get('command_success_rate', 0):.1f}% success rate",
+            ],
+        )
+
+        self.log_alert(mcp_context)
 
     def analyze_campaign_brief(self, brief_path: Path) -> tuple[str, dict]:
         """
@@ -339,7 +499,9 @@ class CreativeAutomationAgent:
 
         # Log trigger event
         logger.info(f"Generation task triggered for {len(product_names)} products")
-        logger.info(f"Expected variants: {len(product_names) * 3} (3 aspect ratios per product)")
+        logger.info(
+            f"Expected variants: {len(product_names) * 3 * 3} (3 aspect ratios × 3 variant types per product)"
+        )
 
     def track_variant_generation(self, campaign_id: str, output_dir: Path = Path("output")):
         """
@@ -369,15 +531,19 @@ class CreativeAutomationAgent:
                 continue
 
             # Count variants by aspect ratio
+            # Try both possible region names (us, US, or from brief metadata)
             ratio_counts = {}
             for ratio in ["1x1", "9x16", "16x9"]:
-                ratio_dir = (
-                    product_dir / "hero-product" / campaign_state.campaign_id.split("_")[0] / ratio
-                )
-                if ratio_dir.exists():
-                    variant_files = list(ratio_dir.glob("*.jpg")) + list(ratio_dir.glob("*.png"))
-                    ratio_counts[ratio] = len(variant_files)
-                    total_variants += len(variant_files)
+                # Check common path patterns for region
+                for region in ["us", "US", "default"]:
+                    ratio_dir = product_dir / "hero-product" / region / ratio
+                    if ratio_dir.exists():
+                        variant_files = list(ratio_dir.glob("*.jpg")) + list(
+                            ratio_dir.glob("*.png")
+                        )
+                        ratio_counts[ratio] = len(variant_files)
+                        total_variants += len(variant_files)
+                        break
                 else:
                     ratio_counts[ratio] = 0
 
@@ -408,12 +574,15 @@ class CreativeAutomationAgent:
         campaign_state = self.monitored_campaigns[campaign_id]
         insufficient_products = []
 
-        for product_name, ratio_counts in campaign_state.variants_generated.items():
+        # Check all products from the campaign, not just those in variants_generated
+        for product_name in campaign_state.products:
+            ratio_counts = campaign_state.variants_generated.get(product_name, {})
             total_for_product = sum(ratio_counts.values())
-            if total_for_product < 3:
+            # Each product should have 9 variants (3 aspect ratios × 3 variant types)
+            if total_for_product < 9:
                 insufficient_products.append(product_name)
                 logger.warning(
-                    f"Product '{product_name}' has insufficient variants: {total_for_product}/3"
+                    f"Product '{product_name}' has insufficient variants: {total_for_product}/9"
                 )
 
         return insufficient_products
@@ -462,13 +631,21 @@ class CreativeAutomationAgent:
             for ratio, count in ratios.items():
                 variants_by_ratio[ratio] += count
 
+        # Load analytics data for enhanced metrics
+        analytics_data = self._load_analytics_data()
+        performance_metrics = self._calculate_performance_metrics(analytics_data)
+
         # Determine issues and recommendations
         issues = []
         recommendations = []
 
         if insufficient_variants:
-            issues.append(f"{len(insufficient_variants)} products have < 3 variants")
-            recommendations.append("Re-run generation with increased variant count")
+            issues.append(
+                f"{len(insufficient_variants)} products have < 9 variants (3 ratios × 3 variant types)"
+            )
+            recommendations.append(
+                "Re-run generation to complete all variant types (base, color_shift, text_style)"
+            )
 
         if missing_assets:
             issues.append(f"{len(missing_assets)} products have no generated assets")
@@ -489,14 +666,16 @@ class CreativeAutomationAgent:
             products_processed=products_processed,
             products_pending=products_pending,
             products_failed=[],  # TODO: Track failed products
-            total_variants_expected=total_products * 3,  # 3 aspect ratios
+            total_variants_expected=total_products * 3 * 3,  # 3 aspect ratios × 3 variant types
             total_variants_generated=campaign_state.total_variants,
             variants_by_ratio=variants_by_ratio,
             variants_per_product=variants_per_product,
             missing_assets=missing_assets,
             insufficient_variants=insufficient_variants,
-            cache_hit_rate=0.0,  # TODO: Track from pipeline results
-            processing_time=campaign_state.last_updated - campaign_state.start_time,
+            cache_hit_rate=performance_metrics.get("cache_efficiency", 0.0),
+            processing_time=performance_metrics.get(
+                "avg_generation_time", campaign_state.last_updated - campaign_state.start_time
+            ),
             error_count=len(campaign_state.errors),
             alert_type=alert_type,
             severity=severity.value,
@@ -551,26 +730,32 @@ class CreativeAutomationAgent:
     def run_monitoring_cycle(self):
         """
         Execute one complete monitoring cycle:
-        1. Scan for new briefs
-        2. Trigger generation tasks
-        3. Track variant generation
-        4. Check for issues and generate alerts
+        1. Scan for configuration changes
+        2. Scan for new briefs
+        3. Trigger generation tasks
+        4. Track variant generation
+        5. Check for issues and generate alerts
         """
         logger.info("Starting monitoring cycle...")
 
-        # Step 1: Scan for new or modified briefs
+        # Step 1: Scan for configuration changes
+        changed_configs = self.scan_for_config_changes()
+        if changed_configs:
+            self.generate_config_change_alert(changed_configs)
+
+        # Step 2: Scan for new or modified briefs
         new_briefs = self.scan_for_new_briefs()
 
-        # Step 2: Analyze and trigger generation for new briefs
+        # Step 3: Analyze and trigger generation for new briefs
         for brief_path in new_briefs:
             campaign_id, brief_data = self.analyze_campaign_brief(brief_path)
             self.trigger_generation_task(brief_path, campaign_id, brief_data)
 
-        # Step 3: Track variant generation for all monitored campaigns
+        # Step 4: Track variant generation for all monitored campaigns
         for campaign_id in list(self.monitored_campaigns.keys()):
             self.track_variant_generation(campaign_id)
 
-            # Step 4: Check for issues and generate alerts
+            # Step 5: Check for issues and generate alerts
             campaign_state = self.monitored_campaigns[campaign_id]
 
             # Only check if generation is in progress or just completed
@@ -602,6 +787,80 @@ class CreativeAutomationAgent:
                     self._save_state()
 
         logger.info("Monitoring cycle complete")
+
+    def _load_analytics_data(self) -> dict[str, Any]:
+        """
+        Load analytics data for enhanced MCP context.
+
+        Returns:
+            Dictionary with analytics data or empty dict if not available
+        """
+        analytics_file = Path.home() / ".creatimation" / "analytics.json"
+        if not analytics_file.exists():
+            return {}
+
+        try:
+            with open(analytics_file) as f:
+                return json.load(f)
+        except Exception as e:
+            logger.debug(f"Failed to load analytics data: {e}")
+            return {}
+
+    def _calculate_performance_metrics(self, analytics_data: dict[str, Any]) -> dict[str, float]:
+        """
+        Calculate performance metrics from analytics data.
+
+        Args:
+            analytics_data: Raw analytics data
+
+        Returns:
+            Dictionary with calculated performance metrics
+        """
+        metrics = {
+            "avg_command_duration": 0.0,
+            "command_success_rate": 0.0,
+            "total_campaigns_generated": 0,
+            "avg_generation_time": 0.0,
+            "cache_efficiency": 0.0,
+        }
+
+        # Command performance
+        commands = analytics_data.get("commands", {})
+        if commands:
+            total_duration = sum(cmd["total_duration"] for cmd in commands.values())
+            total_count = sum(cmd["count"] for cmd in commands.values())
+            total_success = sum(cmd["success_count"] for cmd in commands.values())
+
+            if total_count > 0:
+                metrics["avg_command_duration"] = total_duration / total_count
+                metrics["command_success_rate"] = (total_success / total_count) * 100
+
+        # Generation performance
+        generation_stats = analytics_data.get("generation_stats", {})
+        if generation_stats:
+            metrics["total_campaigns_generated"] = len(generation_stats)
+
+            successful_generations = [
+                stats
+                for stats in generation_stats.values()
+                if stats.get("success", False) and not stats.get("dry_run", False)
+            ]
+
+            if successful_generations:
+                total_gen_time = sum(
+                    gen.get("processing_time", 0) for gen in successful_generations
+                )
+                metrics["avg_generation_time"] = total_gen_time / len(successful_generations)
+
+                # Calculate cache efficiency
+                total_hits = sum(gen.get("cache_hits", 0) for gen in successful_generations)
+                total_misses = sum(gen.get("cache_misses", 0) for gen in successful_generations)
+                total_cache_ops = total_hits + total_misses
+
+                if total_cache_ops > 0:
+                    metrics["cache_efficiency"] = (total_hits / total_cache_ops) * 100
+
+        return metrics
 
     def start_watch_mode(self):
         """

@@ -5,6 +5,7 @@ Output Manager - Semantic file naming and metadata generation
 Manages organized output structure with semantic naming conventions
 (ecowash-detergent_1x1_creative.jpg) and comprehensive metadata tracking.
 """
+
 import json
 import logging
 import time
@@ -99,7 +100,14 @@ class OutputManager:
             metadata: Metadata dict
             filename: Creative filename for reference
         """
-        metadata_path = creative_dir / "metadata.json"
+        # Include variant_id in metadata filename to prevent overwriting
+        variant_id = metadata.get("variant_id")
+        if variant_id:
+            metadata_filename = f"metadata_{variant_id}.json"
+        else:
+            metadata_filename = "metadata.json"
+
+        metadata_path = creative_dir / metadata_filename
 
         # Enhance metadata with output information
         enhanced_metadata = {
