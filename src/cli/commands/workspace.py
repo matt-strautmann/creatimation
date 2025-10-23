@@ -20,8 +20,8 @@ from ..constants import (
     KEY_WORKSPACE_DIRS,
     OUTPUT_FORMATS,
     WORKSPACE_TEMPLATES,
-    get_template_config,
     get_sample_brief_data,
+    get_template_config,
 )
 from ..core import pass_context
 from ..utils.output import console, error_console
@@ -172,9 +172,7 @@ def init(ctx, name, template, brand, industry, path, force):
 
 
 @workspace.command(name="list")
-@click.option(
-    "--format", type=click.Choice(OUTPUT_FORMATS), default="table", help="Output format"
-)
+@click.option("--format", type=click.Choice(OUTPUT_FORMATS), default="table", help="Output format")
 @pass_context
 def list_workspaces_cmd(ctx, format):
     """

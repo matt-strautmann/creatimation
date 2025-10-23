@@ -13,20 +13,20 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from crewai import Agent, Crew, Process, Task
 from crewai.tools import BaseTool
 from crewai_tools import FileReadTool
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class CampaignBrief(BaseModel):
     """Campaign brief data structure"""
+
     campaign_id: str
-    products: List[str]
-    target_regions: List[str] = ["US"]
+    products: list[str]
+    target_regions: list[str] = ["US"]
     target_audience: str = ""
     campaign_message: str = ""
     brief_path: str = ""
@@ -34,12 +34,13 @@ class CampaignBrief(BaseModel):
 
 class CampaignStatus(BaseModel):
     """Campaign generation status"""
+
     campaign_id: str
     status: str  # "new", "generating", "completed", "failed"
     variants_expected: int = 0
     variants_generated: int = 0
     last_check: datetime
-    errors: List[str] = []
+    errors: list[str] = []
 
 
 class CreatimationTool(BaseTool):
@@ -58,6 +59,13 @@ class CreatimationTool(BaseTool):
                 else:
                     return f"Invalid command. Must start with 'creatimation' or be a valid subcommand. Got: {command}"
 
+            # Security: Validate command to prevent command injection
+            # Only allow creatimation commands (controlled by AI agent, not direct user input)
+            dangerous_chars = [";", "|", "&", "`", "$", "(", ")", "<", ">"]
+            for char in dangerous_chars:
+                if char in command:
+                    return f"Invalid command. Dangerous character '{char}' detected. Command rejected for security."
+
             # Add ./creatimation prefix if needed
             if command.startswith("creatimation ") and not command.startswith("./creatimation"):
                 command = command.replace("creatimation ", "./creatimation ", 1)
@@ -67,12 +75,10 @@ class CreatimationTool(BaseTool):
 
             print(f"🚀 Executing: {full_command}")
 
+            # Security note: shell=True is required here to activate venv before running command
+            # Input is validated above and comes from AI agent, not direct user input
             result = subprocess.run(
-                full_command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=600
+                full_command, shell=True, capture_output=True, text=True, timeout=600  # nosec B602
             )
 
             if result.returncode == 0:
@@ -114,23 +120,27 @@ class FileSystemTool(BaseTool):
                                 "brand": self._extract_brand_name(brief_data),
                                 "products": len(brief_data.get("products", [])),
                                 "target_regions": brief_data.get("target_regions", ["US"]),
-                                "campaign_message": brief_data.get("campaign_message", "")[:50] + "..." if len(brief_data.get("campaign_message", "")) > 50 else brief_data.get("campaign_message", ""),
+                                "campaign_message": (
+                                    brief_data.get("campaign_message", "")[:50] + "..."
+                                    if len(brief_data.get("campaign_message", "")) > 50
+                                    else brief_data.get("campaign_message", "")
+                                ),
                                 "priority": self._assess_priority(brief_data),
                                 "complexity": self._assess_complexity(brief_data),
                                 "expected_variants": self._calculate_expected_variants(brief_data),
-                                "file_modified": brief_file.stat().st_mtime
+                                "file_modified": brief_file.stat().st_mtime,
                             }
                             campaign_summaries.append(summary)
-                    except Exception as e:
+                    except Exception:
                         continue
 
                 if not campaign_summaries:
                     return "No campaign briefs found in briefs/ directory"
 
-                return json.dumps({
-                    "total_campaigns": len(campaign_summaries),
-                    "campaigns": campaign_summaries
-                }, indent=2)
+                return json.dumps(
+                    {"total_campaigns": len(campaign_summaries), "campaigns": campaign_summaries},
+                    indent=2,
+                )
 
             elif action in ["count_variants", "count"]:
                 if not path:
@@ -141,9 +151,9 @@ class FileSystemTool(BaseTool):
                     return "0"
 
                 count = 0
-                for file_path in output_dir.rglob("*.jpg"):
+                for _ in output_dir.rglob("*.jpg"):
                     count += 1
-                for file_path in output_dir.rglob("*.png"):
+                for _ in output_dir.rglob("*.png"):
                     count += 1
 
                 return str(count)
@@ -165,9 +175,9 @@ class FileSystemTool(BaseTool):
                             if product_dir.is_dir():
                                 for ratio_dir in product_dir.iterdir():
                                     if ratio_dir.is_dir():
-                                        for variant_file in ratio_dir.glob("*.jpg"):
+                                        for _ in ratio_dir.glob("*.jpg"):
                                             variant_count += 1
-                                        for variant_file in ratio_dir.glob("*.png"):
+                                        for _ in ratio_dir.glob("*.png"):
                                             variant_count += 1
 
                 if variant_count == 0:
@@ -345,7 +355,7 @@ class CreativeAutomationCrew:
     """CrewAI-based creative automation system"""
 
     def __init__(self):
-        self.monitored_campaigns: Dict[str, CampaignStatus] = {}
+        self.monitored_campaigns: dict[str, CampaignStatus] = {}
         self.tools = [CreatimationTool(), FileSystemTool(), FileReadTool()]
 
         # Setup LLM - use OpenAI GPT-4 or fallback to GPT-3.5
@@ -356,13 +366,10 @@ class CreativeAutomationCrew:
             print("   Using mock LLM for demonstration purposes")
             # Use a simple mock LLM for testing without API key
             from crewai.llm import LLM
+
             self.llm = LLM(model="openai/gpt-4o-mini", api_key="mock-key")
         else:
-            self.llm = ChatOpenAI(
-                model="gpt-4o-mini",
-                temperature=0.1,
-                api_key=api_key
-            )
+            self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.1, api_key=api_key)
 
         # Define agents
         self.campaign_monitor = Agent(
@@ -377,7 +384,7 @@ class CreativeAutomationCrew:
             tools=self.tools,
             llm=self.llm,
             verbose=True,
-            allow_delegation=True
+            allow_delegation=True,
         )
 
         self.generation_coordinator = Agent(
@@ -399,7 +406,7 @@ class CreativeAutomationCrew:
             tools=self.tools,
             llm=self.llm,
             verbose=True,
-            allow_delegation=True
+            allow_delegation=True,
         )
 
         self.quality_analyst = Agent(
@@ -411,7 +418,7 @@ class CreativeAutomationCrew:
             tools=self.tools,
             llm=self.llm,
             verbose=True,
-            allow_delegation=False
+            allow_delegation=False,
         )
 
         self.alert_specialist = Agent(
@@ -423,10 +430,10 @@ class CreativeAutomationCrew:
             tools=[],  # Alert specialist doesn't need tools, just analysis
             llm=self.llm,
             verbose=True,
-            allow_delegation=False
+            allow_delegation=False,
         )
 
-    def create_monitoring_tasks(self) -> List[Task]:
+    def create_monitoring_tasks(self) -> list[Task]:
         """Create tasks for campaign monitoring cycle"""
 
         monitor_task = Task(
@@ -442,7 +449,7 @@ class CreativeAutomationCrew:
             Return a structured analysis of all detected campaigns with priorities.
             """,
             agent=self.campaign_monitor,
-            expected_output="JSON list of campaigns with analysis and priority rankings"
+            expected_output="JSON list of campaigns with analysis and priority rankings",
         )
 
         coordinate_task = Task(
@@ -459,7 +466,7 @@ class CreativeAutomationCrew:
             Always start with --dry-run for safety.
             """,
             agent=self.generation_coordinator,
-            expected_output="Summary of triggered generation tasks with execution status"
+            expected_output="Summary of triggered generation tasks with execution status",
         )
 
         quality_task = Task(
@@ -475,7 +482,7 @@ class CreativeAutomationCrew:
             Provide intelligent analysis beyond simple rule-based checking.
             """,
             agent=self.quality_analyst,
-            expected_output="Comprehensive quality analysis report with specific findings"
+            expected_output="Comprehensive quality analysis report with specific findings",
         )
 
         alert_task = Task(
@@ -489,12 +496,12 @@ class CreativeAutomationCrew:
             Focus on business value and clear next steps rather than technical details.
             """,
             agent=self.alert_specialist,
-            expected_output="Professional alert report with prioritized recommendations"
+            expected_output="Professional alert report with prioritized recommendations",
         )
 
         return [monitor_task, coordinate_task, quality_task, alert_task]
 
-    def run_monitoring_cycle(self) -> Dict:
+    def run_monitoring_cycle(self) -> dict:
         """Execute one complete monitoring cycle using CrewAI"""
 
         tasks = self.create_monitoring_tasks()
@@ -504,11 +511,11 @@ class CreativeAutomationCrew:
                 self.campaign_monitor,
                 self.generation_coordinator,
                 self.quality_analyst,
-                self.alert_specialist
+                self.alert_specialist,
             ],
             tasks=tasks,
             process=Process.sequential,
-            verbose=True
+            verbose=True,
         )
 
         print("\n🤖 Starting CrewAI Creative Automation Cycle...")
@@ -530,9 +537,9 @@ class CreativeAutomationCrew:
     def start_continuous_monitoring(self, interval: int = 60):
         """Start continuous monitoring with specified interval"""
 
-        print(f"\n🚀 Starting Continuous Creative Automation Agent")
+        print("\n🚀 Starting Continuous Creative Automation Agent")
         print(f"   Monitoring interval: {interval} seconds")
-        print(f"   Press Ctrl+C to stop\n")
+        print("   Press Ctrl+C to stop\n")
 
         try:
             while True:
@@ -563,7 +570,7 @@ Examples:
 
   # Custom monitoring interval
   python src/crewai_creative_agent.py --watch --interval 30
-        """
+        """,
     )
 
     parser.add_argument("--once", action="store_true", help="Run single monitoring cycle")

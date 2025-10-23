@@ -92,6 +92,7 @@ class CampaignBrief:
     target_regions: list[str]
     creative_requirements: dict[str, Any]
     regional_adaptations: dict[str, RegionalAdaptation]
+    campaign_message: str | None = None
     brand_guide: str | None = None
     enhanced_context: dict[str, Any] | None = None
 
@@ -117,6 +118,7 @@ class CampaignBrief:
                 },
             ),
             regional_adaptations=regional_adaptations,
+            campaign_message=data.get("campaign_message"),
             brand_guide=data.get("brand_guide"),
             enhanced_context=data.get("enhanced_context"),
         )
