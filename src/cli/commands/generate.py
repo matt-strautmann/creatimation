@@ -14,6 +14,13 @@ from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 
+from ..constants import (
+    SUPPORTED_ASPECT_RATIOS,
+    DEFAULT_ASPECT_RATIOS,
+    DEFAULT_REGIONS,
+    LIFESTYLE_VARIANT_TYPES,
+    DEFAULT_VARIANT_TYPES,
+)
 from ..core import pass_context, require_workspace
 from ..plugins import call_hook
 from ..utils.output import console, error_console
@@ -81,9 +88,10 @@ def generate(ctx, brief, output, brand_guide, no_cache, resume, dry_run):
 @click.option("--no-cache", is_flag=True, help="Disable cache, regenerate everything")
 @click.option("--resume", is_flag=True, help="Resume from saved pipeline state")
 @click.option("--dry-run", is_flag=True, help="Preview generation plan without execution")
+@click.option("--simulate", is_flag=True, help="Fast simulation mode for demos (creates mock images)")
 @pass_context
 @require_workspace
-def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cache, resume, dry_run):
+def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cache, resume, dry_run, simulate):
     """
     Generate complete campaign assets from brief.
 
@@ -155,7 +163,7 @@ def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cach
 
         if dry_run:
             # Preview mode
-            results = pipeline.process_campaign(brief, brand_guide, resume=False)
+            results = pipeline.process_campaign(brief, brand_guide_path=brand_guide, resume=False)
             _show_dry_run_results(results)
 
             # Analytics hook: Track dry run
@@ -166,6 +174,23 @@ def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cach
                 "success": True,
             }
             call_hook("generation_complete", campaign_id=campaign_id, metrics=dry_run_metrics)
+            command_success = True
+            return
+
+        if simulate:
+            # Fast simulation mode for demos
+            results = _run_simulation(brief, brand_guide, campaign_id, ctx)
+            _show_simulation_results(results)
+
+            # Analytics hook: Track simulation
+            simulation_metrics = {
+                "campaign_id": campaign_id,
+                "simulation": True,
+                "processing_time": time.time() - start_time,
+                "success": True,
+                "total_creatives": results.get("total_creatives", 0),
+            }
+            call_hook("generation_complete", campaign_id=campaign_id, metrics=simulation_metrics)
             command_success = True
             return
 
@@ -201,10 +226,10 @@ def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cach
         # Analytics hook: Track successful generation
         generation_metrics = {
             "campaign_id": campaign_id,
-            "total_creatives": getattr(results, "total_creatives", 0),
+            "total_creatives": results.get("total_creatives", 0),
             "processing_time": time.time() - start_time,
-            "cache_hits": getattr(results, "cache_hits", 0),
-            "cache_misses": getattr(results, "cache_misses", 0),
+            "cache_hits": results.get("cache_hits", 0),
+            "cache_misses": results.get("cache_misses", 0),
             "regions": len(regions) if regions else 2,
             "success": True,
         }
@@ -244,7 +269,7 @@ def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cach
 @click.option(
     "--ratio",
     "-r",
-    type=click.Choice(["1x1", "9x16", "16x9", "4x5", "5x4", "4x3", "3x4", "2x3", "3x2", "21x9"]),
+    type=click.Choice(SUPPORTED_ASPECT_RATIOS),
     default="1x1",
     help="Aspect ratio",
 )
@@ -484,7 +509,7 @@ def _show_generation_plan(brief: str, brand_guide: str | None, dry_run: bool):
 
         # Get creative requirements
         creative_reqs = brief_data.get("creative_requirements", {})
-        ratios = creative_reqs.get("aspect_ratios", ["1x1", "9x16", "16x9"])
+        ratios = creative_reqs.get("aspect_ratios", DEFAULT_ASPECT_RATIOS)
         variants = creative_reqs.get("variant_types", [])
 
         console.print()
@@ -711,7 +736,7 @@ def _show_effective_config_summary(ctx):
             f"  [green]✓[/green] Default variants: [white]{generation.get('default_variants', 3)}[/white]"
         )
 
-        ratios = generation.get("aspect_ratios", ["1x1", "9x16", "16x9"])
+        ratios = generation.get("aspect_ratios", DEFAULT_ASPECT_RATIOS)
         console.print(f"  [green]✓[/green] Aspect ratios: [white]{', '.join(ratios)}[/white]")
     else:
         console.print("  [yellow]⚠[/yellow] No workspace configuration")
@@ -725,4 +750,181 @@ def _show_effective_config_summary(ctx):
     else:
         console.print("  [red]✗[/red] Google API: Not configured")
 
+    console.print()
+
+
+def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
+    """Run fast simulation mode for demos."""
+    import json
+    import time
+    from pathlib import Path
+    from PIL import Image, ImageDraw, ImageFont
+    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+
+    # Load brief
+    with open(brief_path) as f:
+        brief_data = json.load(f)
+
+    products = brief_data.get("products", [])
+    regions = brief_data.get("target_regions", DEFAULT_REGIONS)
+    ratios = brief_data.get("creative_requirements", {}).get("aspect_ratios", DEFAULT_ASPECT_RATIOS)
+    variants = brief_data.get("creative_requirements", {}).get("variant_types", LIFESTYLE_VARIANT_TYPES)
+
+    total_creatives = len(products) * len(regions) * len(ratios) * len(variants)
+
+    # Output directory for simulation (separate from real campaigns)
+    output_dir = Path("output") / "simulations" / campaign_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Aspect ratio dimensions
+    aspect_dims = {
+        "1x1": (800, 800),
+        "9x16": (800, 1422),
+        "16x9": (1422, 800),
+        "4x5": (800, 1000),
+        "5x4": (1000, 800)
+    }
+
+    # Color schemes for variants
+    variant_colors = {
+        "base": ("#0066CC", "#FFFFFF"),      # Blue & White
+        "hero": ("#FFB900", "#000000"),      # Yellow & Black
+        "lifestyle": ("#00A86B", "#FFFFFF"), # Green & White
+        "color_shift": ("#FF6B35", "#FFFFFF"),
+        "text_style": ("#6B73FF", "#FFFFFF")
+    }
+
+    results = {
+        "campaign_id": campaign_id,
+        "total_creatives": total_creatives,
+        "products_processed": len(products),
+        "regions_processed": len(regions),
+        "simulation": True,
+        "output_dir": str(output_dir),
+        "files_created": []
+    }
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]Simulating campaign generation..."),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+
+        task = progress.add_task("", total=total_creatives)
+
+        for product in products:
+            product_name = product["name"] if isinstance(product, dict) else str(product)
+            product_slug = product_name.lower().replace(" ", "-").replace("&", "-")
+
+            for region in regions:
+                for ratio in ratios:
+                    for variant in variants:
+                        # Create realistic directory structure
+                        variant_slug = variant.replace("_", "-")
+                        creative_dir = output_dir / product_slug / variant_slug / region.lower() / ratio
+                        creative_dir.mkdir(parents=True, exist_ok=True)
+
+                        # Generate mock image
+                        dims = aspect_dims.get(ratio, (800, 800))
+                        bg_color, text_color = variant_colors.get(variant, ("#0066CC", "#FFFFFF"))
+
+                        img = Image.new("RGB", dims, bg_color)
+                        draw = ImageDraw.Draw(img)
+
+                        # Add product name
+                        try:
+                            font_size = max(24, dims[1] // 20)
+                            font = ImageFont.load_default()  # Fallback font
+                        except:
+                            font = ImageFont.load_default()
+
+                        # Center text
+                        text_lines = [
+                            product_name,
+                            f"{variant.title()} • {region}",
+                            f"{ratio} • Demo Mode"
+                        ]
+
+                        y_start = dims[1] // 3
+                        for i, line in enumerate(text_lines):
+                            bbox = draw.textbbox((0, 0), line, font=font)
+                            text_width = bbox[2] - bbox[0]
+                            x = (dims[0] - text_width) // 2
+                            y = y_start + (i * (font_size + 10))
+                            draw.text((x, y), line, fill=text_color, font=font)
+
+                        # Add decorative elements
+                        draw.rectangle([20, 20, dims[0]-20, 40], fill=text_color)
+                        draw.rectangle([20, dims[1]-40, dims[0]-20, dims[1]-20], fill=text_color)
+
+                        # Save image
+                        filename = f"{product_slug}_{variant_slug}_{region.lower()}_{ratio}_creative.jpg"
+                        image_path = creative_dir / filename
+                        img.save(image_path, "JPEG", quality=90)
+                        results["files_created"].append(str(image_path))
+
+                        # Create metadata
+                        metadata = {
+                            "campaign_id": campaign_id,
+                            "product_name": product_name,
+                            "variant_type": variant,
+                            "region": region,
+                            "aspect_ratio": ratio,
+                            "template": variant_slug,
+                            "simulation": True,
+                            "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "file_size_bytes": image_path.stat().st_size if image_path.exists() else 0,
+                            "dimensions": dims
+                        }
+
+                        metadata_path = creative_dir / "metadata.json"
+                        with open(metadata_path, "w") as f:
+                            json.dump(metadata, f, indent=2)
+
+                        progress.advance(task)
+                        time.sleep(0.05)  # Small delay for realistic progress
+
+    return results
+
+
+def _show_simulation_results(results):
+    """Show simulation results summary."""
+    from rich.table import Table
+
+    console.print()
+    console.print("[bold green]🎬 Simulation Complete![/bold green]")
+    console.print()
+
+    # Results table
+    table = Table(title="Simulation Results", show_header=True, header_style="bold magenta")
+    table.add_column("Metric", style="cyan", width=20)
+    table.add_column("Value", style="white")
+
+    table.add_row("Campaign ID", results["campaign_id"])
+    table.add_row("Total Creatives", str(results["total_creatives"]))
+    table.add_row("Products Processed", str(results["products_processed"]))
+    table.add_row("Regions Processed", str(results["regions_processed"]))
+    table.add_row("Output Directory", results["output_dir"])
+    table.add_row("Mode", "🎬 Demo Simulation")
+
+    console.print(table)
+    console.print()
+
+    # Show sample files
+    if results["files_created"]:
+        console.print("[cyan]📁 Sample Generated Files:[/cyan]")
+        for i, file_path in enumerate(results["files_created"][:5]):  # Show first 5
+            # Use simple path display to avoid relative path issues
+            display_path = str(file_path).replace(str(Path.cwd()) + "/", "")
+            console.print(f"   {display_path}")
+
+        if len(results["files_created"]) > 5:
+            console.print(f"   ... and {len(results['files_created']) - 5} more")
+        console.print()
+
+    console.print("[yellow]💡 This was a simulation - images are mock demos, not AI-generated.[/yellow]")
+    console.print("[green]✓[/green] Perfect for demonstrations and testing output structure!")
     console.print()

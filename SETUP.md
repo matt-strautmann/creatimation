@@ -27,15 +27,24 @@ uv pip install --python .venv/bin/python3 -r requirements.txt
 # 3. Copy your key
 ```
 
-## 3. Configure API Key
+## 3. Configure API Keys
 
 ```bash
-# Copy example and add your key
+# Copy example and add your keys
 cp .env.example .env
 
-# Edit .env and add your Google API key
-echo "GOOGLE_API_KEY=your_key_here" > .env
+# Edit .env and add your Google API key (required)
+echo "GOOGLE_API_KEY=your_google_key_here" >> .env
+
+# Add OpenAI API key for CrewAI Multi-Agent System (optional)
+echo "OPENAI_API_KEY=your_openai_key_here" >> .env
 ```
+
+**API Key Requirements:**
+- **Google API Key**: Required for image generation (FREE: 500 requests/day)
+- **OpenAI API Key**: Optional - only needed for CrewAI Multi-Agent System
+  - Get from: https://platform.openai.com/account/api-keys
+  - Used for LLM-powered AI agent collaboration
 
 ## 4. Check Configuration Status (Discovery-Driven Setup)
 
@@ -107,26 +116,44 @@ chmod +x creatimation
 
 ## Expected Output
 
-The pipeline generates **18 regional variants** (2 regions × 1 product × 3 ratios × 3 true variants):
+The pipeline generates **36 regional variants** (2 regions × 2 products × 3 ratios × 3 variants):
 
+**Structure Pattern:**
 ```
-output/{product-slug}/hero-product/{region}/{ratio}/
-  ├── {product}_{layout}_{region}_{ratio}_base_creative.jpg         # Base colors/typography
-  ├── {product}_{layout}_{region}_{ratio}_color_shift_creative.jpg  # Accent palette (#FFB900)
-  ├── {product}_{layout}_{region}_{ratio}_text_style_creative.jpg   # Typography variation
-  ├── metadata_base.json          # Variant-specific metadata (no overwrite!)
-  ├── metadata_color_shift.json
-  └── metadata_text_style.json
+output/{product-slug}/{layout}/{region}/{ratio}/
+├── base.jpg
+├── hero.jpg
+└── lifestyle.jpg
+```
 
-# Multi-Region Structure (4 markets)
+**Example Output:**
+```
 output/cleanwave-original-liquid-detergent/hero-product/
+├── us/
+│   ├── 1x1/
+│   │   ├── base.jpg
+│   │   ├── hero.jpg
+│   │   └── lifestyle.jpg
+│   ├── 9x16/
+│   │   ├── base.jpg
+│   │   ├── hero.jpg
+│   │   └── lifestyle.jpg
+│   └── 16x9/
+│       ├── base.jpg
+│       ├── hero.jpg
+│       └── lifestyle.jpg
+└── emea/
+    └── [same structure]
+
+# Multi-Region Structure (supports up to 4 markets)
+output/{product-slug}/{layout}/
   ├── us/      # "Try CleanWave Today"
   ├── latam/   # "Prueba CleanWave Hoy"
   ├── apac/    # "Experience CleanWave Now"
   └── emea/    # "Discover CleanWave Today"
 
 cache/products/
-  ├── cleanwave-original-liquid-detergent.png  # 962KB - Reused 36 times!
+  ├── cleanwave-original-liquid-detergent.png  # Reused 36 times!
   ├── cleanwave-pods-spring-meadow.png         # Reused 36 times!
   └── ...
 
@@ -137,22 +164,22 @@ cache/index.json           # Product registry with campaigns_used tracking
 - **4 Regions**: US, LATAM, APAC, EMEA (market-specific CTAs)
 - **3 Default Aspect Ratios**: 1x1 (Instagram), 9x16 (Stories), 16x9 (YouTube)
 - **7 Optional Ratios**: 4x5, 5x4, 3x4, 4x3, 2x3, 3x2, 21x9
-- **3 True Variants**: base, color_shift (accent #FFB900), text_style
-- **Product Consistency**: 100% identical across all 72 regional variants
+- **3 Variant Types**: base, hero, lifestyle
+- **Product Consistency**: 100% identical across all 36 regional variants
 - **Regional Localization**: Market-specific calls-to-action
-- **Bug Fixes**: color_scheme properly applied, separate metadata files per variant
 
 ## Performance Expectations
 
 With Gemini 2.5 Flash Image + Product Caching + Multi-Region:
 - **Speed**: ~9 seconds per creative (with cached products)
-- **18 regional creatives**: ~3 minutes total (2 regions × 9 variants each)
+- **36 regional creatives**: ~6 minutes total (2 regions × 18 variants each)
 - **Cost**:
-  - First run: $0.74 (1 product + 18 fusions = 19 calls)
-  - Subsequent runs: $0.70 (0 products + 18 fusions) - products cached!
-- **Cache Efficiency**: **95% cost reduction** (1 product vs 18 variants = 17 calls eliminated)
-- **Cache Hit Rate**: 100% (product reused 18 times: 2 regions × 3 ratios × 3 variants)
-- **ROI**: 99.8% cheaper than manual ($0.74 vs $500-2000)
+  - First run: $1.48 (2 products + 36 fusions = 38 calls)
+  - Subsequent runs: $1.40 (0 products + 36 fusions) - products cached!
+- **Cache Efficiency**: 5% cost savings on subsequent campaigns
+- **Cache Hit Rate**: 100% (products reused across all variants)
+- **ROI**: 99.7% cheaper than manual ($1.48 vs $500-2000)
+- **API efficiency**: 51% cheaper per image than DALL-E ($0.039 vs $0.08)
 
 ## Semantic Asset Organization
 
@@ -163,7 +190,9 @@ The pipeline now uses an **S3-ready semantic structure** for optimal asset manag
 output/                                  # Campaign outputs
 ├── {product-slug}/
 │   └── {layout}/{region}/{ratio}/
-│       └── *_{variant}.jpg
+│       ├── base.jpg
+│       ├── hero.jpg
+│       └── lifestyle.jpg
 
 cache/                                   # Intelligent caching
 ├── products/{product-slug}.png          # Reusable product assets
@@ -173,7 +202,7 @@ cache/                                   # Intelligent caching
 ### Key Benefits
 - ✅ **Product-centric**: Easy discovery of all creatives for a product
 - ✅ **Semantic paths**: Region/ratio organization for intelligent reuse
-- ✅ **Cache-first**: 30-50% cost savings through product reuse
+- ✅ **Cache-first**: 5% cost savings on subsequent campaigns with same products
 - ✅ **S3-ready**: Direct mapping to cloud storage for scale
 
 ### Future S3 Migration
@@ -201,7 +230,7 @@ cat .env
 # Should show: GOOGLE_API_KEY=your_key_here
 
 # Test API key is working (dry-run doesn't need it)
-./creatimation generate all --brief briefs/SpringRefreshCampaign.json --dry-run
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --dry-run
 ```
 
 ### Module not found
@@ -255,6 +284,7 @@ python -c "from google import genai; print('✓ Gemini SDK installed')"
 
 # Analytics and monitoring
 ./creatimation analytics summary              # Usage overview and performance metrics
+./creatimation analytics summary --recent     # Latest generation results (recommended after each run)
 ./creatimation analytics commands            # Command usage statistics
 ./creatimation analytics generation          # Generation performance tracking
 ./creatimation analytics clear               # Clear analytics data
@@ -279,7 +309,7 @@ The agent implements a comprehensive MCP schema with structured context for LLM 
   "timestamp": "2025-10-22T10:30:00Z",
   "alert_type": "insufficient_variants",
   "severity": "warning",
-  "total_variants_expected": 18,
+  "total_variants_expected": 36,
   "total_variants_generated": 12,
   "insufficient_variants": ["CleanWave Pods"],
   "recommendations": [
@@ -289,23 +319,37 @@ The agent implements a comprehensive MCP schema with structured context for LLM 
 }
 ```
 
-### Start Monitoring
+### AI-Driven Agent System
+
+CrewAI Multi-Agent System (✅ Production Ready - Full AI):
+
 ```bash
-# Install and activate environment
-uv run python src/creative_automation_agent.py --watch
+# Setup OpenAI API key first (in .env file or export)
+export OPENAI_API_KEY="your-openai-api-key"
 
-# Alternative: Direct execution
-.venv/bin/python3 src/creative_automation_agent.py --watch
+# Run collaborative AI agents with dynamic assessment
+python src/crewai_creative_agent.py --once        # Single cycle
+python src/crewai_creative_agent.py --watch       # Continuous monitoring
+python src/crewai_creative_agent.py --watch --interval 30  # Custom interval
 
-# Monitor specific directory
-uv run python src/creative_automation_agent.py --briefs-dir custom_briefs --watch
-
-# Single monitoring cycle (for testing)
-uv run python src/creative_automation_agent.py --once
-
-# Verbose logging
-uv run python src/creative_automation_agent.py --watch --verbose
+# Features:
+# ✅ LLM-powered decision making with 4 specialized collaborative agents
+# ✅ Dynamic priority and complexity assessment (no hardcoding)
+# ✅ Real CLI command execution with validation and auto-correction
+# ✅ Works with any campaign structure automatically
 ```
+
+**Agent Roles:**
+- **Campaign Monitor**: Analyzes campaign briefs for complexity and priority
+- **Generation Coordinator**: Orchestrates generation workflows and executes CLI commands
+- **Quality Analyst**: Evaluates generation completeness and quality metrics
+- **Alert Specialist**: Generates business-focused communications for stakeholders
+
+**Recent Enhancements (October 2025):**
+- **Dynamic Assessment Algorithms**: Removed hardcoded campaign assumptions
+- **Real Tool Integration**: Uses actual file paths and CLI commands
+- **Command Validation**: Auto-corrects `.creatimation` command execution
+- **Production Testing**: Successfully tested with multiple campaign types
 
 ### Alert Types
 - **🆕 configuration_change**: Config files modified (brand guides, workspace settings)
@@ -330,9 +374,9 @@ Recommendations: Review configuration changes for impact on campaigns, Consider 
 
 ⚠️ ALERT: INSUFFICIENT_VARIANTS
 Campaign: CleanWave Spring Freshness Launch 2025
-Variants: 12/18
+Variants: 12/36
 Issues: 1 products have < 9 variants (3 ratios × 3 variant types)
-Recommendations: Re-run generation to complete all variant types (base, color_shift, text_style)
+Recommendations: Re-run generation to complete all variant types (base, hero, lifestyle)
 ```
 
 ### Integration with Pipeline
@@ -359,10 +403,19 @@ Creatimation includes a sophisticated **analytics plugin** that automatically tr
 - **Error Analytics**: Failure patterns, error frequency, reliability tracking
 - **Cache Intelligence**: Hit/miss ratios, cost optimization insights
 
+### Recent Enhancement (v2.1)
+- ✅ **Fixed Analytics Metrics Collection**: Now correctly captures generation results (36 creatives, cache hits/misses, processing time)
+- ✅ **Added `--recent` Flag**: Shows latest generation results with actionable insights instead of confusing historical data
+- ✅ **Performance Insights**: Displays creatives/minute and cache efficiency analysis for immediate feedback
+- ✅ **Post-Generation Workflow**: Run `./creatimation analytics summary --recent` after each generation for instant results
+
 ### Analytics Commands
 ```bash
 # Comprehensive usage overview
 ./creatimation analytics summary
+
+# View most recent generation results (recommended after each run)
+./creatimation analytics summary --recent
 
 # Detailed command statistics (sorted by usage, duration, or errors)
 ./creatimation analytics commands --sort duration --limit 10

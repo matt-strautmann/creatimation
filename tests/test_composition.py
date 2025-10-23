@@ -17,8 +17,7 @@ from gemini_image_generator import GeminiImageGenerator
 
 
 @pytest.mark.skipif(
-    not os.getenv("GOOGLE_API_KEY"),
-    reason="GOOGLE_API_KEY not available for integration test"
+    not os.getenv("GOOGLE_API_KEY"), reason="GOOGLE_API_KEY not available for integration test"
 )
 def test_enhanced_composition():
     """Test enhanced before/after composition with real API call."""
@@ -31,7 +30,8 @@ def test_enhanced_composition():
 
     # Generate test image with enhanced instructions
     generator = GeminiImageGenerator()
-    test_image = generator.generate_complete_creative(
+    test_image = generator.generate_product_creative(
+        product_name="Spring Dress",
         campaign_message="TEST: Choose CleanWave",
         aspect_ratio="1x1",
         scene_description="white background",
@@ -41,18 +41,13 @@ def test_enhanced_composition():
 
     # Verify image was generated
     assert test_image is not None
-    assert hasattr(test_image, 'save')
+    assert hasattr(test_image, "save")
 
     print("✅ Test image generated successfully")
 
 
 def test_enhanced_composition_dry_run():
     """Test composition logic without API calls."""
-    # Load brand guide
-    brand_guide_path = Path(__file__).parent.parent / "brand-guides" / "cleanwave_blue.yml"
-    with open(brand_guide_path) as f:
-        brand_guide = yaml.safe_load(f)
-
     # Initialize generator in dry-run mode
     generator = GeminiImageGenerator(skip_init=True)
 

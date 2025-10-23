@@ -68,15 +68,20 @@ class UnifiedOutputManager(OutputManagerInterface):
             )
 
     def get_output_path(self, product_name: str, template: str, region: str, ratio: str) -> Path:
-        """Get standardized output path."""
+        """
+        Get standardized output path.
+
+        Semantic: campaigns/{campaign}/{region}/{product}/{ratio}
+        Basic: {product}/{template}/{region}/{ratio}
+        """
         product_slug = self._slugify(product_name)
         template_slug = self._slugify(template)
         region_slug = region.lower()
 
         if self.use_semantic_structure:
-            # Semantic structure: campaigns/{campaign}/products/{product}/outputs/{region}/{ratio}
-            # For now, use product as campaign (can be enhanced with campaign_id)
-            return self.campaigns_dir / product_slug / "outputs" / region_slug / ratio
+            # Semantic structure: campaigns/{campaign}/{region}/{product}/{ratio}
+            # Campaign ID comes from metadata in save_creative call
+            return self.campaigns_dir / product_slug / region_slug / product_slug / ratio
         else:
             # Basic structure: {product}/{template}/{region}/{ratio}
             return self.output_dir / product_slug / template_slug / region_slug / ratio
@@ -95,20 +100,25 @@ class UnifiedOutputManager(OutputManagerInterface):
         region: str,
         variant_id: str | None = None,
     ) -> str:
-        """Save creative using semantic folder structure."""
+        """
+        Save creative using semantic folder structure.
+
+        Structure: campaigns/{campaign_id}/{region}/{product}/{ratio}/{variant}.jpg
+        Example: campaigns/cleanwave_spring_2025/emea/cleanwave-detergent/1x1/base.jpg
+        """
         campaign_id = metadata.get("campaign_id", "default_campaign")
         product_slug = self._slugify(product_name)
         region_slug = region.lower()
 
-        # Create semantic directory structure
-        output_path = self.campaigns_dir / campaign_id / "outputs" / region_slug / ratio
+        # Create semantic directory structure: campaign → region → product → ratio
+        output_path = self.campaigns_dir / campaign_id / region_slug / product_slug / ratio
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Generate semantic filename
+        # Generate simplified filename (path contains campaign/region/product/ratio info)
         if variant_id:
-            filename = f"{product_slug}_{template}_{region_slug}_{ratio}_{variant_id}_creative.jpg"
+            filename = f"{variant_id}.jpg"
         else:
-            filename = f"{product_slug}_{template}_{region_slug}_{ratio}_creative.jpg"
+            filename = "creative.jpg"
 
         image_path = output_path / filename
 

@@ -11,6 +11,7 @@ Replaces: ImageGenerator (DALL-E), BackgroundRemover (rembg), CreativeCompositor
 import logging
 import os
 import time
+from functools import wraps
 from pathlib import Path
 
 from google import genai
@@ -18,6 +19,30 @@ from google.genai import types
 from PIL import Image
 
 logger = logging.getLogger(__name__)
+
+
+def retry_api_call(max_retries: int = 3, delay: float = 1.0):
+    """Simple retry decorator for API calls."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        logger.error(f"API call failed after {max_retries} attempts: {e}")
+                        raise
+                    logger.warning(
+                        f"API call attempt {attempt + 1} failed: {e}. Retrying in {delay}s..."
+                    )
+                    time.sleep(delay * (attempt + 1))  # Exponential backoff
+            return None
+
+        return wrapper
+
+    return decorator
 
 
 class GeminiImageGenerator:
@@ -89,16 +114,21 @@ class GeminiImageGenerator:
         start_time = time.time()
 
         try:
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash-image",
-                contents=[prompt],
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                    image_config=types.ImageConfig(
-                        aspect_ratio=gemini_ratio,
+
+            @retry_api_call(max_retries=3, delay=1.0)
+            def _generate_api_call():
+                return self.client.models.generate_content(
+                    model="gemini-2.5-flash-image",
+                    contents=[prompt],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        image_config=types.ImageConfig(
+                            aspect_ratio=gemini_ratio,
+                        ),
                     ),
-                ),
-            )
+                )
+
+            response = _generate_api_call()
 
             # Extract image from response
             for part in response.parts:
@@ -192,16 +222,21 @@ class GeminiImageGenerator:
         start_time = time.time()
 
         try:
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash-image",
-                contents=[prompt],
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                    image_config=types.ImageConfig(
-                        aspect_ratio=gemini_ratio,
+
+            @retry_api_call(max_retries=3, delay=1.0)
+            def _generate_api_call():
+                return self.client.models.generate_content(
+                    model="gemini-2.5-flash-image",
+                    contents=[prompt],
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        image_config=types.ImageConfig(
+                            aspect_ratio=gemini_ratio,
+                        ),
                     ),
-                ),
-            )
+                )
+
+            response = _generate_api_call()
 
             # Extract image from response
             for part in response.parts:
@@ -255,16 +290,20 @@ class GeminiImageGenerator:
             # Build contents with multiple images + prompt
             contents = [composition_prompt] + images
 
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash-image",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                    image_config=types.ImageConfig(
-                        aspect_ratio=gemini_ratio,
+            @retry_api_call(max_retries=3, delay=1.0)
+            def _generate_api_call():
+                return self.client.models.generate_content(
+                    model="gemini-2.5-flash-image",
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        image_config=types.ImageConfig(
+                            aspect_ratio=gemini_ratio,
+                        ),
                     ),
-                ),
-            )
+                )
+
+            response = _generate_api_call()
 
             for part in response.parts:
                 if part.inline_data is not None:
@@ -335,16 +374,27 @@ class GeminiImageGenerator:
             # Multi-image fusion: product + prompt
             contents = [product_image, prompt]
 
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash-image",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    response_modalities=["IMAGE"],
-                    image_config=types.ImageConfig(
-                        aspect_ratio=gemini_ratio,
+            @retry_api_call(max_retries=3, delay=1.0)
+            def _generate_api_call():
+                return self.client.models.generate_content(
+                    model="gemini-2.5-flash-image",
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["IMAGE"],
+                        image_config=types.ImageConfig(
+                            aspect_ratio=gemini_ratio,
+                        ),
                     ),
-                ),
-            )
+                )
+
+            response = _generate_api_call()
+
+            # Validate response
+            if response is None:
+                raise ValueError("API returned None response")
+
+            if not hasattr(response, 'parts') or response.parts is None:
+                raise ValueError("API response missing parts data")
 
             # Extract image from response
             for part in response.parts:
@@ -360,7 +410,7 @@ class GeminiImageGenerator:
 
                     return image
 
-            raise ValueError("No image in response")
+            raise ValueError("No image found in API response parts")
 
         except Exception as e:
             logger.error(f"Failed to compose creative via fusion: {e}")
@@ -586,8 +636,9 @@ class GeminiImageGenerator:
                     composition_instructions += "\nIMPORTANT: Show transformation visually without text labels like 'BEFORE', 'AFTER', or directional words"
             if variant_layout:
                 layout_instructions = f"{variant_layout} with {layout_instructions}"
-        else:
-            logger.warning(f"⚠️ No variant composition found for {variant_id} in brand guide")
+        elif not theme:
+            # Only warn if no theme provided from brief and no brand guide variants
+            logger.warning(f"⚠️ No variant composition found for {variant_id} in brand guide and no theme provided")
 
         # Text overlay instructions
         prompt_parts.append(
