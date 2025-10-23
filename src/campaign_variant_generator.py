@@ -106,20 +106,21 @@ class CampaignVariantGenerator:
         if not output_path:
             campaign_id = campaign_variants.get("source_brief", {}).get("campaign_id", "unknown")
             timestamp = int(time.time())
-            output_path = self.cache_dir / "variants" / f"{campaign_id}_variants_{timestamp}.json"
+            output_file: Path = self.cache_dir / "variants" / f"{campaign_id}_variants_{timestamp}.json"
+        else:
+            output_file = Path(output_path)
 
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_file, "w") as f:
             json.dump(campaign_variants, f, indent=2)
 
-        logger.info(f"💾 Saved campaign variants: {output_path}")
-        return str(output_path)
+        logger.info(f"💾 Saved campaign variants: {output_file}")
+        return str(output_file)
 
     def _detect_cached_assets(self, products: list[str]) -> dict[str, str]:
         """Detect cached product assets for products"""
-        cached_assets = {}
+        cached_assets: dict[str, str] = {}
         products_cache = self.cache_dir / "products"
 
         if not products_cache.exists():

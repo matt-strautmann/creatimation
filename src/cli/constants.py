@@ -5,6 +5,7 @@ Centralizes all hardcoded values from CLI commands to make them
 configurable and maintainable.
 """
 
+import copy
 from typing import Any
 
 # Directory structure
@@ -117,7 +118,7 @@ TEMPLATE_SAMPLE_MESSAGES = {
 # Configuration templates for different templates
 def get_template_config(template: str) -> dict[str, Any]:
     """Get configuration template for specific template type."""
-    base_config = DEFAULT_CONFIG_VALUES.copy()
+    base_config: dict[str, Any] = copy.deepcopy(DEFAULT_CONFIG_VALUES)
 
     if template in TEMPLATE_ASPECT_RATIOS:
         base_config["generation"]["aspect_ratios"] = TEMPLATE_ASPECT_RATIOS[template]

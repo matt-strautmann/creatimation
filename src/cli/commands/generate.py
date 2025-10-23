@@ -517,7 +517,8 @@ def _extract_campaign_id(brief_path: str) -> str | None:
     try:
         with open(brief_path) as f:
             brief_data = json.load(f)
-        return brief_data.get("campaign_id")
+        campaign_id = brief_data.get("campaign_id")
+        return str(campaign_id) if campaign_id else None
     except (json.JSONDecodeError, FileNotFoundError, KeyError, OSError):
         # Fallback to filename
         return Path(brief_path).stem
