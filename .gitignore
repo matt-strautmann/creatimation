@@ -45,6 +45,8 @@ htmlcov/
 # Generated files
 output/
 cache/
+custom_output/
+custom_cache/
 .agent_state.json
 .pipeline_state_*.json
 pipeline.log

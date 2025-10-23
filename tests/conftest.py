@@ -24,6 +24,7 @@ def sample_brief_data():
     """Sample campaign brief data"""
     return {
         "campaign_id": "test_campaign_2025",
+        "campaign_name": "Test Campaign 2025",
         "products": ["Test Product A", "Test Product B"],
         "target_region": "US",
         "target_audience": "Test audience",

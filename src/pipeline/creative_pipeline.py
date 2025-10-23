@@ -90,6 +90,10 @@ class CreativePipeline:
         brief_data = self.brief_loader.load_brief(brief_path)
         campaign_brief = CampaignBrief.from_dict(brief_data)
 
+        # Store brief directory for asset path resolution and campaign context
+        self._brief_dir = Path(brief_path).parent
+        self._current_campaign_id = campaign_brief.campaign_id
+
         # Load brand guide if provided
         brand_guide = None
         if brand_guide_path:
@@ -306,6 +310,24 @@ class CreativePipeline:
                 variant_id=spec.variant_type,
             )
 
+            # Cache the output creative for potential reuse
+            if not self.no_cache:
+                cache_key = f"creative:{self._slugify(spec.product_name)}:{spec.region}:{spec.aspect_ratio}:{spec.variant_type}"
+                self.cache_manager.register_cache_entry(
+                    cache_key=cache_key,
+                    file_path=output_path,
+                    metadata={
+                        "type": "creative_output",
+                        "product_name": spec.product_name,
+                        "campaign_id": campaign_brief.campaign_id,
+                        "region": spec.region,
+                        "aspect_ratio": spec.aspect_ratio,
+                        "variant_type": spec.variant_type,
+                        "template": spec.template,
+                        "generated_at": metadata["generated_at"],
+                    }
+                )
+
             processing_time = time.time() - start_time
 
             return GenerationResult(
@@ -329,21 +351,45 @@ class CreativePipeline:
 
         # 🎯 STEP 1: Check if brief provides product image (HIGHEST PRIORITY)
         if isinstance(product, dict):
+            # Support multiple field names for maximum compatibility
             product_image_path = (
-                product.get("image") or product.get("image_path") or product.get("product_image")
+                product.get("image")
+                or product.get("image_path")
+                or product.get("asset_path")
+                or product.get("product_image")
+                or product.get("asset_url")
             )
             if product_image_path:
                 try:
                     image_path = Path(product_image_path)
-                    if not image_path.is_absolute():
-                        # Resolve relative to brief directory
-                        brief_dir = Path.cwd()  # Could be enhanced to track brief location
-                        image_path = brief_dir / image_path
 
-                    if image_path.exists():
+                    # Try multiple path resolution strategies
+                    search_paths = []
+
+                    if image_path.is_absolute():
+                        search_paths.append(image_path)
+                    else:
+                        # Strategy 1: Relative to brief directory
+                        brief_dir = getattr(self, '_brief_dir', Path.cwd())
+                        search_paths.append(brief_dir / image_path)
+
+                        # Strategy 2: Relative to project root (cwd)
+                        search_paths.append(Path.cwd() / image_path)
+
+                        # Strategy 3: As-is (for edge cases)
+                        search_paths.append(image_path)
+
+                    # Try each path until we find the file
+                    found_path = None
+                    for candidate_path in search_paths:
+                        if candidate_path.exists():
+                            found_path = candidate_path
+                            break
+
+                    if found_path:
                         logger.info(f"   🎨 Using provided product image: {product_name}")
-                        logger.info(f"       Source: {image_path}")
-                        product_image = Image.open(image_path)
+                        logger.info(f"       Source: {found_path}")
+                        product_image = Image.open(found_path)
 
                         # Cache the provided image for future efficiency
                         if not self.no_cache:
@@ -351,9 +397,12 @@ class CreativePipeline:
 
                         return product_image
                     else:
-                        logger.warning(f"   ⚠ Provided image not found: {image_path}")
+                        logger.warning(f"   ⚠ Provided image not found: {product_image_path}")
+                        logger.warning(f"       Searched locations:")
+                        for i, path in enumerate(search_paths, 1):
+                            logger.warning(f"         {i}. {path}")
                 except Exception as e:
-                    logger.warning(f"   ⚠ Failed to load provided image: {e}")
+                    logger.warning(f"   ⚠ Failed to load provided image '{product_image_path}': {e}")
 
         # 🎯 STEP 2: Check cache for existing product image
         if not self.no_cache:
@@ -463,15 +512,25 @@ class CreativePipeline:
 
     def _lookup_cached_product(self, product_name: str) -> dict[str, Any] | None:
         """Look up cached product entry."""
-        # This would call the cache manager interface
-        return None  # Placeholder
+        return self.cache_manager.lookup_product(product_name)
 
     def _cache_product_image(
         self, product_name: str, product_slug: str, image: Image.Image
     ) -> None:
         """Cache product image for reuse."""
-        # This would save to cache manager
-        pass  # Placeholder
+        # Save product image to cache directory
+        cache_path = self.cache_manager.products_dir / f"{product_slug}.png"
+        image.save(cache_path, "PNG", optimize=True)
+
+        # Register in cache manager (campaign_id will be tracked)
+        campaign_id = getattr(self, '_current_campaign_id', 'unknown')
+        self.cache_manager.register_product(
+            product_name=product_name,
+            file_path=str(cache_path),
+            campaign_id=campaign_id,
+            tags=[],
+            metadata={"cached_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+        )
 
     def _is_cache_hit(self, product_name: str) -> bool:
         """Check if product was loaded from cache."""

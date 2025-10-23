@@ -233,15 +233,28 @@ def analytics():
     default="week",
     help="Time period for statistics",
 )
-def summary(period):
+@click.option(
+    "--recent",
+    is_flag=True,
+    help="Show most recent generation instead of cumulative stats",
+)
+def summary(period, recent):
     """
     Show analytics summary.
 
     Displays overview of CLI usage, most used commands,
     and generation statistics for the specified period.
+    Use --recent to see the latest generation results.
     """
     console.print()
-    console.print("[bold cyan]Analytics Summary[/bold cyan]")
+
+    if recent:
+        console.print("[bold cyan]Recent Generation Results[/bold cyan]")
+        _show_recent_generation()
+        return
+    else:
+        console.print("[bold cyan]Analytics Summary[/bold cyan]")
+
     console.print()
 
     command_stats = analytics_store.get_command_stats()
@@ -250,6 +263,7 @@ def summary(period):
     if not command_stats and not generation_stats:
         console.print("[yellow]No analytics data available[/yellow]")
         console.print("Use Creatimation commands to start collecting data.")
+        console.print("Use [cyan]--recent[/cyan] to see the latest generation results.")
         console.print()
         return
 
@@ -468,3 +482,88 @@ def _format_relative_time(timestamp_str: str) -> str:
 
     except Exception:
         return "Unknown"
+
+
+def _show_recent_generation():
+    """Show the most recent generation results."""
+    generation_stats = analytics_store.get_generation_stats()
+
+    if not generation_stats:
+        console.print("[yellow]No generation data available[/yellow]")
+        console.print("Run a campaign generation to see results here.")
+        console.print()
+        return
+
+    # Filter out simulations
+    real_generations = {
+        campaign_id: metrics
+        for campaign_id, metrics in generation_stats.items()
+        if not metrics.get("simulation", False)
+    }
+
+    if not real_generations:
+        console.print("[yellow]No real generation data available[/yellow]")
+        console.print("Only simulation runs found. Run a real campaign generation to see results here.")
+        console.print()
+        return
+
+    # Get most recent real generation by timestamp
+    most_recent = max(
+        real_generations.items(),
+        key=lambda x: x[1].get("timestamp", "")
+    )
+    campaign_id, metrics = most_recent
+
+    console.print()
+
+    # Recent generation table
+    table = create_table(title="Most Recent Generation", headers=["Metric", "Value"])
+
+    table.add_row("Campaign ID", campaign_id)
+    table.add_row("Total Creatives", str(metrics.get("total_creatives", 0)))
+    table.add_row("Cache Hits", str(metrics.get("cache_hits", 0)))
+    table.add_row("Cache Misses", str(metrics.get("cache_misses", 0)))
+
+    # Calculate cache hit rate
+    cache_hits = metrics.get("cache_hits", 0)
+    cache_misses = metrics.get("cache_misses", 0)
+    total_cache_ops = cache_hits + cache_misses
+    if total_cache_ops > 0:
+        hit_rate = (cache_hits / total_cache_ops) * 100
+        table.add_row("Cache Hit Rate", f"{hit_rate:.1f}%")
+
+    processing_time = metrics.get("processing_time", 0)
+    table.add_row("Processing Time", format_duration(processing_time))
+
+    success = metrics.get("success", False)
+    status = "✅ Success" if success else "❌ Failed"
+    table.add_row("Status", status)
+
+    if "timestamp" in metrics:
+        # Parse and format timestamp
+        try:
+            from datetime import datetime
+            ts = datetime.fromisoformat(metrics["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
+            table.add_row("Completed At", ts)
+        except:
+            pass
+
+    console.print(table)
+    console.print()
+
+    # Additional insights
+    if success and metrics.get("total_creatives", 0) > 0:
+        creatives_per_minute = (metrics.get("total_creatives", 0) / processing_time) * 60
+        console.print(f"[green]Performance:[/green] {creatives_per_minute:.1f} creatives/minute")
+
+        cache_total = cache_hits + cache_misses
+        if cache_total > 0:
+            cache_efficiency = (cache_hits / cache_total) * 100
+            if cache_efficiency > 50:
+                console.print(f"[green]Cache:[/green] Excellent efficiency ({cache_efficiency:.1f}%)")
+            elif cache_efficiency > 0:
+                console.print(f"[yellow]Cache:[/yellow] Room for improvement ({cache_efficiency:.1f}%)")
+            else:
+                console.print(f"[red]Cache:[/red] No cache hits - consider optimizing")
+
+    console.print()

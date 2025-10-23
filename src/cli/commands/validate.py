@@ -14,6 +14,15 @@ import click
 from rich.panel import Panel
 from rich.table import Table
 
+from ..constants import (
+    BRIEF_REQUIRED_FIELDS,
+    DEFAULT_CONFIG_FILENAME,
+    REQUIRED_BRAND_GUIDE_SECTIONS,
+    REQUIRED_WORKSPACE_DIRS,
+    SUPPORTED_ASPECT_RATIOS,
+    SUPPORTED_REGIONS,
+    DEFAULT_WORKSPACE_CONFIG_TEMPLATE,
+)
 from ..core import pass_context
 from ..utils.output import console, error_console
 
@@ -359,7 +368,7 @@ def _validate_brief_data(brief_data: dict[str, Any], file_path: str) -> dict[str
     info = []
 
     # Required fields validation
-    required_fields = ["campaign_id", "products", "target_regions", "campaign_message"]
+    required_fields = BRIEF_REQUIRED_FIELDS
 
     for field in required_fields:
         if field not in brief_data:
@@ -386,8 +395,7 @@ def _validate_brief_data(brief_data: dict[str, Any], file_path: str) -> dict[str
             errors.append("No target regions specified")
 
         # Check for supported regions
-        supported_regions = ["US", "EMEA", "APAC", "LATAM", "CA", "EU", "UK"]
-        unsupported = [r for r in regions if r not in supported_regions]
+        unsupported = [r for r in regions if r not in SUPPORTED_REGIONS]
         if unsupported:
             warnings.append(
                 f"Unsupported regions (may need custom handling): {', '.join(unsupported)}"
@@ -403,19 +411,7 @@ def _validate_brief_data(brief_data: dict[str, Any], file_path: str) -> dict[str
         # Aspect ratios
         ratios = creative_reqs.get("aspect_ratios", [])
         if ratios:
-            supported_ratios = [
-                "1x1",
-                "9x16",
-                "16x9",
-                "4x5",
-                "5x4",
-                "4x3",
-                "3x4",
-                "2x3",
-                "3x2",
-                "21x9",
-            ]
-            unsupported_ratios = [r for r in ratios if r not in supported_ratios]
+            unsupported_ratios = [r for r in ratios if r not in SUPPORTED_ASPECT_RATIOS]
             if unsupported_ratios:
                 warnings.append(f"Unsupported aspect ratios: {', '.join(unsupported_ratios)}")
             info.append(f"Aspect ratios: {', '.join(ratios)}")
@@ -466,7 +462,7 @@ def _validate_brand_guide_data(brand_guide_data: dict[str, Any], file_path: str)
     info = []
 
     # Basic structure validation
-    required_sections = ["brand", "colors", "visual", "messaging"]
+    required_sections = REQUIRED_BRAND_GUIDE_SECTIONS
     for section in required_sections:
         if section not in brand_guide_data:
             errors.append(f"Missing required section: {section}")
@@ -530,7 +526,7 @@ def _validate_workspace_config(workspace_manager) -> dict[str, Any]:
     workspace_path = workspace_manager.workspace_path
 
     # Required directories
-    required_dirs = ["briefs", "brand-guides", "output"]
+    required_dirs = REQUIRED_WORKSPACE_DIRS
     for dir_name in required_dirs:
         dir_path = workspace_path / dir_name
         if not dir_path.exists():
@@ -540,7 +536,7 @@ def _validate_workspace_config(workspace_manager) -> dict[str, Any]:
             info.append(f"Directory exists: {dir_name}")
 
     # Configuration file
-    config_file = workspace_path / ".creatimation.yml"
+    config_file = workspace_path / DEFAULT_CONFIG_FILENAME
     if not config_file.exists():
         warnings.append("No workspace configuration file found")
         fixable_issues.append("create_config_file")
@@ -685,20 +681,8 @@ def _apply_config_fixes(workspace_manager, fixable_issues: list[str]) -> None:
             (workspace_path / dir_name).mkdir(exist_ok=True)
         elif issue == "create_config_file":
             # Create basic config file
-            config_content = """# Creatimation Workspace Configuration
-project:
-  name: "My Creative Workspace"
-  output_dir: "output"
-
-generation:
-  default_variants: 3
-  aspect_ratios: ["1x1", "9x16", "16x9"]
-
-cache:
-  enabled: true
-  directory: "cache"
-"""
-            config_file = workspace_path / ".creatimation.yml"
+            config_content = DEFAULT_WORKSPACE_CONFIG_TEMPLATE
+            config_file = workspace_path / DEFAULT_CONFIG_FILENAME
             config_file.write_text(config_content)
 
 

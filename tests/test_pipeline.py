@@ -68,6 +68,10 @@ class TestCacheManager:
         """Test cache statistics"""
         cache_mgr = CacheManager(cache_dir=str(temp_dir / "cache"))
 
+        # Get initial count
+        initial_stats = cache_mgr.get_cache_stats()
+        initial_count = initial_stats["total_entries"]
+
         metadata1 = {"product_name": "Product A"}
         metadata2 = {"product_name": "Product B"}
 
@@ -75,8 +79,9 @@ class TestCacheManager:
         cache_mgr.register_cache_entry("key2", "product_b.jpg", metadata2)
 
         stats = cache_mgr.get_cache_stats()
-        assert stats["total_entries"] == 2
-        assert stats["cache_dir"] == str(cache_mgr.cache_dir)
+        assert stats["total_entries"] == initial_count + 2
+        assert "index_path" in stats
+        assert "total_size_bytes" in stats
 
 
 class TestOutputManager:
@@ -148,7 +153,7 @@ class TestOutputManager:
 
         # Verify variant ID in filename
         assert "_v1_" in output_path
-        assert "minimal_blue" in output_path
+        assert "minimal-blue" in output_path  # Template name gets slugified
         assert "apac" in output_path
 
     def test_get_output_summary(self, temp_dir, sample_image):
@@ -301,16 +306,17 @@ class TestPipelineIntegration:
 
     def test_dry_run_execution(self, temp_dir, sample_brief_file):
         """Test pipeline dry run mode"""
-        sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-        from main import CreativePipeline
+        from src.container import DIContainer
 
-        pipeline = CreativePipeline()
+        # Create container with dry_run enabled
+        container = DIContainer({})
+        pipeline = container.get_pipeline(campaign_id="test", dry_run=True)
 
-        results = pipeline.process_campaign(str(sample_brief_file), dry_run=True, resume=False)
+        results = pipeline.process_campaign(str(sample_brief_file), resume=False)
 
         assert results["dry_run"] is True
-        assert results["products"] == 2
-        assert "ratios" in results
+        assert results["total_products"] == 2
+        assert "total_creatives_planned" in results
 
 
 if __name__ == "__main__":

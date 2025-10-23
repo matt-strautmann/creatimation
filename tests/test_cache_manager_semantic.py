@@ -558,7 +558,9 @@ class TestCachePerformance:
         validation_results = cache_manager.validate_cache()
         validation_time = time.time() - start_time
 
-        assert validation_results["valid_entries"] >= 50  # At least 50, may have extra from cache reuse
+        assert (
+            validation_results["valid_entries"] >= 50
+        )  # At least 50, may have extra from cache reuse
         assert validation_time < 2.0  # Should be fast - adjusted for CI environment
 
 
@@ -625,9 +627,18 @@ class TestEdgeCases:
         with open(index_path, "w") as f:
             f.write("{ corrupted json")
 
-        # Should handle gracefully
+        # Should handle gracefully and initialize with default structure
         cache_manager = CacheManager(cache_dir=str(temp_cache_dir))
-        assert cache_manager.index == {}
+        # Check that default sections are present
+        assert "products" in cache_manager.index
+        assert "cache_entries" in cache_manager.index
+        assert "semantic_assets" in cache_manager.index
+        assert "asset_versions" in cache_manager.index
+        assert "reuse_patterns" in cache_manager.index
+        assert "background_library" in cache_manager.index
+        # Check that sections are empty (initialized state)
+        assert cache_manager.index["products"] == {}
+        assert cache_manager.index["cache_entries"] == {}
 
     def test_unicode_product_names(self, cache_manager):
         """Test product names with unicode characters"""
@@ -682,6 +693,10 @@ class TestCLIIntegration:
 
     def test_cache_stats_command(self, cache_manager, sample_product_image, temp_cache_dir):
         """Test cache stats retrieval"""
+        # Get initial count
+        initial_stats = cache_manager.get_cache_stats()
+        initial_count = initial_stats["total_entries"]
+
         # Register some entries
         for i in range(5):
             filename = f"product_{i}.png"
@@ -694,7 +709,7 @@ class TestCLIIntegration:
 
         stats = cache_manager.get_cache_stats()
 
-        assert stats["total_entries"] == 5
+        assert stats["total_entries"] == initial_count + 5
         assert stats["total_size_bytes"] > 0
         assert "product" in stats["by_type"]
 

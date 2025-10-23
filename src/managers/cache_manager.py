@@ -154,6 +154,14 @@ class UnifiedCacheManager(CacheManagerInterface):
             **(metadata or {}),
         }
 
+        # Handle None file_path (dry-run or pending generation)
+        if file_path is None:
+            # Don't register in cache without a valid file path
+            logger.warning(
+                f"Skipping cache registration for {product_name} - no file path provided"
+            )
+            return None
+
         # For test compatibility, create a mock file if it doesn't exist
         file_path_obj = Path(file_path)
         if not file_path_obj.exists():
@@ -284,6 +292,53 @@ class UnifiedCacheManager(CacheManagerInterface):
             "type_breakdown": type_counts,
             "cache_directory": str(self.cache_dir),
             "s3_enabled": self.enable_s3,
+        }
+
+    def get_cache_stats(self) -> dict[str, Any]:
+        """
+        Get comprehensive cache statistics.
+
+        Legacy method name for compatibility with CLI and tests.
+        Returns cache stats in the format expected by the CLI.
+        Only counts entries that are actually in the cache directory.
+        """
+        total_entries = 0
+        total_size = 0
+
+        # Only count entries that are actually in the cache directory
+        by_type = {}
+        for entry in self.index.values():
+            # Skip if entry is not a dict (e.g., empty placeholder dicts)
+            if not isinstance(entry, dict) or not entry:
+                continue
+
+            file_path = Path(entry.get("file_path", ""))
+
+            # Only count files that are in the cache directory
+            try:
+                # Check if file is within cache directory
+                if file_path.exists() and file_path.is_relative_to(self.cache_dir):
+                    total_entries += 1
+                    total_size += file_path.stat().st_size
+
+                    cache_type = entry.get("metadata", {}).get("type", "unknown")
+                    by_type[cache_type] = by_type.get(cache_type, 0) + 1
+            except (ValueError, AttributeError):
+                # is_relative_to might fail on older Python or invalid paths
+                # Fall back to string comparison
+                if file_path.exists() and str(file_path).startswith(str(self.cache_dir)):
+                    total_entries += 1
+                    total_size += file_path.stat().st_size
+
+                    cache_type = entry.get("metadata", {}).get("type", "unknown")
+                    by_type[cache_type] = by_type.get(cache_type, 0) + 1
+
+        return {
+            "total_entries": total_entries,
+            "total_size_bytes": total_size,
+            "total_size_mb": round(total_size / (1024 * 1024), 2),
+            "by_type": by_type,
+            "index_path": str(self.index_file),
         }
 
     def cleanup_stale_entries(self, max_age_days: int = 30) -> int:

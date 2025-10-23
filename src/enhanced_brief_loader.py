@@ -282,13 +282,38 @@ class EnhancedBriefLoader:
                 if campaign_id:
                     self.cache_manager.register_product(
                         product_name,
-                        cached_product.get("cache_filename"),
+                        cached_product.get("file_path"),
                         cached_product.get("product_cache_filename"),
                         campaign_id,
                     )
             else:
-                logger.info(f"   ✗ Cache MISS: {product_name} (will generate)")
-                new_products.append(product)
+                # Check if product has asset path in brief (support multiple field names)
+                logger.debug(f"   DEBUG: product type: {type(product)}, content: {product}")
+                if isinstance(product, dict):
+                    # Support multiple field names for maximum compatibility
+                    asset_path = (
+                        product.get("image")
+                        or product.get("image_path")
+                        or product.get("asset_path")
+                        or product.get("product_image")
+                        or product.get("asset_url")
+                    )
+
+                    if asset_path:
+                        logger.info(f"   📁 Registering asset from brief: {product_name} -> {asset_path}")
+
+                        # Register the asset in cache
+                        self.cache_manager.register_product(
+                            product_name=product_name,
+                            file_path=asset_path,
+                            campaign_id=campaign_id,
+                        )
+                        # Treat as cached since we now have it registered
+                        cached_products.append(product)
+                        cache_info[product_name] = {"cache_filename": asset_path, "product_cache_filename": asset_path}
+                else:
+                    logger.info(f"   ✗ Cache MISS: {product_name} (will generate)")
+                    new_products.append(product)
 
         return {
             "products": products,  # Keep original product list for pipeline
