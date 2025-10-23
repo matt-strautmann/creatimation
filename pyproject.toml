@@ -99,7 +99,8 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing"
+# Exclude obsolete tests that reference deleted creative_automation_agent module
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --ignore=tests/test_agent.py --ignore=tests/debug_agent.py --ignore=tests/test_e2e_pipeline.py"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 

@@ -5,7 +5,8 @@
     {
       "name": "CleanWave Original Liquid Detergent",
       "category": "Laundry Care",
-      "description": "Powerful clean with long-lasting freshness"
+      "description": "Powerful clean with long-lasting freshness",
+      "asset_path": "assets/products/cleanwave-original-liquid-detergent.png"
     },
     {
       "name": "CleanWave Pods Spring Meadow",
@@ -17,9 +18,28 @@
   "target_audience": "Busy families with active kids",
   "campaign_message": "Spring Into Freshness",
   "creative_requirements": {
-    "aspect_ratios": ["1x1", "9x16", "16x9"],
-    "variants_per_ratio": 3,
-    "variant_types": ["base", "color_shift", "text_style"]
+    "aspect_ratios": ["1x1", "16x9", "9x16"],
+    "variant_types": ["base", "hero", "lifestyle"],
+    "variant_themes": {
+      "base": "Clean and modern spring aesthetic with product focus",
+      "hero": "Bold hero product shot with vibrant spring colors",
+      "lifestyle": "Family moments with fresh, clean laundry"
+    },
+    "variant_color_rules": {
+      "base": "use_primary",
+      "hero": "use_accent",
+      "lifestyle": "use_secondary"
+    },
+    "layout_preferences": {
+      "1x1": "centered product with balanced composition",
+      "16x9": "hero landscape with product left-aligned",
+      "9x16": "vertical story format with product top-third"
+    },
+    "text_treatment": {
+      "font_weight": "bold",
+      "text_placement": "bottom-third",
+      "cta_style": "prominent button"
+    }
   },
   "regional_adaptations": {
     "US": {
