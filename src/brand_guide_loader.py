@@ -93,9 +93,9 @@ class BrandGuide(BaseModel):
 
     brand: BrandMetadata
     colors: BrandColors
-    typography: BrandTypography = Field(default_factory=BrandTypography)
-    visual: VisualStyle = Field(default_factory=VisualStyle)
-    messaging: MessagingGuidelines = Field(default_factory=MessagingGuidelines)
+    typography: BrandTypography = Field(default_factory=BrandTypography.model_construct)
+    visual: VisualStyle = Field(default_factory=VisualStyle.model_construct)
+    messaging: MessagingGuidelines = Field(default_factory=MessagingGuidelines.model_construct)
 
     # Allow additional fields like variants, style_guidelines, etc.
     class Config:
@@ -117,7 +117,7 @@ class BrandGuideLoader:
     def load_brand_guide(self, guide_path: str) -> dict[str, Any]:
         """Load brand guide - interface method that returns dictionary."""
         brand_guide = self.load(guide_path)
-        return brand_guide.dict()
+        return brand_guide.model_dump()
 
     def validate_brand_guide(self, guide: dict[str, Any]) -> bool:
         """Validate brand guide structure."""
