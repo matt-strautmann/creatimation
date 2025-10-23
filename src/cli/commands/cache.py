@@ -17,7 +17,7 @@ from rich.prompt import Confirm
 from rich.table import Table
 from rich.tree import Tree
 
-from ..constants import OUTPUT_FORMATS, CACHE_TYPES
+from ..constants import CACHE_TYPES, OUTPUT_FORMATS
 from ..core import pass_context
 from ..plugins import call_hook
 from ..utils.output import console, error_console
@@ -59,9 +59,7 @@ def cache(ctx, stats):
 
 @cache.command(name="stats")
 @click.option("--detailed", "-d", is_flag=True, help="Show detailed cache breakdown")
-@click.option(
-    "--format", type=click.Choice(OUTPUT_FORMATS), default="table", help="Output format"
-)
+@click.option("--format", type=click.Choice(OUTPUT_FORMATS), default="table", help="Output format")
 @pass_context
 def stats_cmd(ctx, detailed, format):
     """
@@ -629,7 +627,7 @@ def _collect_cache_statistics(cache_manager) -> dict[str, Any]:
                     stats["categories"][category]["size"] += file_size
 
         # Calculate hit rate from cache index if available
-        if hasattr(cache_manager, 'index'):
+        if hasattr(cache_manager, "index"):
             total_accesses = 0
             successful_accesses = 0
 
@@ -646,6 +644,7 @@ def _collect_cache_statistics(cache_manager) -> dict[str, Any]:
     except Exception as e:
         # Log but don't fail
         import logging
+
         logging.debug(f"Error collecting cache statistics: {e}")
 
     return stats
@@ -676,14 +675,14 @@ def _calculate_clear_stats(
 
     stats = {"total_files": 0, "total_size_mb": 0.0, "by_category": {}}
 
-    if not hasattr(cache_manager, 'index'):
+    if not hasattr(cache_manager, "index"):
         return stats
 
     cutoff_time = None
     if older_than:
         cutoff_time = time.time() - (older_than * 24 * 3600)
 
-    for key, entry in cache_manager.index.items():
+    for _key, entry in cache_manager.index.items():
         metadata = entry.get("metadata", {})
         cache_type = metadata.get("type", "unknown")
 
@@ -730,7 +729,7 @@ def _perform_cache_clear(
 
     cleared_count = 0
 
-    if not hasattr(cache_manager, 'index'):
+    if not hasattr(cache_manager, "index"):
         return cleared_count
 
     cutoff_time = None
@@ -788,7 +787,7 @@ def _perform_cache_clear(
         del cache_manager.index[key]
 
     # Save updated index
-    if keys_to_remove and hasattr(cache_manager, '_save_index'):
+    if keys_to_remove and hasattr(cache_manager, "_save_index"):
         cache_manager._save_index()
 
     return cleared_count
@@ -818,7 +817,7 @@ def _get_cache_entries(
     """Get cache entries for inspection."""
     entries = []
 
-    if not hasattr(cache_manager, 'index'):
+    if not hasattr(cache_manager, "index"):
         return entries
 
     # Map CLI type names to cache type names
@@ -893,7 +892,7 @@ def _calculate_cleanup_operations(
 
     result = {"total_removals": 0, "size_saved_mb": 0.0, "entries_to_remove": []}
 
-    if not hasattr(cache_manager, 'index'):
+    if not hasattr(cache_manager, "index"):
         return result
 
     cutoff_time = time.time() - (max_age * 24 * 3600)
@@ -907,11 +906,13 @@ def _calculate_cleanup_operations(
         except (ValueError, TypeError):
             access_time = 0
 
-        entries.append({
-            "key": key,
-            "entry": entry,
-            "access_time": access_time,
-        })
+        entries.append(
+            {
+                "key": key,
+                "entry": entry,
+                "access_time": access_time,
+            }
+        )
 
     # Sort by access time (most recent first)
     entries.sort(key=lambda x: x["access_time"], reverse=True)
@@ -956,7 +957,7 @@ def _perform_cache_cleanup(
             del cache_manager.index[key]
 
     # Save updated index
-    if removed_count > 0 and hasattr(cache_manager, '_save_index'):
+    if removed_count > 0 and hasattr(cache_manager, "_save_index"):
         cache_manager._save_index()
 
     return removed_count
@@ -966,12 +967,12 @@ def _check_cache_index_status(cache_manager) -> dict[str, Any]:
     """Check cache index validity."""
     issues = []
 
-    if not hasattr(cache_manager, 'index'):
+    if not hasattr(cache_manager, "index"):
         return {"valid": False, "issue": "Cache manager has no index"}
 
     # Check for missing files
     missing_files = 0
-    for key, entry in cache_manager.index.items():
+    for _key, entry in cache_manager.index.items():
         file_path = Path(entry.get("file_path", ""))
         if not file_path.exists():
             missing_files += 1
@@ -1004,7 +1005,7 @@ def _rebuild_cache_index_full(cache_manager) -> dict[str, Any]:
     """Perform full cache index rebuild."""
     import hashlib
 
-    if not hasattr(cache_manager, 'index'):
+    if not hasattr(cache_manager, "index"):
         return {"entries_count": 0, "categories_count": 0}
 
     # Clean out stale entries
@@ -1048,7 +1049,7 @@ def _rebuild_cache_index_full(cache_manager) -> dict[str, Any]:
                 added_count += 1
 
     # Save updated index
-    if (keys_to_remove or added_count > 0) and hasattr(cache_manager, '_save_index'):
+    if (keys_to_remove or added_count > 0) and hasattr(cache_manager, "_save_index"):
         cache_manager._save_index()
 
     # Count categories
@@ -1112,7 +1113,7 @@ def _display_cache_stats_table(stats: dict[str, Any], detailed: bool):
                 campaign_data["campaign_id"],
                 f"{campaign_data['cache_hit_rate']:.1f}%",
                 str(campaign_data["cache_hits"]),
-                str(campaign_data["cache_misses"])
+                str(campaign_data["cache_misses"]),
             )
 
         console.print(campaign_table)
@@ -1318,12 +1319,14 @@ def _get_campaign_cache_analytics() -> list[dict[str, Any]]:
                 else:
                     cache_hit_rate = 0.0
 
-                campaign_analytics.append({
-                    "campaign_id": campaign_id,
-                    "cache_hits": cache_hits,
-                    "cache_misses": cache_misses,
-                    "cache_hit_rate": cache_hit_rate
-                })
+                campaign_analytics.append(
+                    {
+                        "campaign_id": campaign_id,
+                        "cache_hits": cache_hits,
+                        "cache_misses": cache_misses,
+                        "cache_hit_rate": cache_hit_rate,
+                    }
+                )
 
         # Sort by campaign_id for consistent display
         campaign_analytics.sort(key=lambda x: x["campaign_id"])
@@ -1332,6 +1335,7 @@ def _get_campaign_cache_analytics() -> list[dict[str, Any]]:
     except Exception as e:
         # Log but don't fail
         import logging
+
         logging.debug(f"Error loading campaign cache analytics: {e}")
         return []
 

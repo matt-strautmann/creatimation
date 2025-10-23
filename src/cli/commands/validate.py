@@ -17,11 +17,11 @@ from rich.table import Table
 from ..constants import (
     BRIEF_REQUIRED_FIELDS,
     DEFAULT_CONFIG_FILENAME,
+    DEFAULT_WORKSPACE_CONFIG_TEMPLATE,
     REQUIRED_BRAND_GUIDE_SECTIONS,
     REQUIRED_WORKSPACE_DIRS,
     SUPPORTED_ASPECT_RATIOS,
     SUPPORTED_REGIONS,
-    DEFAULT_WORKSPACE_CONFIG_TEMPLATE,
 )
 from ..core import pass_context
 from ..utils.output import console, error_console

@@ -17,15 +17,14 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from ..constants import (
-    CONFIG_TEMPLATES,
     CONFIG_OUTPUT_FORMATS,
+    CONFIG_TEMPLATES,
     CONFIG_VALUE_TYPES,
-    REQUIRED_CONFIG_SECTIONS,
-    GLOBAL_CONFIG_DIR,
-    GLOBAL_CONFIG_FILENAME,
-    get_template_config,
     DEFAULT_CONFIG_VALUES,
     ENV_PREFIX,
+    GLOBAL_CONFIG_DIR,
+    GLOBAL_CONFIG_FILENAME,
+    REQUIRED_CONFIG_SECTIONS,
 )
 from ..core import pass_context
 from ..utils.output import console, error_console
