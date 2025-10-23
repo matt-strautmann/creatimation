@@ -274,7 +274,7 @@ class EnhancedCacheManager(CacheManager):
             Cache key for the registered asset
         """
         # Generate cache key and register in cache system
-        cache_key = self._generate_cache_key(file_path)
+        cache_key = str(self._generate_cache_key(file_path))
 
         # Register in semantic cache
         self.register_semantic_asset(
@@ -381,7 +381,7 @@ class EnhancedCacheManager(CacheManager):
             "total_products": 0,
             "total_backgrounds": 0,
             "reuse_potential": 0,
-            "disk_usage_mb": 0,
+            "disk_usage_mb": 0.0,
         }
 
         # Count library products

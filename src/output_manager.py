@@ -38,7 +38,7 @@ class OutputManager:
         metadata: dict,
         template: str = "hero-product",
         region: str = "US",
-        variant_id: str = None,
+        variant_id: str | None = None,
     ) -> str:
         """
         Save creative with regional semantic naming and metadata.

@@ -10,6 +10,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,12 @@ class StateTracker:
         self.state = self._load_state()
         logger.info(f"StateTracker initialized for campaign: {campaign_id}")
 
-    def _load_state(self) -> dict:
+    def _load_state(self) -> dict[Any, Any]:
         """Load state from disk if exists"""
         if self.state_file.exists():
             try:
                 with open(self.state_file) as f:
-                    state = json.load(f)
+                    state: dict[Any, Any] = json.load(f)
                 logger.info(f"Loaded existing state from {self.state_file}")
                 return state
             except Exception as e:
@@ -101,7 +102,7 @@ class StateTracker:
         Returns:
             True if step is completed
         """
-        return self.state["steps_completed"].get(step, False)
+        return bool(self.state["steps_completed"].get(step, False))
 
     def get_next_step(self) -> str | None:
         """
@@ -144,7 +145,7 @@ class StateTracker:
         self.state["products_state"][product_slug]["updated_at"] = datetime.now().isoformat()
         self._save_state()
 
-    def get_product_state(self, product_slug: str) -> dict | None:
+    def get_product_state(self, product_slug: str) -> dict[Any, Any] | None:
         """
         Get state for a specific product.
 
@@ -154,7 +155,8 @@ class StateTracker:
         Returns:
             Product state dict or None
         """
-        return self.state["products_state"].get(product_slug)
+        result = self.state["products_state"].get(product_slug)
+        return result if result is None else dict(result)
 
     def log_error(self, error_message: str, context: dict | None = None) -> None:
         """
