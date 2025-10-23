@@ -15,11 +15,10 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeEl
 from rich.table import Table
 
 from ..constants import (
-    SUPPORTED_ASPECT_RATIOS,
     DEFAULT_ASPECT_RATIOS,
     DEFAULT_REGIONS,
     LIFESTYLE_VARIANT_TYPES,
-    DEFAULT_VARIANT_TYPES,
+    SUPPORTED_ASPECT_RATIOS,
 )
 from ..core import pass_context, require_workspace
 from ..plugins import call_hook
@@ -88,10 +87,28 @@ def generate(ctx, brief, output, brand_guide, no_cache, resume, dry_run):
 @click.option("--no-cache", is_flag=True, help="Disable cache, regenerate everything")
 @click.option("--resume", is_flag=True, help="Resume from saved pipeline state")
 @click.option("--dry-run", is_flag=True, help="Preview generation plan without execution")
-@click.option("--simulate", is_flag=True, help="Fast simulation mode for demos (creates mock images)")
+@click.option(
+    "--simulate", is_flag=True, help="Fast simulation mode for demos (creates mock images)"
+)
+@click.option(
+    "--parallel", "-j", type=int, default=3, help="Number of parallel workers (default: 3)"
+)
 @pass_context
 @require_workspace
-def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cache, resume, dry_run, simulate):
+def campaign(
+    ctx,
+    brief,
+    output,
+    variants,
+    ratios,
+    regions,
+    brand_guide,
+    no_cache,
+    resume,
+    dry_run,
+    simulate,
+    parallel,
+):
     """
     Generate complete campaign assets from brief.
 
@@ -104,11 +121,13 @@ def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cach
     - Variant generation (base, color_shift, text_style, etc.)
     - Brand guide integration
     - Intelligent caching and resumption
+    - Parallel generation for faster processing
 
     Examples:
         creatimation generate campaign briefs/spring2025.json
         creatimation generate campaign briefs/spring2025.json --brand-guide guides/minimal.yml
         creatimation generate campaign briefs/spring2025.json --ratios 1x1,16x9 --regions US,EMEA
+        creatimation generate campaign briefs/spring2025.json --parallel 5
         creatimation generate campaign briefs/spring2025.json --dry-run
     """
     # Analytics hook: Track command start
@@ -155,7 +174,7 @@ def campaign(ctx, brief, output, variants, ratios, regions, brand_guide, no_cach
         # Get configured pipeline
         container = ctx.container
         pipeline = container.get_pipeline(
-            campaign_id=campaign_id, no_cache=no_cache, dry_run=dry_run
+            campaign_id=campaign_id, no_cache=no_cache, dry_run=dry_run, max_workers=parallel
         )
 
         # Show generation plan
@@ -374,7 +393,13 @@ def asset(ctx, product, message, ratio, region, variant, theme, output, brand_gu
 @generate.command()
 @click.argument("briefs_dir", type=click.Path(exists=True, file_okay=False))
 @click.option("--pattern", default="*.json", help="File pattern to match (default: *.json)")
-@click.option("--parallel", "-j", type=int, default=1, help="Number of parallel jobs")
+@click.option(
+    "--parallel",
+    "-j",
+    type=int,
+    default=3,
+    help="Number of parallel workers per campaign (default: 3)",
+)
 @click.option(
     "--brand-guide",
     "-g",
@@ -446,7 +471,10 @@ def batch(ctx, briefs_dir, pattern, parallel, brand_guide, no_cache, dry_run):
                 # Get pipeline for this campaign
                 container = ctx.container
                 pipeline = container.get_pipeline(
-                    campaign_id=campaign_id or f"batch_{i}", no_cache=no_cache, dry_run=dry_run
+                    campaign_id=campaign_id or f"batch_{i}",
+                    no_cache=no_cache,
+                    dry_run=dry_run,
+                    max_workers=parallel,
                 )
 
                 # Process campaign
@@ -758,8 +786,9 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
     import json
     import time
     from pathlib import Path
+
     from PIL import Image, ImageDraw, ImageFont
-    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
     # Load brief
     with open(brief_path) as f:
@@ -768,7 +797,9 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
     products = brief_data.get("products", [])
     regions = brief_data.get("target_regions", DEFAULT_REGIONS)
     ratios = brief_data.get("creative_requirements", {}).get("aspect_ratios", DEFAULT_ASPECT_RATIOS)
-    variants = brief_data.get("creative_requirements", {}).get("variant_types", LIFESTYLE_VARIANT_TYPES)
+    variants = brief_data.get("creative_requirements", {}).get(
+        "variant_types", LIFESTYLE_VARIANT_TYPES
+    )
 
     total_creatives = len(products) * len(regions) * len(ratios) * len(variants)
 
@@ -782,16 +813,16 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
         "9x16": (800, 1422),
         "16x9": (1422, 800),
         "4x5": (800, 1000),
-        "5x4": (1000, 800)
+        "5x4": (1000, 800),
     }
 
     # Color schemes for variants
     variant_colors = {
-        "base": ("#0066CC", "#FFFFFF"),      # Blue & White
-        "hero": ("#FFB900", "#000000"),      # Yellow & Black
-        "lifestyle": ("#00A86B", "#FFFFFF"), # Green & White
+        "base": ("#0066CC", "#FFFFFF"),  # Blue & White
+        "hero": ("#FFB900", "#000000"),  # Yellow & Black
+        "lifestyle": ("#00A86B", "#FFFFFF"),  # Green & White
         "color_shift": ("#FF6B35", "#FFFFFF"),
-        "text_style": ("#6B73FF", "#FFFFFF")
+        "text_style": ("#6B73FF", "#FFFFFF"),
     }
 
     results = {
@@ -801,7 +832,7 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
         "regions_processed": len(regions),
         "simulation": True,
         "output_dir": str(output_dir),
-        "files_created": []
+        "files_created": [],
     }
 
     with Progress(
@@ -824,7 +855,9 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
                     for variant in variants:
                         # Create realistic directory structure
                         variant_slug = variant.replace("_", "-")
-                        creative_dir = output_dir / product_slug / variant_slug / region.lower() / ratio
+                        creative_dir = (
+                            output_dir / product_slug / variant_slug / region.lower() / ratio
+                        )
                         creative_dir.mkdir(parents=True, exist_ok=True)
 
                         # Generate mock image
@@ -838,14 +871,14 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
                         try:
                             font_size = max(24, dims[1] // 20)
                             font = ImageFont.load_default()  # Fallback font
-                        except:
+                        except Exception:
                             font = ImageFont.load_default()
 
                         # Center text
                         text_lines = [
                             product_name,
                             f"{variant.title()} • {region}",
-                            f"{ratio} • Demo Mode"
+                            f"{ratio} • Demo Mode",
                         ]
 
                         y_start = dims[1] // 3
@@ -857,11 +890,15 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
                             draw.text((x, y), line, fill=text_color, font=font)
 
                         # Add decorative elements
-                        draw.rectangle([20, 20, dims[0]-20, 40], fill=text_color)
-                        draw.rectangle([20, dims[1]-40, dims[0]-20, dims[1]-20], fill=text_color)
+                        draw.rectangle([20, 20, dims[0] - 20, 40], fill=text_color)
+                        draw.rectangle(
+                            [20, dims[1] - 40, dims[0] - 20, dims[1] - 20], fill=text_color
+                        )
 
                         # Save image
-                        filename = f"{product_slug}_{variant_slug}_{region.lower()}_{ratio}_creative.jpg"
+                        filename = (
+                            f"{product_slug}_{variant_slug}_{region.lower()}_{ratio}_creative.jpg"
+                        )
                         image_path = creative_dir / filename
                         img.save(image_path, "JPEG", quality=90)
                         results["files_created"].append(str(image_path))
@@ -876,8 +913,10 @@ def _run_simulation(brief_path, brand_guide_path, campaign_id, ctx):
                             "template": variant_slug,
                             "simulation": True,
                             "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                            "file_size_bytes": image_path.stat().st_size if image_path.exists() else 0,
-                            "dimensions": dims
+                            "file_size_bytes": (
+                                image_path.stat().st_size if image_path.exists() else 0
+                            ),
+                            "dimensions": dims,
                         }
 
                         metadata_path = creative_dir / "metadata.json"
@@ -916,7 +955,7 @@ def _show_simulation_results(results):
     # Show sample files
     if results["files_created"]:
         console.print("[cyan]📁 Sample Generated Files:[/cyan]")
-        for i, file_path in enumerate(results["files_created"][:5]):  # Show first 5
+        for file_path in results["files_created"][:5]:  # Show first 5
             # Use simple path display to avoid relative path issues
             display_path = str(file_path).replace(str(Path.cwd()) + "/", "")
             console.print(f"   {display_path}")
@@ -925,6 +964,8 @@ def _show_simulation_results(results):
             console.print(f"   ... and {len(results['files_created']) - 5} more")
         console.print()
 
-    console.print("[yellow]💡 This was a simulation - images are mock demos, not AI-generated.[/yellow]")
+    console.print(
+        "[yellow]💡 This was a simulation - images are mock demos, not AI-generated.[/yellow]"
+    )
     console.print("[green]✓[/green] Perfect for demonstrations and testing output structure!")
     console.print()

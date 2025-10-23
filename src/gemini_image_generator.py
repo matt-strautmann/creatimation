@@ -77,6 +77,8 @@ class GeminiImageGenerator:
         """
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY")
         self.client = None
+        self._variant_warnings_shown = set()  # Track which variant warnings have been shown
+        self._message_cache = {}  # Cache regionally contextualized messages
 
         if not skip_init:
             if not self.api_key:
@@ -88,6 +90,108 @@ class GeminiImageGenerator:
             )
         else:
             logger.info("GeminiImageGenerator initialized in dry-run mode (client not initialized)")
+
+    def contextualize_message_for_region(
+        self,
+        campaign_message: str,
+        region: str,
+        product_name: str | None = None,
+    ) -> str:
+        """
+        Use Gemini to adapt campaign message for regional/cultural context.
+
+        Args:
+            campaign_message: Original campaign message
+            region: Target region (US, EMEA, LATAM, APAC)
+            product_name: Optional product name for additional context
+
+        Returns:
+            Regionally contextualized message
+        """
+        # Check cache first
+        cache_key = f"{campaign_message}:{region}"
+        if cache_key in self._message_cache:
+            logger.debug(f"Using cached message for {region}: {self._message_cache[cache_key]}")
+            return self._message_cache[cache_key]
+
+        # Regional context guidelines
+        regional_contexts = {
+            "US": "American English, direct and action-oriented tone, casual yet confident",
+            "EMEA": "International English, sophisticated and refined tone, premium positioning",
+            "LATAM": "Warm and family-oriented, vibrant and emotional language, community focus",
+            "APAC": "Clear and concise, harmony and quality emphasis, respectful tone",
+        }
+
+        context = regional_contexts.get(region, regional_contexts["US"])
+
+        # Build contextualization prompt
+        prompt = f"""Adapt this advertising campaign message for the {region} market:
+
+Original message: "{campaign_message}"
+
+Regional context: {context}
+
+Requirements:
+- Keep the message SHORT (2-5 words maximum)
+- Adapt language, tone, and cultural references for {region} audience
+- Maintain the core marketing intent and product positioning
+- Use culturally appropriate expressions and idioms
+- Ensure the message resonates with local values and preferences"""
+
+        if product_name:
+            prompt += f"\n- Product context: {product_name}"
+
+        prompt += """
+
+Output ONLY the adapted message text, nothing else.
+IMPORTANT: Do NOT include the region name or any prefix in your response (no "EMEA:", "US:", etc).
+Output the message exactly as it should appear on the creative."""
+
+        try:
+            logger.info(f"   🌍 Contextualizing message for {region}...")
+
+            @retry_api_call(max_retries=2, delay=0.5)
+            def _contextualize():
+                response = self.client.models.generate_content(
+                    model="gemini-2.0-flash-exp",
+                    contents=[prompt],
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        max_output_tokens=50,
+                    ),
+                )
+                return response.text.strip()
+
+            adapted_message = _contextualize()
+
+            # Clean up response (remove quotes if present)
+            adapted_message = adapted_message.strip('"').strip("'").strip()
+
+            # Remove any region prefixes that slipped through
+            for region_name in [
+                "US:",
+                "EMEA:",
+                "LATAM:",
+                "APAC:",
+                "US -",
+                "EMEA -",
+                "LATAM -",
+                "APAC -",
+            ]:
+                if adapted_message.startswith(region_name):
+                    adapted_message = adapted_message[len(region_name) :].strip()
+                    break
+
+            # Cache the result
+            self._message_cache[cache_key] = adapted_message
+
+            logger.info(f"      → {region}: {adapted_message}")
+            return adapted_message
+
+        except Exception as e:
+            logger.warning(f"Failed to contextualize message for {region}: {e}")
+            logger.warning(f"Falling back to original message: {campaign_message}")
+            return campaign_message
 
     def generate_product_only(
         self,
@@ -393,7 +497,7 @@ class GeminiImageGenerator:
             if response is None:
                 raise ValueError("API returned None response")
 
-            if not hasattr(response, 'parts') or response.parts is None:
+            if not hasattr(response, "parts") or response.parts is None:
                 raise ValueError("API response missing parts data")
 
             # Extract image from response
@@ -638,7 +742,12 @@ class GeminiImageGenerator:
                 layout_instructions = f"{variant_layout} with {layout_instructions}"
         elif not theme:
             # Only warn if no theme provided from brief and no brand guide variants
-            logger.warning(f"⚠️ No variant composition found for {variant_id} in brand guide and no theme provided")
+            # Show warning once per variant type per campaign
+            if variant_id not in self._variant_warnings_shown:
+                logger.warning(
+                    f"⚠️ No variant composition found for {variant_id} in brand guide and no theme provided"
+                )
+                self._variant_warnings_shown.add(variant_id)
 
         # Text overlay instructions
         prompt_parts.append(

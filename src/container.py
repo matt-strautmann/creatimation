@@ -104,7 +104,7 @@ class DIContainer:
         return StateTracker(campaign_id)
 
     def get_pipeline(
-        self, campaign_id: str, no_cache: bool = False, dry_run: bool = False
+        self, campaign_id: str, no_cache: bool = False, dry_run: bool = False, max_workers: int = 3
     ) -> CreativePipeline:
         """Get configured pipeline instance."""
         return CreativePipeline(
@@ -116,6 +116,7 @@ class DIContainer:
             state_tracker=self.get_state_tracker(campaign_id),
             no_cache=no_cache,
             dry_run=dry_run,
+            max_workers=max_workers,
         )
 
     def create_from_config(self, config_path: str) -> "DIContainer":
