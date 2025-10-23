@@ -15,6 +15,14 @@ from rich.prompt import Confirm
 from rich.table import Table
 from rich.tree import Tree
 
+from ..constants import (
+    DEFAULT_WORKSPACE_DIRS,
+    KEY_WORKSPACE_DIRS,
+    OUTPUT_FORMATS,
+    WORKSPACE_TEMPLATES,
+    get_template_config,
+    get_sample_brief_data,
+)
 from ..core import pass_context
 from ..utils.output import console, error_console
 
@@ -65,7 +73,7 @@ def workspace(ctx, list_workspaces):
 @click.option(
     "--template",
     "-t",
-    type=click.Choice(["minimal", "cpg", "fashion", "tech", "custom"]),
+    type=click.Choice(WORKSPACE_TEMPLATES),
     default="minimal",
     help="Workspace template to use",
 )
@@ -118,7 +126,7 @@ def init(ctx, name, template, brand, industry, path, force):
         console.print()
 
         # Create directories
-        directories = ["briefs", "brand-guides", "output", "cache", "templates", "assets"]
+        directories = DEFAULT_WORKSPACE_DIRS
 
         for directory in directories:
             dir_path = workspace_path / directory
@@ -165,7 +173,7 @@ def init(ctx, name, template, brand, industry, path, force):
 
 @workspace.command(name="list")
 @click.option(
-    "--format", type=click.Choice(["table", "tree", "json"]), default="table", help="Output format"
+    "--format", type=click.Choice(OUTPUT_FORMATS), default="table", help="Output format"
 )
 @pass_context
 def list_workspaces_cmd(ctx, format):
@@ -525,12 +533,12 @@ def _find_workspace(name: str) -> Path | None:
 
 def _get_template_config(template: str, name: str, brand: str | None, industry: str | None) -> str:
     """Generate configuration content based on template."""
-    config = {
-        "project": {"name": brand or name, "workspace": name},
-        "generation": {"default_variants": 3, "aspect_ratios": ["1x1", "9x16", "16x9"]},
-        "cache": {"enabled": True, "directory": "cache"},
-        "output": {"directory": "output", "semantic_structure": True},
-    }
+    # Get base configuration from constants
+    config = get_template_config(template)
+
+    # Set project-specific details
+    config["project"]["name"] = brand or name
+    config["project"]["workspace"] = name
 
     if brand:
         config["project"]["brand"] = brand
@@ -538,17 +546,8 @@ def _get_template_config(template: str, name: str, brand: str | None, industry: 
     if industry:
         config["project"]["industry"] = industry
 
-    # Template-specific configurations
-    if template == "cpg":
-        config["generation"]["aspect_ratios"] = ["1x1", "9x16", "16x9", "4x5", "5x4"]
-        config["generation"]["default_variants"] = 5
-        config["project"]["template"] = "cpg"
-    elif template == "fashion":
-        config["generation"]["aspect_ratios"] = ["9x16", "4x5", "1x1", "16x9"]
-        config["project"]["template"] = "fashion"
-    elif template == "tech":
-        config["generation"]["aspect_ratios"] = ["16x9", "1x1", "9x16"]
-        config["project"]["template"] = "tech"
+    # Set template type
+    config["project"]["template"] = template
 
     import yaml
 
@@ -585,30 +584,18 @@ def _get_cpg_sample_brief(brand: str) -> str:
     """Generate CPG sample brief."""
     import json
 
-    brief = {
-        "campaign_id": "sample_cpg_campaign",
-        "products": ["Power Dish Soap", "Eco Laundry Detergent", "Multi-Surface Cleaner"],
-        "target_regions": ["US", "EMEA", "APAC"],
-        "campaign_message": "Clean with confidence",
-        "creative_requirements": {
-            "aspect_ratios": ["1x1", "9x16", "16x9", "4x5", "5x4"],
-            "variant_types": ["base", "color_shift", "premium"],
-            "variant_themes": {
-                "base": "clean modern style",
-                "color_shift": "bold dynamic style",
-                "premium": "elegant premium style",
-            },
-        },
-        "enhanced_context": {
-            "setting": "modern kitchen environment",
-            "mood": "fresh and efficient",
-            "brand_colors": {"primary": "#2E7D32", "secondary": "#66BB6A"},
-        },
-        "regional_adaptations": {
-            "US": {"call_to_action": "Try Now"},
-            "EMEA": {"call_to_action": "Discover More"},
-            "APAC": {"call_to_action": "Learn More"},
-        },
+    brief = get_sample_brief_data("cpg")
+    brief["enhanced_context"] = {
+        "setting": "modern kitchen environment",
+        "mood": "fresh and efficient",
+        "brand_colors": {"primary": "#2E7D32", "secondary": "#66BB6A"},
+        "brand_tone": "confident and reassuring",
+        "target_audience": f"{brand} customers seeking effective cleaning solutions",
+    }
+    brief["regional_adaptations"] = {
+        "US": {"call_to_action": "Try Now"},
+        "EMEA": {"call_to_action": "Discover More"},
+        "APAC": {"call_to_action": "Learn More"},
     }
 
     return json.dumps(brief, indent=2)
@@ -618,25 +605,13 @@ def _get_fashion_sample_brief(brand: str) -> str:
     """Generate fashion sample brief."""
     import json
 
-    brief = {
-        "campaign_id": "sample_fashion_campaign",
-        "products": ["Summer Collection", "Evening Wear", "Casual Essentials"],
-        "target_regions": ["US", "EMEA"],
-        "campaign_message": "Style that speaks to you",
-        "creative_requirements": {
-            "aspect_ratios": ["9x16", "4x5", "1x1"],
-            "variant_types": ["elegant", "casual", "bold"],
-            "variant_themes": {
-                "elegant": "sophisticated luxury",
-                "casual": "effortless comfort",
-                "bold": "statement pieces",
-            },
-        },
-        "enhanced_context": {
-            "setting": "urban lifestyle environment",
-            "mood": "confident and stylish",
-            "brand_colors": {"primary": "#212121", "secondary": "#BDBDBD"},
-        },
+    brief = get_sample_brief_data("fashion")
+    brief["enhanced_context"] = {
+        "setting": "urban lifestyle environment",
+        "mood": "confident and stylish",
+        "brand_colors": {"primary": "#E91E63", "secondary": "#9C27B0"},
+        "brand_tone": "inspiring and aspirational",
+        "target_audience": f"{brand} fashion-forward individuals",
     }
 
     return json.dumps(brief, indent=2)
@@ -646,25 +621,13 @@ def _get_tech_sample_brief(brand: str) -> str:
     """Generate tech sample brief."""
     import json
 
-    brief = {
-        "campaign_id": "sample_tech_campaign",
-        "products": ["Smart Device", "Mobile App", "Cloud Service"],
-        "target_regions": ["US", "APAC"],
-        "campaign_message": "Innovation that works",
-        "creative_requirements": {
-            "aspect_ratios": ["16x9", "1x1", "9x16"],
-            "variant_types": ["professional", "consumer", "enterprise"],
-            "variant_themes": {
-                "professional": "sleek and minimal",
-                "consumer": "friendly and approachable",
-                "enterprise": "powerful and reliable",
-            },
-        },
-        "enhanced_context": {
-            "setting": "modern office environment",
-            "mood": "innovative and efficient",
-            "brand_colors": {"primary": "#1976D2", "secondary": "#42A5F5"},
-        },
+    brief = get_sample_brief_data("tech")
+    brief["enhanced_context"] = {
+        "setting": "modern office environment",
+        "mood": "innovative and efficient",
+        "brand_colors": {"primary": "#1976D2", "secondary": "#42A5F5"},
+        "brand_tone": "professional and forward-thinking",
+        "target_audience": f"{brand} technology professionals and businesses",
     }
 
     return json.dumps(brief, indent=2)
@@ -674,21 +637,13 @@ def _get_minimal_sample_brief(brand: str) -> str:
     """Generate minimal sample brief."""
     import json
 
-    brief = {
-        "campaign_id": "sample_campaign",
-        "products": ["Product A", "Product B"],
-        "target_regions": ["US"],
-        "campaign_message": "Quality you can trust",
-        "creative_requirements": {
-            "aspect_ratios": ["1x1", "9x16", "16x9"],
-            "variant_types": ["base"],
-            "variant_themes": {"base": "clean and professional"},
-        },
-        "enhanced_context": {
-            "setting": "clean modern environment",
-            "mood": "professional and trustworthy",
-            "brand_colors": {"primary": "#1565C0"},
-        },
+    brief = get_sample_brief_data("minimal")
+    brief["enhanced_context"] = {
+        "setting": "clean modern environment",
+        "mood": "professional and trustworthy",
+        "brand_colors": {"primary": "#1565C0"},
+        "brand_tone": "reliable and straightforward",
+        "target_audience": f"{brand} customers",
     }
 
     return json.dumps(brief, indent=2)
@@ -861,7 +816,7 @@ def _display_detailed_workspace_info(workspace_path: Path):
 
     structure_tree = Tree("📁 Workspace")
 
-    key_dirs = ["briefs", "brand-guides", "output", "cache", "templates", "assets"]
+    key_dirs = KEY_WORKSPACE_DIRS
     for dir_name in key_dirs:
         dir_path = workspace_path / dir_name
         if dir_path.exists():

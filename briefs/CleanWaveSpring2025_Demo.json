@@ -1,11 +1,12 @@
 {
-  "campaign_id": "cleanwave_spring_2026",
-  "campaign_name": "CleanWave Spring Freshness Launch 2026",
+  "campaign_id": "cleanwave_spring_demo_2025",
+  "campaign_name": "CleanWave Spring Demo - Fast Test Run",
   "products": [
     {
       "name": "CleanWave Original Liquid Detergent",
       "category": "Laundry Care",
-      "description": "Powerful clean with long-lasting freshness"
+      "description": "Powerful clean with long-lasting freshness",
+      "asset_path": "assets/products/cleanwave-original-liquid-detergent.png"
     },
     {
       "name": "CleanWave Pods Spring Meadow",
@@ -13,26 +14,26 @@
       "description": "Convenient pre-measured pods with fresh spring scent"
     }
   ],
-  "target_regions": ["US", "APAC"],
+  "target_regions": ["US", "EMEA"],
   "target_audience": "Busy families with active kids",
   "campaign_message": "Spring Into Freshness",
   "creative_requirements": {
-    "aspect_ratios": ["1x1", "9x16", "16x9"],
-    "variant_types": ["base", "color_shift", "text_style"],
+    "aspect_ratios": ["1x1", "16x9", "9x16"],
+    "variant_types": ["base", "hero", "lifestyle"],
     "variant_themes": {
       "base": "Clean and modern spring aesthetic with product focus",
-      "color_shift": "Vibrant color palette with energetic spring tones",
-      "text_style": "Bold typography with prominent messaging"
+      "hero": "Bold hero product shot with vibrant spring colors",
+      "lifestyle": "Family moments with fresh, clean laundry"
     },
     "variant_color_rules": {
       "base": "use_primary",
-      "color_shift": "use_accent",
-      "text_style": "use_primary"
+      "hero": "use_accent",
+      "lifestyle": "use_secondary"
     },
     "layout_preferences": {
       "1x1": "centered product with balanced composition",
-      "9x16": "vertical story format with product top-third",
-      "16x9": "hero landscape with product left-aligned"
+      "16x9": "hero landscape with product left-aligned",
+      "9x16": "vertical story format with product top-third"
     },
     "text_treatment": {
       "font_weight": "bold",
@@ -47,10 +48,10 @@
       "currency": "USD",
       "legal_disclaimer": "*Limited time offer. See store for details."
     },
-    "APAC": {
+    "EMEA": {
       "call_to_action": "Choose CleanWave",
       "cultural_notes": "Emphasize quality and reliability",
-      "currency": "AUD",
+      "currency": "EUR",
       "legal_disclaimer": "*Limited time offer. Terms and conditions apply."
     }
   }

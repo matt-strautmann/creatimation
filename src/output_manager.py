@@ -178,11 +178,10 @@ class OutputManager:
         for product_dir in self.output_dir.iterdir():
             if product_dir.is_dir():
                 products.append(product_dir.name)
-                for ratio_dir in product_dir.iterdir():
-                    if ratio_dir.is_dir():
-                        for file in ratio_dir.glob("*.jpg"):
-                            total_files += 1
-                            total_size += file.stat().st_size
+                # Recursively find all .jpg files in the directory tree
+                for file in product_dir.rglob("*.jpg"):
+                    total_files += 1
+                    total_size += file.stat().st_size
 
         return {
             "total_creatives": total_files,

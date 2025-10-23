@@ -17,7 +17,9 @@ from rich.prompt import Confirm
 from rich.table import Table
 from rich.tree import Tree
 
+from ..constants import OUTPUT_FORMATS, CACHE_TYPES
 from ..core import pass_context
+from ..plugins import call_hook
 from ..utils.output import console, error_console
 
 
@@ -58,7 +60,7 @@ def cache(ctx, stats):
 @cache.command(name="stats")
 @click.option("--detailed", "-d", is_flag=True, help="Show detailed cache breakdown")
 @click.option(
-    "--format", type=click.Choice(["table", "tree", "json"]), default="table", help="Output format"
+    "--format", type=click.Choice(OUTPUT_FORMATS), default="table", help="Output format"
 )
 @pass_context
 def stats_cmd(ctx, detailed, format):
@@ -109,7 +111,7 @@ def stats_cmd(ctx, detailed, format):
 @cache.command()
 @click.option(
     "--type",
-    type=click.Choice(["all", "products", "backgrounds", "metadata", "generated"]),
+    type=click.Choice(CACHE_TYPES),
     default="all",
     help="Type of cache to clear",
 )
@@ -133,6 +135,12 @@ def clear(ctx, type, older_than, force, dry_run):
         creatimation cache clear --dry-run
         creatimation cache clear --type generated --force
     """
+    # Analytics hook: Track command start
+    call_hook("before_command", command_name="cache_clear")
+
+    command_success = False
+    start_time = time.time()
+
     try:
         # Get cache manager
         container = ctx.container
@@ -194,12 +202,22 @@ def clear(ctx, type, older_than, force, dry_run):
         console.print(f"[green]✓[/green] Cleared {cleared_count} cache entries")
         console.print(f"[dim]Freed {clear_stats['total_size_mb']:.1f} MB of storage[/dim]")
         console.print()
+        command_success = True
 
     except Exception as e:
         error_console.print(f"[red]✗[/red] Failed to clear cache: {e}")
         if ctx.verbose >= 2:
             console.print_exception()
         sys.exit(1)
+
+    finally:
+        # Analytics hook: Track command completion
+        call_hook(
+            "after_command",
+            command_name="cache_clear",
+            success=command_success,
+            duration=time.time() - start_time,
+        )
 
 
 @cache.command()
@@ -286,7 +304,7 @@ def optimize(ctx, deduplicate, compress, rebuild_index):
 @cache.command()
 @click.option(
     "--type",
-    type=click.Choice(["products", "backgrounds", "metadata", "generated"]),
+    type=click.Choice(CACHE_TYPES[1:]),  # Exclude "all" option for inspect
     help="Inspect specific cache type",
 )
 @click.option("--limit", "-n", type=int, default=20, help="Limit number of entries to show")
@@ -576,38 +594,59 @@ def _collect_cache_statistics(cache_manager) -> dict[str, Any]:
     stats = {
         "total_size_bytes": 0,
         "total_files": 0,
+        "total_entries": 0,
         "categories": {},
         "hit_rate": 0.0,
         "access_patterns": {},
         "storage_efficiency": 0.0,
+        "type_breakdown": {},
     }
 
     try:
-        # Get cache directory
+        # Get actual stats from cache manager
+        cache_stats = cache_manager.get_cache_stats()
+
+        # Use real data from cache manager
+        stats["total_size_bytes"] = cache_stats.get("total_size_bytes", 0)
+        stats["total_entries"] = cache_stats.get("total_entries", 0)
+        stats["type_breakdown"] = cache_stats.get("by_type", {})
+
+        # Count actual files on disk
         cache_dir = getattr(cache_manager, "cache_dir", Path("cache"))
+        if cache_dir.exists():
+            for root, _dirs, files in os.walk(cache_dir):
+                for file in files:
+                    file_path = Path(root) / file
+                    stats["total_files"] += 1
 
-        if not cache_dir.exists():
-            return stats
+                    # Categorize by file type/location
+                    category = _categorize_cache_file(file_path, cache_dir)
+                    if category not in stats["categories"]:
+                        stats["categories"][category] = {"files": 0, "size": 0}
 
-        # Walk through cache directory
-        for root, _dirs, files in os.walk(cache_dir):
-            for file in files:
-                file_path = Path(root) / file
-                file_size = file_path.stat().st_size
+                    file_size = file_path.stat().st_size
+                    stats["categories"][category]["files"] += 1
+                    stats["categories"][category]["size"] += file_size
 
-                stats["total_size_bytes"] += file_size
-                stats["total_files"] += 1
+        # Calculate hit rate from cache index if available
+        if hasattr(cache_manager, 'index'):
+            total_accesses = 0
+            successful_accesses = 0
 
-                # Categorize by file type/location
-                category = _categorize_cache_file(file_path, cache_dir)
-                if category not in stats["categories"]:
-                    stats["categories"][category] = {"files": 0, "size": 0}
+            for entry in cache_manager.index.values():
+                # Count entries that have been accessed (exist and have been used)
+                file_path = Path(entry.get("file_path", ""))
+                if file_path.exists():
+                    successful_accesses += 1
+                total_accesses += 1
 
-                stats["categories"][category]["files"] += 1
-                stats["categories"][category]["size"] += file_size
+            if total_accesses > 0:
+                stats["hit_rate"] = (successful_accesses / total_accesses) * 100
 
-    except Exception:
-        pass  # Handle gracefully
+    except Exception as e:
+        # Log but don't fail
+        import logging
+        logging.debug(f"Error collecting cache statistics: {e}")
 
     return stats
 
@@ -633,10 +672,52 @@ def _calculate_clear_stats(
     cache_manager, clear_type: str, older_than: int | None
 ) -> dict[str, Any]:
     """Calculate what would be cleared based on criteria."""
+    import time
+
     stats = {"total_files": 0, "total_size_mb": 0.0, "by_category": {}}
 
-    # Placeholder implementation
-    # In real implementation, would scan cache and apply filters
+    if not hasattr(cache_manager, 'index'):
+        return stats
+
+    cutoff_time = None
+    if older_than:
+        cutoff_time = time.time() - (older_than * 24 * 3600)
+
+    for key, entry in cache_manager.index.items():
+        metadata = entry.get("metadata", {})
+        cache_type = metadata.get("type", "unknown")
+
+        # Filter by type
+        if clear_type != "all":
+            if clear_type == "products" and cache_type != "product":
+                continue
+            elif clear_type == "backgrounds" and cache_type != "background":
+                continue
+            elif clear_type == "generated" and cache_type not in ["creative_output", "generated"]:
+                continue
+            elif clear_type == "metadata" and cache_type != "metadata":
+                continue
+
+        # Filter by age
+        if cutoff_time:
+            created_at = entry.get("created_at", "")
+            try:
+                entry_time = time.mktime(time.strptime(created_at, "%Y-%m-%d %H:%M:%S"))
+                if entry_time > cutoff_time:
+                    continue
+            except (ValueError, TypeError):
+                pass  # Skip entries with invalid timestamps
+
+        # Count this entry
+        stats["total_files"] += 1
+        size_mb = entry.get("size_bytes", 0) / (1024 * 1024)
+        stats["total_size_mb"] += size_mb
+
+        # Track by category
+        if cache_type not in stats["by_category"]:
+            stats["by_category"][cache_type] = {"count": 0, "size_mb": 0.0}
+        stats["by_category"][cache_type]["count"] += 1
+        stats["by_category"][cache_type]["size_mb"] += size_mb
 
     return stats
 
@@ -645,10 +726,70 @@ def _perform_cache_clear(
     cache_manager, clear_type: str, older_than: int | None, progress_callback
 ) -> int:
     """Perform the actual cache clearing operation."""
+    import time
+
     cleared_count = 0
 
-    # Placeholder implementation
-    # In real implementation, would delete matching files
+    if not hasattr(cache_manager, 'index'):
+        return cleared_count
+
+    cutoff_time = None
+    if older_than:
+        cutoff_time = time.time() - (older_than * 24 * 3600)
+
+    keys_to_remove = []
+
+    for key, entry in cache_manager.index.items():
+        metadata = entry.get("metadata", {})
+        cache_type = metadata.get("type", "unknown")
+
+        # Filter by type
+        should_clear = False
+        if clear_type == "all":
+            should_clear = True
+        elif clear_type == "products" and cache_type == "product":
+            should_clear = True
+        elif clear_type == "backgrounds" and cache_type == "background":
+            should_clear = True
+        elif clear_type == "generated" and cache_type in ["creative_output", "generated"]:
+            should_clear = True
+        elif clear_type == "metadata" and cache_type == "metadata":
+            should_clear = True
+
+        if not should_clear:
+            continue
+
+        # Filter by age
+        if cutoff_time:
+            created_at = entry.get("created_at", "")
+            try:
+                entry_time = time.mktime(time.strptime(created_at, "%Y-%m-%d %H:%M:%S"))
+                if entry_time > cutoff_time:
+                    continue
+            except (ValueError, TypeError):
+                pass  # Skip entries with invalid timestamps
+
+        # Mark for removal
+        keys_to_remove.append(key)
+
+        # Delete the actual file
+        file_path = Path(entry.get("file_path", ""))
+        if file_path.exists():
+            try:
+                file_path.unlink()
+                cleared_count += 1
+                if progress_callback:
+                    progress_callback()
+            except Exception:
+                pass  # Continue even if file deletion fails
+
+    # Remove from index
+    for key in keys_to_remove:
+        del cache_manager.index[key]
+
+    # Save updated index
+    if keys_to_remove and hasattr(cache_manager, '_save_index'):
+        cache_manager._save_index()
 
     return cleared_count
 
@@ -675,8 +816,57 @@ def _get_cache_entries(
     cache_manager, entry_type: str | None, sort_by: str, limit: int
 ) -> list[dict[str, Any]]:
     """Get cache entries for inspection."""
-    # Placeholder implementation
-    return []
+    entries = []
+
+    if not hasattr(cache_manager, 'index'):
+        return entries
+
+    # Map CLI type names to cache type names
+    type_mapping = {
+        "products": "product",
+        "backgrounds": "background",
+        "metadata": "metadata",
+        "generated": "creative_output",
+    }
+
+    target_type = type_mapping.get(entry_type) if entry_type else None
+
+    for key, entry in cache_manager.index.items():
+        metadata = entry.get("metadata", {})
+        cache_type = metadata.get("type", "unknown")
+
+        # Filter by type if specified
+        if target_type and cache_type != target_type:
+            continue
+
+        # Build entry info
+        entry_info = {
+            "key": key,
+            "type": cache_type,
+            "file_path": entry.get("file_path", ""),
+            "size_bytes": entry.get("size_bytes", 0),
+            "created_at": entry.get("created_at", ""),
+            "accessed_at": entry.get("accessed_at", ""),
+            "metadata": metadata,
+        }
+
+        entries.append(entry_info)
+
+    # Sort entries
+    if sort_by == "size":
+        entries.sort(key=lambda x: x["size_bytes"], reverse=True)
+    elif sort_by == "date":
+        entries.sort(key=lambda x: x["created_at"], reverse=True)
+    elif sort_by == "access":
+        entries.sort(key=lambda x: x["accessed_at"], reverse=True)
+    else:  # type
+        entries.sort(key=lambda x: x["type"])
+
+    # Apply limit
+    if limit > 0:
+        entries = entries[:limit]
+
+    return entries
 
 
 def _calculate_sync_operations(
@@ -699,28 +889,180 @@ def _calculate_cleanup_operations(
     cache_manager, max_age: int, max_size: int | None, keep_recent: int
 ) -> dict[str, Any]:
     """Calculate cleanup operations needed."""
-    # Placeholder implementation
-    return {"total_removals": 0, "size_saved_mb": 0.0}
+    import time
+
+    result = {"total_removals": 0, "size_saved_mb": 0.0, "entries_to_remove": []}
+
+    if not hasattr(cache_manager, 'index'):
+        return result
+
+    cutoff_time = time.time() - (max_age * 24 * 3600)
+
+    # Get all entries sorted by access time
+    entries = []
+    for key, entry in cache_manager.index.items():
+        accessed_at = entry.get("accessed_at", "")
+        try:
+            access_time = time.mktime(time.strptime(accessed_at, "%Y-%m-%d %H:%M:%S"))
+        except (ValueError, TypeError):
+            access_time = 0
+
+        entries.append({
+            "key": key,
+            "entry": entry,
+            "access_time": access_time,
+        })
+
+    # Sort by access time (most recent first)
+    entries.sort(key=lambda x: x["access_time"], reverse=True)
+
+    # Keep the most recent entries
+    entries_to_check = entries[keep_recent:]
+
+    for item in entries_to_check:
+        # Remove if older than max_age
+        if item["access_time"] < cutoff_time:
+            result["total_removals"] += 1
+            size_mb = item["entry"].get("size_bytes", 0) / (1024 * 1024)
+            result["size_saved_mb"] += size_mb
+            result["entries_to_remove"].append(item["key"])
+
+    return result
 
 
 def _perform_cache_cleanup(
     cache_manager, max_age: int, max_size: int | None, keep_recent: int, progress_callback
 ) -> int:
     """Perform cache cleanup."""
-    # Placeholder implementation
-    return 0
+    cleanup_ops = _calculate_cleanup_operations(cache_manager, max_age, max_size, keep_recent)
+
+    removed_count = 0
+    for key in cleanup_ops["entries_to_remove"]:
+        if key in cache_manager.index:
+            entry = cache_manager.index[key]
+            file_path = Path(entry.get("file_path", ""))
+
+            # Delete file
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                    removed_count += 1
+                    if progress_callback:
+                        progress_callback()
+                except Exception:
+                    pass
+
+            # Remove from index
+            del cache_manager.index[key]
+
+    # Save updated index
+    if removed_count > 0 and hasattr(cache_manager, '_save_index'):
+        cache_manager._save_index()
+
+    return removed_count
 
 
 def _check_cache_index_status(cache_manager) -> dict[str, Any]:
     """Check cache index validity."""
-    # Placeholder implementation
+    issues = []
+
+    if not hasattr(cache_manager, 'index'):
+        return {"valid": False, "issue": "Cache manager has no index"}
+
+    # Check for missing files
+    missing_files = 0
+    for key, entry in cache_manager.index.items():
+        file_path = Path(entry.get("file_path", ""))
+        if not file_path.exists():
+            missing_files += 1
+
+    if missing_files > 0:
+        issues.append(f"{missing_files} entries reference missing files")
+
+    # Check for orphaned files (files not in index)
+    cache_dir = getattr(cache_manager, "cache_dir", Path("cache"))
+    if cache_dir.exists():
+        indexed_files = {Path(e.get("file_path", "")) for e in cache_manager.index.values()}
+        orphaned_files = 0
+
+        for root, _dirs, files in os.walk(cache_dir):
+            for file in files:
+                file_path = Path(root) / file
+                if file_path.name != "index.json" and file_path not in indexed_files:
+                    orphaned_files += 1
+
+        if orphaned_files > 0:
+            issues.append(f"{orphaned_files} files not indexed")
+
+    if issues:
+        return {"valid": False, "issue": "; ".join(issues)}
+
     return {"valid": True, "issue": None}
 
 
 def _rebuild_cache_index_full(cache_manager) -> dict[str, Any]:
     """Perform full cache index rebuild."""
-    # Placeholder implementation
-    return {"entries_count": 0, "categories_count": 0}
+    import hashlib
+
+    if not hasattr(cache_manager, 'index'):
+        return {"entries_count": 0, "categories_count": 0}
+
+    # Clean out stale entries
+    keys_to_remove = []
+    for key, entry in cache_manager.index.items():
+        file_path = Path(entry.get("file_path", ""))
+        if not file_path.exists():
+            keys_to_remove.append(key)
+
+    for key in keys_to_remove:
+        del cache_manager.index[key]
+
+    # Scan cache directory for orphaned files
+    cache_dir = getattr(cache_manager, "cache_dir", Path("cache"))
+    indexed_files = {Path(e.get("file_path", "")) for e in cache_manager.index.values()}
+
+    added_count = 0
+    if cache_dir.exists():
+        for root, _dirs, files in os.walk(cache_dir):
+            for file in files:
+                file_path = Path(root) / file
+
+                # Skip index file
+                if file_path.name == "index.json":
+                    continue
+
+                # Skip already indexed files
+                if file_path in indexed_files:
+                    continue
+
+                # Create new index entry for orphaned file
+                cache_key = hashlib.sha256(str(file_path).encode()).hexdigest()[:16]
+                cache_manager.index[cache_key] = {
+                    "key": cache_key,
+                    "file_path": str(file_path),
+                    "metadata": {"type": "unknown"},
+                    "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "accessed_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "size_bytes": file_path.stat().st_size,
+                }
+                added_count += 1
+
+    # Save updated index
+    if (keys_to_remove or added_count > 0) and hasattr(cache_manager, '_save_index'):
+        cache_manager._save_index()
+
+    # Count categories
+    categories = set()
+    for entry in cache_manager.index.values():
+        cache_type = entry.get("metadata", {}).get("type", "unknown")
+        categories.add(cache_type)
+
+    return {
+        "entries_count": len(cache_manager.index),
+        "categories_count": len(categories),
+        "removed": len(keys_to_remove),
+        "added": added_count,
+    }
 
 
 # ============================================================================
@@ -736,11 +1078,44 @@ def _display_cache_stats_table(stats: dict[str, Any], detailed: bool):
     main_table.add_column("Value", style="green")
 
     total_size_mb = stats["total_size_bytes"] / (1024 * 1024)
+    main_table.add_row("Total Entries", str(stats["total_entries"]))
     main_table.add_row("Total Files", str(stats["total_files"]))
     main_table.add_row("Total Size", f"{total_size_mb:.1f} MB")
     main_table.add_row("Hit Rate", f"{stats['hit_rate']:.1f}%")
 
     console.print(main_table)
+
+    # Type breakdown
+    if stats.get("type_breakdown"):
+        console.print()
+        type_table = Table(title="Cache Entry Types", show_header=True)
+        type_table.add_column("Type", style="cyan")
+        type_table.add_column("Count", style="green")
+
+        for entry_type, count in stats["type_breakdown"].items():
+            type_table.add_row(entry_type, str(count))
+
+        console.print(type_table)
+
+    # Per-campaign cache analytics
+    campaign_analytics = _get_campaign_cache_analytics()
+    if campaign_analytics:
+        console.print()
+        campaign_table = Table(title="Per-Campaign Cache Analytics", show_header=True)
+        campaign_table.add_column("Campaign", style="cyan")
+        campaign_table.add_column("Cache Hit Rate", style="green")
+        campaign_table.add_column("Cache Hits", style="yellow")
+        campaign_table.add_column("Cache Misses", style="red")
+
+        for campaign_data in campaign_analytics:
+            campaign_table.add_row(
+                campaign_data["campaign_id"],
+                f"{campaign_data['cache_hit_rate']:.1f}%",
+                str(campaign_data["cache_hits"]),
+                str(campaign_data["cache_misses"])
+            )
+
+        console.print(campaign_table)
 
     if detailed and stats["categories"]:
         console.print()
@@ -865,20 +1240,42 @@ def _display_optimization_results(initial_stats: dict[str, Any], final_stats: di
 def _display_cache_entries(entries: list[dict[str, Any]], entry_type: str | None):
     """Display cache entries for inspection."""
     if not entries:
+        console.print("[yellow]No cache entries found[/yellow]")
         return
 
     table = Table(title=f"Cache Entries - {entry_type or 'All'}", show_header=True)
-    table.add_column("Name", style="cyan")
-    table.add_column("Size", style="yellow")
-    table.add_column("Modified", style="green")
-    table.add_column("Hits", style="blue")
+    table.add_column("Type", style="cyan", width=15)
+    table.add_column("Name", style="yellow", no_wrap=False)
+    table.add_column("Size", style="green")
+    table.add_column("Created", style="blue")
 
     for entry in entries:
+        # Extract meaningful name from metadata
+        metadata = entry.get("metadata", {})
+        name = (
+            metadata.get("product_name")
+            or metadata.get("asset_name")
+            or Path(entry.get("file_path", "")).name
+            or "Unknown"
+        )
+
+        # Format size
+        size_bytes = entry.get("size_bytes", 0)
+        if size_bytes > 1024 * 1024:
+            size_str = f"{size_bytes / (1024 * 1024):.1f} MB"
+        elif size_bytes > 1024:
+            size_str = f"{size_bytes / 1024:.1f} KB"
+        else:
+            size_str = f"{size_bytes} B"
+
+        # Format created date
+        created_at = entry.get("created_at", "Unknown")
+
         table.add_row(
-            entry.get("name", "Unknown"),
-            entry.get("size", "0 B"),
-            entry.get("modified", "Unknown"),
-            str(entry.get("hits", 0)),
+            entry.get("type", "unknown"),
+            name[:50],  # Truncate long names
+            size_str,
+            created_at,
         )
 
     console.print(table)
@@ -892,6 +1289,51 @@ def _display_sync_preview(stats: dict[str, Any], destination: str, bucket: str |
         console.print(f"Bucket: {bucket}")
 
     console.print(f"Operations: {stats['total_operations']}")
+
+
+def _get_campaign_cache_analytics() -> list[dict[str, Any]]:
+    """Get per-campaign cache analytics from analytics data."""
+    import json
+
+    analytics_file = Path("analytics") / "data.json"
+
+    if not analytics_file.exists():
+        return []
+
+    try:
+        with open(analytics_file) as f:
+            analytics_data = json.load(f)
+
+        generation_stats = analytics_data.get("generation_stats", {})
+        campaign_analytics = []
+
+        for campaign_id, stats in generation_stats.items():
+            if stats.get("success", False) and not stats.get("dry_run", False):
+                cache_hits = stats.get("cache_hits", 0)
+                cache_misses = stats.get("cache_misses", 0)
+                total_cache_ops = cache_hits + cache_misses
+
+                if total_cache_ops > 0:
+                    cache_hit_rate = (cache_hits / total_cache_ops) * 100
+                else:
+                    cache_hit_rate = 0.0
+
+                campaign_analytics.append({
+                    "campaign_id": campaign_id,
+                    "cache_hits": cache_hits,
+                    "cache_misses": cache_misses,
+                    "cache_hit_rate": cache_hit_rate
+                })
+
+        # Sort by campaign_id for consistent display
+        campaign_analytics.sort(key=lambda x: x["campaign_id"])
+        return campaign_analytics
+
+    except Exception as e:
+        # Log but don't fail
+        import logging
+        logging.debug(f"Error loading campaign cache analytics: {e}")
+        return []
 
 
 def _display_cleanup_preview(

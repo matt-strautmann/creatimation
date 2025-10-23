@@ -16,6 +16,17 @@ from rich.prompt import Confirm
 from rich.syntax import Syntax
 from rich.table import Table
 
+from ..constants import (
+    CONFIG_TEMPLATES,
+    CONFIG_OUTPUT_FORMATS,
+    CONFIG_VALUE_TYPES,
+    REQUIRED_CONFIG_SECTIONS,
+    GLOBAL_CONFIG_DIR,
+    GLOBAL_CONFIG_FILENAME,
+    get_template_config,
+    DEFAULT_CONFIG_VALUES,
+    ENV_PREFIX,
+)
 from ..core import pass_context
 from ..utils.output import console, error_console
 
@@ -68,7 +79,7 @@ def config(ctx, is_global, list):
 @click.option("--global", "-g", "is_global", is_flag=True, help="Create global configuration")
 @click.option(
     "--template",
-    type=click.Choice(["minimal", "complete", "cpg", "fashion", "tech"]),
+    type=click.Choice(CONFIG_TEMPLATES),
     default="complete",
     help="Configuration template",
 )
@@ -96,8 +107,8 @@ def init(ctx, is_global, template, force):
     try:
         # Determine config file path
         if is_global:
-            config_dir = Path.home() / ".creatimation"
-            config_file = config_dir / "config.yml"
+            config_dir = Path.home() / GLOBAL_CONFIG_DIR
+            config_file = config_dir / GLOBAL_CONFIG_FILENAME
             config_dir.mkdir(exist_ok=True)
         else:
             # Check if we're in a workspace directory (has briefs/ and brand-guides/)
@@ -156,7 +167,7 @@ def init(ctx, is_global, template, force):
 @click.option("--global", "-g", "is_global", is_flag=True, help="List global configuration only")
 @click.option(
     "--format",
-    type=click.Choice(["table", "yaml", "json", "env"]),
+    type=click.Choice(CONFIG_OUTPUT_FORMATS),
     default="table",
     help="Output format",
 )
@@ -253,7 +264,7 @@ def get(ctx, key, is_global, source):
 @click.option("--global", "-g", "is_global", is_flag=True, help="Set in global configuration")
 @click.option(
     "--type",
-    type=click.Choice(["string", "int", "float", "bool", "list"]),
+    type=click.Choice(CONFIG_VALUE_TYPES),
     help="Value type (auto-detected if not specified)",
 )
 @pass_context
@@ -734,7 +745,7 @@ def _get_workspace_config_template(template: str) -> dict[str, Any]:
 
 def _get_global_config() -> dict[str, Any]:
     """Load global configuration."""
-    config_file = Path.home() / ".creatimation" / "config.yml"
+    config_file = Path.home() / GLOBAL_CONFIG_DIR / GLOBAL_CONFIG_FILENAME
 
     if not config_file.exists():
         return {}
@@ -783,15 +794,9 @@ def _get_effective_config_with_sources(ctx) -> tuple[dict[str, Any], dict[str, s
 
 def _get_default_config() -> dict[str, Any]:
     """Get default configuration values."""
-    return {
-        "generation": {
-            "default_variants": 3,
-            "aspect_ratios": ["1x1", "9x16", "16x9"],
-            "quality": 95,
-        },
-        "cache": {"enabled": True, "directory": "cache"},
-        "output": {"directory": "output", "format": "jpg", "semantic_structure": True},
-    }
+    config = DEFAULT_CONFIG_VALUES.copy()
+    config["output"]["format"] = "jpg"  # Add format field not in base defaults
+    return config
 
 
 def _get_env_config() -> dict[str, Any]:
@@ -800,9 +805,9 @@ def _get_env_config() -> dict[str, Any]:
 
     # Map environment variables to config keys
     env_mappings = {
-        "CREATIMATION_CACHE_ENABLED": "cache.enabled",
-        "CREATIMATION_OUTPUT_DIR": "output.directory",
-        "CREATIMATION_VARIANTS": "generation.default_variants",
+        f"{ENV_PREFIX}CACHE_ENABLED": "cache.enabled",
+        f"{ENV_PREFIX}OUTPUT_DIR": "output.directory",
+        f"{ENV_PREFIX}VARIANTS": "generation.default_variants",
         "GEMINI_API_KEY": "auth.gemini_api_key",
     }
 
@@ -967,7 +972,7 @@ def _validate_workspace_config_file(workspace_manager) -> dict[str, Any]:
             return {"errors": errors, "warnings": warnings, "info": info}
 
         # Validate required sections
-        required_sections = ["project", "generation", "output"]
+        required_sections = REQUIRED_CONFIG_SECTIONS
         for section in required_sections:
             if section not in config:
                 warnings.append(f"Missing configuration section: {section}")
@@ -1169,11 +1174,13 @@ def _display_dynamic_workspace_config(ctx):
     if campaigns:
         campaigns[0]["campaign_id"]
         console.print(
-            f"  [cyan]./creatimation generate campaign --brief briefs/{campaigns[0]['_file']}[/cyan]"
+            f"  [cyan]./creatimation generate campaign briefs/{campaigns[0]['_file']}[/cyan]"
         )
     if brand_guides:
         example_brand = brand_guides[0]["file"]
-        console.print(f"  [cyan]./creatimation generate all --brand-guide {example_brand}[/cyan]")
+        console.print(
+            f"  [cyan]./creatimation generate campaign briefs/{campaigns[0]['_file']} --brand-guide {example_brand}[/cyan]"
+        )
     console.print(
         "  [cyan]./creatimation config show --campaigns[/cyan] - Show detailed campaign info"
     )
