@@ -71,7 +71,7 @@ class MigrationResult:
     skipped_count: int = 0
     uploaded_bytes: int = 0
     duration_seconds: float = 0.0
-    failed_files: list[str] = None
+    failed_files: list[str] | None = None
 
     def __post_init__(self):
         if self.failed_files is None:
@@ -285,7 +285,8 @@ class S3MigrationManager:
                 result.uploaded_bytes += upload_result.size_bytes
             else:
                 result.failed_count += 1
-                result.failed_files.append(upload_result.local_path)
+                if result.failed_files is not None:
+                    result.failed_files.append(upload_result.local_path)
 
         result.duration_seconds = time.time() - start_time
 
@@ -313,12 +314,12 @@ class S3MigrationManager:
         cache_filename = product_entry.get("cache_filename", "")
         asset_type = "transparent" if "transparent" in cache_filename.lower() else "original"
 
-        return self.s3_manager.folder_structure.get_product_path(
+        return str(self.s3_manager.folder_structure.get_product_path(
             product_slug=product_slug,
             category=category,
             asset_type=asset_type,
             filename=product_item["local_path"].name,
-        )
+        ))
 
     def _get_semantic_asset_s3_key(self, asset_item: dict[str, Any]) -> str:
         """Generate S3 key for semantic asset"""
@@ -331,23 +332,23 @@ class S3MigrationManager:
             # Product asset
             category = semantic_metadata.get("product_category", "general")
             cache_key = asset_item["cache_key"]
-            return self.s3_manager.folder_structure.get_product_path(
+            return str(self.s3_manager.folder_structure.get_product_path(
                 product_slug=cache_key,
                 category=category,
                 asset_type="transparent" if "transparent" in asset_type else "original",
                 filename=asset_item["local_path"].name,
-            )
+            ))
         elif "background" in asset_type:
             # Background asset
             style = semantic_metadata.get("visual_style", "scene")
             region = semantic_metadata.get("region")
             season = semantic_metadata.get("season", "none")
-            return self.s3_manager.folder_structure.get_background_path(
+            return str(self.s3_manager.folder_structure.get_background_path(
                 style=style,
                 region=region,
                 season=season if season != "none" else None,
                 filename=asset_item["local_path"].name,
-            )
+            ))
         else:
             # Composite or other
             campaign_id = asset_entry.get("campaign_id", "unknown")
@@ -657,11 +658,12 @@ def migrate_with_progress_bar(
     console.print("\n[bold]Migration Results[/bold]")
     console.print(result.summary())
 
-    if result.failed_count > 0:
+    if result.failed_count > 0 and result.failed_files:
         console.print("\n[red]Failed files:[/red]")
-        for failed_file in result.failed_files[:10]:
+        failed_list = result.failed_files
+        for failed_file in failed_list[:10]:
             console.print(f"  - {failed_file}")
-        if len(result.failed_files) > 10:
-            console.print(f"  ... and {len(result.failed_files) - 10} more")
+        if len(failed_list) > 10:
+            console.print(f"  ... and {len(failed_list) - 10} more")
 
     return result

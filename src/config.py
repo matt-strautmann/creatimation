@@ -121,7 +121,7 @@ class ConfigManager:
             3. Hardcoded defaults (from Pydantic models)
         """
         # Start with defaults
-        config_dict = {}
+        config_dict: dict[str, Any] = {}
 
         # Layer 2: Load from .creatimation.yml if exists
         if self.config_path.exists():

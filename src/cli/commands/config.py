@@ -5,6 +5,7 @@ Provides configuration management with global and workspace
 settings, profile support, and environment-specific configurations.
 """
 
+import copy
 import os
 import sys
 from pathlib import Path
@@ -595,7 +596,7 @@ def _get_global_config_template(template: str) -> dict[str, Any]:
 
     if template == "minimal":
         # Remove comments and optional sections
-        config = {
+        return {
             "auth": {"gemini_api_key": "${GEMINI_API_KEY}"},
             "defaults": {"generation": {"variants_per_ratio": 3}},
         }
@@ -647,7 +648,7 @@ def _get_workspace_config_template(template: str) -> dict[str, Any]:
                 project_name = f"{brand} Campaign Portfolio ({campaign_count} campaigns)"
 
             creative_req = campaign_data.get("creative_requirements", {})
-            base_config = {
+            base_config: dict[str, Any] = {
                 "# Workspace Configuration": None,
                 "project": {"name": project_name, "brand": brand, "industry": industry},
                 "generation": {
@@ -766,8 +767,8 @@ def _get_effective_config(ctx) -> dict[str, Any]:
 
 def _get_effective_config_with_sources(ctx) -> tuple[dict[str, Any], dict[str, str]]:
     """Get effective configuration with source tracking."""
-    config = {}
-    sources = {}
+    config: dict[str, Any] = {}
+    sources: dict[str, str] = {}
 
     # 1. Start with defaults
     _merge_config(config, _get_default_config(), sources, "default")
@@ -793,14 +794,14 @@ def _get_effective_config_with_sources(ctx) -> tuple[dict[str, Any], dict[str, s
 
 def _get_default_config() -> dict[str, Any]:
     """Get default configuration values."""
-    config = DEFAULT_CONFIG_VALUES.copy()
+    config: dict[str, Any] = copy.deepcopy(DEFAULT_CONFIG_VALUES)
     config["output"]["format"] = "jpg"  # Add format field not in base defaults
     return config
 
 
 def _get_env_config() -> dict[str, Any]:
     """Get configuration from environment variables."""
-    config = {}
+    config: dict[str, Any] = {}
 
     # Map environment variables to config keys
     env_mappings = {
@@ -811,13 +812,16 @@ def _get_env_config() -> dict[str, Any]:
     }
 
     for env_var, config_key in env_mappings.items():
-        value = os.getenv(env_var)
-        if value:
+        value_str = os.getenv(env_var)
+        if value_str:
             # Convert string values to appropriate types
-            if value.lower() in ("true", "false"):
-                value = value.lower() == "true"
-            elif value.isdigit():
-                value = int(value)
+            value: Any
+            if value_str.lower() in ("true", "false"):
+                value = value_str.lower() == "true"
+            elif value_str.isdigit():
+                value = int(value_str)
+            else:
+                value = value_str
 
             _set_nested_value(config, config_key, value)
 
@@ -913,9 +917,9 @@ def _convert_value(value: str, value_type: str | None) -> Any:
 
 def _validate_global_config() -> dict[str, Any]:
     """Validate global configuration."""
-    errors = []
-    warnings = []
-    info = []
+    errors: list[str] = []
+    warnings: list[str] = []
+    info: list[str] = []
 
     config_file = Path.home() / ".creatimation" / "config.yml"
 
@@ -950,9 +954,9 @@ def _validate_global_config() -> dict[str, Any]:
 
 def _validate_workspace_config_file(workspace_manager) -> dict[str, Any]:
     """Validate workspace configuration file."""
-    errors = []
-    warnings = []
-    info = []
+    errors: list[str] = []
+    warnings: list[str] = []
+    info: list[str] = []
 
     config_file = workspace_manager.workspace_path / ".creatimation.yml"
 
@@ -1256,11 +1260,11 @@ def _display_workspace_campaigns(ctx):
             console.print(f"  [cyan]•[/cyan] {guide['name']} ([dim]{guide['file']}[/dim])")
 
 
-def _detect_campaigns(workspace_path: Path) -> list:
+def _detect_campaigns(workspace_path: Path) -> list[dict[str, Any]]:
     """Detect campaign briefs in workspace."""
     import json
 
-    campaigns = []
+    campaigns: list[dict[str, Any]] = []
     briefs_dir = workspace_path / "briefs"
 
     if not briefs_dir.exists():
@@ -1278,9 +1282,9 @@ def _detect_campaigns(workspace_path: Path) -> list:
     return campaigns
 
 
-def _detect_brand_guides(workspace_path: Path) -> list:
+def _detect_brand_guides(workspace_path: Path) -> list[dict[str, Any]]:
     """Detect brand guides in workspace."""
-    guides = []
+    guides: list[dict[str, Any]] = []
     brand_dir = workspace_path / "brand-guides"
 
     if not brand_dir.exists():
@@ -1319,7 +1323,7 @@ def _display_campaign_hierarchy(ctx):
     console.print()
 
     # Organize campaigns by industry > brand > campaign
-    hierarchy = defaultdict(lambda: defaultdict(list))
+    hierarchy: defaultdict[str, defaultdict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
 
     for campaign in campaigns:
         # Extract industry from products or use default
@@ -1454,7 +1458,7 @@ def _display_unified_configuration(ctx):
             # Show campaign hierarchy
             from collections import defaultdict
 
-            hierarchy = defaultdict(lambda: defaultdict(list))
+            hierarchy: defaultdict[str, defaultdict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
 
             for campaign in campaigns:
                 products = campaign.get("products", [])

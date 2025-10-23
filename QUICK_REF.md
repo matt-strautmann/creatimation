@@ -13,7 +13,7 @@ Quick command reference for common workflows and demo scenarios.
 ./creatimation config show
 
 # 2. Generate campaign (3 parallel workers by default)
-./creatimation generate campaign briefs/CleanWaveSpring2025_Concise.json --parallel 8
+./creatimation generate campaign briefs/CleanWaveSpring2025_Concise.json --parallel 5
 
 # 3. Check results
 ./creatimation analytics summary --recent

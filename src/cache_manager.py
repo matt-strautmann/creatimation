@@ -435,12 +435,13 @@ class CacheManager:
         logger.info(f"CacheManager initialized with directory: {self.cache_dir}")
         logger.info("Intelligent semantic asset reuse enabled")
 
-    def _load_index(self) -> dict:
+    def _load_index(self) -> dict[Any, Any]:
         """Load cache index from disk"""
         if self.index_path.exists():
             try:
                 with open(self.index_path) as f:
-                    return json.load(f)
+                    loaded: dict[Any, Any] = json.load(f)
+                    return loaded
             except Exception as e:
                 logger.warning(f"Failed to load cache index: {e}")
                 return {}
@@ -564,7 +565,7 @@ class CacheManager:
                 total_size += file_path.stat().st_size
 
         # Group by type
-        by_type = {}
+        by_type: dict[str, int] = {}
         for entry in self.index.values():
             cache_type = entry.get("metadata", {}).get("type", "unknown")
             by_type[cache_type] = by_type.get(cache_type, 0) + 1
@@ -626,9 +627,9 @@ class CacheManager:
         product_name: str,
         file_path: str,
         campaign_id: str,
-        tags: list[str] = None,
-        cache_filename: str = None,
-        product_cache_filename: str = None,
+        tags: list[str] | None = None,
+        cache_filename: str | None = None,
+        product_cache_filename: str | None = None,
     ) -> str:
         """
         Register a product in the product registry.
@@ -687,7 +688,8 @@ class CacheManager:
             Product entry dict or None if not found
         """
         product_slug = self._slugify_product_name(product_name)
-        return self.index["products"].get(product_slug)
+        result = self.index["products"].get(product_slug)
+        return dict(result) if result else None
 
     def get_product_by_slug(self, product_slug: str) -> dict | None:
         """
@@ -699,16 +701,17 @@ class CacheManager:
         Returns:
             Product entry dict or None if not found
         """
-        return self.index["products"].get(product_slug)
+        result = self.index["products"].get(product_slug)
+        return dict(result) if result else None
 
-    def list_all_products(self) -> dict[str, dict]:
+    def list_all_products(self) -> dict[str, dict[Any, Any]]:
         """
         Get all registered products.
 
         Returns:
             Dict of {product_slug: product_info}
         """
-        return self.index["products"]
+        return dict(self.index["products"])
 
     def _slugify_product_name(self, product_name: str) -> str:
         """
@@ -1371,7 +1374,7 @@ class CacheManager:
         )
 
         # Find most reused assets
-        asset_usage = defaultdict(int)
+        asset_usage: defaultdict[str, int] = defaultdict(int)
         for pattern in patterns.values():
             asset_usage[pattern["source_asset"]] += pattern.get("reuse_count", 0)
 

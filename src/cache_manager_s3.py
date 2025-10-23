@@ -49,7 +49,7 @@ class S3CacheManager(CacheManager):
         self,
         cache_dir: str = "cache",
         s3_config: S3Config | None = None,
-        enable_s3: bool = None,
+        enable_s3: bool | None = None,
         local_cache_size_limit_gb: float = 10.0,
     ):
         """
@@ -191,6 +191,9 @@ class S3CacheManager(CacheManager):
         campaign_id: str | None = None,
     ) -> bool:
         """Upload asset to S3 with semantic metadata"""
+        if not self.s3_manager:
+            return False
+
         try:
             local_path = Path(file_path)
             if not local_path.exists():
@@ -295,12 +298,12 @@ class S3CacheManager(CacheManager):
                 if metadata.asset_type == AssetType.PRODUCT_TRANSPARENT
                 else "original"
             )
-            return folder_structure.get_product_path(
+            return str(folder_structure.get_product_path(
                 product_slug=cache_key,
                 category=category,
                 asset_type=asset_type,
                 filename=f"{cache_key}.png",
-            )
+            ))
 
         # Background assets
         elif metadata.asset_type in [
@@ -310,21 +313,21 @@ class S3CacheManager(CacheManager):
             AssetType.SOLID_BACKGROUND,
         ]:
             style = metadata.visual_style.value if metadata.visual_style else "scene"
-            return folder_structure.get_background_path(
+            return str(folder_structure.get_background_path(
                 style=style,
                 region=metadata.region,
                 season=metadata.season.value if metadata.season != Season.NONE else None,
                 filename=f"{cache_key}.jpg",
-            )
+            ))
 
         # Composite assets
         elif metadata.asset_type == AssetType.COMPOSITE:
-            return folder_structure.get_composite_path(
+            return str(folder_structure.get_composite_path(
                 campaign_id=campaign_id or "unknown",
                 product_slug=cache_key,
                 aspect_ratio=metadata.aspect_ratio or "1x1",
                 filename=f"{cache_key}.jpg",
-            )
+            ))
 
         # Default
         return f"{self.s3_manager.config.prefix}/assets/{cache_key}"

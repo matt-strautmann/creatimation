@@ -15,6 +15,7 @@ from rich.progress import (
     BarColumn,
     Progress,
     SpinnerColumn,
+    TaskID,
     TaskProgressColumn,
     TextColumn,
     TimeElapsedColumn,
@@ -307,12 +308,13 @@ def format_size(size_bytes: int) -> str:
     if size_bytes == 0:
         return "0 B"
 
+    size_float = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024.0
+        if size_float < 1024.0:
+            return f"{size_float:.1f} {unit}"
+        size_float /= 1024.0
 
-    return f"{size_bytes:.1f} PB"
+    return f"{size_float:.1f} PB"
 
 
 def format_duration(seconds: float) -> str:
@@ -508,8 +510,8 @@ class ProgressTracker:
         self.total_steps = total_steps
         self.current_step = 0
         self.description = description
-        self.progress = None
-        self.task = None
+        self.progress: Progress | None = None
+        self.task: TaskID | None = None
 
     def __enter__(self):
         self.progress = create_progress_bar()

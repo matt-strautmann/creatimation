@@ -186,8 +186,8 @@ class TextVariantEngine:
             # Find specific variant
             for template_data in self.message_variants.values():
                 for variant in template_data["variations"]:
-                    formatted = variant.format(base_message=base_message)
-                    test_id = variant.replace(" ", "_").lower()
+                    formatted = str(variant).format(base_message=base_message)
+                    test_id = str(variant).replace(" ", "_").lower()
                     if variant_id.endswith(test_id):
                         return formatted
 
@@ -225,7 +225,7 @@ class TextVariantEngine:
         template_data = self.message_variants.get(
             template_name, self.message_variants["catchphrase_snappy"]
         )
-        selected_variant = random.choice(template_data["variations"])
+        selected_variant = str(random.choice(template_data["variations"]))
 
         return selected_variant.format(base_message=base_message)
 
@@ -292,7 +292,7 @@ class TextVariantEngine:
 
         # Parse background color
         if background_color.startswith("#"):
-            bg_rgb = tuple(int(background_color[i : i + 2], 16) for i in (1, 3, 5))
+            bg_rgb: tuple[int, int, int] = tuple(int(background_color[i : i + 2], 16) for i in (1, 3, 5))  # type: ignore[assignment]
         else:
             bg_rgb = (46, 139, 87)  # Default green
 
@@ -436,7 +436,7 @@ class TextVariantEngine:
 
         words = text.split()
         lines = []
-        current_line = []
+        current_line: list[str] = []
 
         for word in words:
             test_line = " ".join(current_line + [word])
@@ -677,10 +677,10 @@ class TextVariantEngine:
         """Calculate relative luminance of RGB color"""
         r, g, b = [x / 255.0 for x in rgb]
 
-        def gamma_correct(x):
+        def gamma_correct(x: float) -> float:
             return x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4
 
-        r, g, b = map(gamma_correct, [r, g, b])
+        r, g, b = (gamma_correct(r), gamma_correct(g), gamma_correct(b))
         return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
     def _calculate_contrast_ratio(
@@ -708,7 +708,7 @@ class TextVariantEngine:
         accent_v = max(0.3, min(0.9, v))
 
         accent_rgb = colorsys.hsv_to_rgb(accent_h, accent_s, accent_v)
-        return tuple(int(x * 255) for x in accent_rgb)
+        return (int(accent_rgb[0] * 255), int(accent_rgb[1] * 255), int(accent_rgb[2] * 255))
 
     def _generate_shadow_color(self, primary_rgb: tuple[int, int, int]) -> tuple[int, int, int]:
         """Generate appropriate shadow color"""
@@ -740,7 +740,7 @@ class TextVariantEngine:
 
         return min(1.0, max(0.0, score))
 
-    def _load_font_library(self) -> dict[str, dict[str, str]]:
+    def _load_font_library(self) -> dict[str, dict[str, str | list[str]]]:
         """Load cross-platform system font library for reliable advertising typography"""
         return {
             "system_sans": {
@@ -1043,7 +1043,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    canvas_size = tuple(map(int, args.canvas_size.split(",")))
+    canvas_size_list = list(map(int, args.canvas_size.split(",")))
+    canvas_size: tuple[int, int] = (canvas_size_list[0], canvas_size_list[1])
     text_zone = (0.1, 0.05, 0.9, 0.4)  # Standard text zone
 
     # Initialize engine

@@ -589,7 +589,7 @@ def rebuild(ctx, force):
 
 def _collect_cache_statistics(cache_manager) -> dict[str, Any]:
     """Collect comprehensive cache statistics."""
-    stats = {
+    stats: dict[str, Any] = {
         "total_size_bytes": 0,
         "total_files": 0,
         "total_entries": 0,
@@ -673,7 +673,7 @@ def _calculate_clear_stats(
     """Calculate what would be cleared based on criteria."""
     import time
 
-    stats = {"total_files": 0, "total_size_mb": 0.0, "by_category": {}}
+    stats: dict[str, Any] = {"total_files": 0, "total_size_mb": 0.0, "by_category": {}}
 
     if not hasattr(cache_manager, "index"):
         return stats
@@ -815,7 +815,7 @@ def _get_cache_entries(
     cache_manager, entry_type: str | None, sort_by: str, limit: int
 ) -> list[dict[str, Any]]:
     """Get cache entries for inspection."""
-    entries = []
+    entries: list[dict[str, Any]] = []
 
     if not hasattr(cache_manager, "index"):
         return entries
@@ -890,7 +890,7 @@ def _calculate_cleanup_operations(
     """Calculate cleanup operations needed."""
     import time
 
-    result = {"total_removals": 0, "size_saved_mb": 0.0, "entries_to_remove": []}
+    result: dict[str, Any] = {"total_removals": 0, "size_saved_mb": 0.0, "entries_to_remove": []}
 
     if not hasattr(cache_manager, "index"):
         return result

@@ -10,6 +10,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 # Setup logging
 logging.basicConfig(
@@ -262,7 +263,7 @@ def cmd_discover(args):
         print(f"\nDiscovered {len(assets)} assets:\n")
 
         # Group by type
-        by_type = {}
+        by_type: dict[str, list[dict[str, Any]]] = {}
         for asset in assets:
             asset_type = asset.get("parsed", {}).get("type", "unknown")
             by_type.setdefault(asset_type, []).append(asset)
