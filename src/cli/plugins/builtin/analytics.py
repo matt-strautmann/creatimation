@@ -503,15 +503,14 @@ def _show_recent_generation():
 
     if not real_generations:
         console.print("[yellow]No real generation data available[/yellow]")
-        console.print("Only simulation runs found. Run a real campaign generation to see results here.")
+        console.print(
+            "Only simulation runs found. Run a real campaign generation to see results here."
+        )
         console.print()
         return
 
     # Get most recent real generation by timestamp
-    most_recent = max(
-        real_generations.items(),
-        key=lambda x: x[1].get("timestamp", "")
-    )
+    most_recent = max(real_generations.items(), key=lambda x: x[1].get("timestamp", ""))
     campaign_id, metrics = most_recent
 
     console.print()
@@ -543,9 +542,10 @@ def _show_recent_generation():
         # Parse and format timestamp
         try:
             from datetime import datetime
+
             ts = datetime.fromisoformat(metrics["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
             table.add_row("Completed At", ts)
-        except:
+        except Exception:
             pass
 
     console.print(table)
@@ -560,10 +560,14 @@ def _show_recent_generation():
         if cache_total > 0:
             cache_efficiency = (cache_hits / cache_total) * 100
             if cache_efficiency > 50:
-                console.print(f"[green]Cache:[/green] Excellent efficiency ({cache_efficiency:.1f}%)")
+                console.print(
+                    f"[green]Cache:[/green] Excellent efficiency ({cache_efficiency:.1f}%)"
+                )
             elif cache_efficiency > 0:
-                console.print(f"[yellow]Cache:[/yellow] Room for improvement ({cache_efficiency:.1f}%)")
+                console.print(
+                    f"[yellow]Cache:[/yellow] Room for improvement ({cache_efficiency:.1f}%)"
+                )
             else:
-                console.print(f"[red]Cache:[/red] No cache hits - consider optimizing")
+                console.print("[red]Cache:[/red] No cache hits - consider optimizing")
 
     console.print()

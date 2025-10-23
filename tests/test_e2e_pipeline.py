@@ -18,9 +18,10 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
+    from creative_automation_agent import CreativeAutomationAgent
+
     from config import ConfigManager
     from container import DIContainer, get_container
-    from creative_automation_agent import CreativeAutomationAgent
 except ImportError:
     # Create minimal mocks for testing if modules are not available
     class CreativeAutomationAgent:
@@ -383,7 +384,7 @@ class TestE2EErrorHandling:
 
     def test_missing_directory_handling(self):
         """Test handling when briefs directory doesn't exist"""
-        non_existent_dir = "/tmp/non_existent_briefs_dir"
+        non_existent_dir = "/tmp/non_existent_briefs_dir"  # nosec B108
 
         try:
             agent = CreativeAutomationAgent(briefs_dir=non_existent_dir)

@@ -29,7 +29,7 @@ def example_1_basic_s3_upload():
         s3_manager = S3StorageManager(config=config)
 
         # Create test file
-        test_file = Path("/tmp/test_asset.txt")
+        test_file = Path("/tmp/test_asset.txt")  # nosec B108
         test_file.write_text("Test creative asset content")
 
         # Upload to S3
@@ -347,7 +347,7 @@ def example_6_presigned_urls():
         s3_manager = S3StorageManager(config=config)
 
         # Create test file
-        test_file = Path("/tmp/shared_asset.txt")
+        test_file = Path("/tmp/shared_asset.txt")  # nosec B108
         test_file.write_text("Shared creative asset")
 
         # Upload to S3

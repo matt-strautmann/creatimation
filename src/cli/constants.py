@@ -5,7 +5,7 @@ Centralizes all hardcoded values from CLI commands to make them
 configurable and maintainable.
 """
 
-from typing import Dict, List, Any
+from typing import Any
 
 # Directory structure
 DEFAULT_WORKSPACE_DIRS = ["briefs", "brand-guides", "output", "cache", "templates", "assets"]
@@ -22,10 +22,7 @@ SUPPORTED_REGIONS = ["US", "EMEA", "APAC", "LATAM", "CA", "EU", "UK"]
 DEFAULT_REGIONS = ["US"]
 
 # Aspect ratios
-SUPPORTED_ASPECT_RATIOS = [
-    "1x1", "9x16", "16x9", "4x5", "5x4",
-    "4x3", "3x4", "2x3", "3x2", "21x9"
-]
+SUPPORTED_ASPECT_RATIOS = ["1x1", "9x16", "16x9", "4x5", "5x4", "4x3", "3x4", "2x3", "3x2", "21x9"]
 DEFAULT_ASPECT_RATIOS = ["1x1", "9x16", "16x9"]
 
 # Template configurations
@@ -116,8 +113,9 @@ TEMPLATE_SAMPLE_MESSAGES = {
     "minimal": "Quality you can trust",
 }
 
+
 # Configuration templates for different templates
-def get_template_config(template: str) -> Dict[str, Any]:
+def get_template_config(template: str) -> dict[str, Any]:
     """Get configuration template for specific template type."""
     base_config = DEFAULT_CONFIG_VALUES.copy()
 
@@ -138,18 +136,22 @@ def get_template_config(template: str) -> Dict[str, Any]:
 
     return base_config
 
-def get_sample_brief_data(template: str) -> Dict[str, Any]:
+
+def get_sample_brief_data(template: str) -> dict[str, Any]:
     """Get sample brief data for template."""
     return {
         "campaign_id": f"sample_{template}_campaign",
         "products": TEMPLATE_SAMPLE_PRODUCTS.get(template, TEMPLATE_SAMPLE_PRODUCTS["minimal"]),
         "target_regions": TEMPLATE_SAMPLE_REGIONS.get(template, TEMPLATE_SAMPLE_REGIONS["minimal"]),
-        "campaign_message": TEMPLATE_SAMPLE_MESSAGES.get(template, TEMPLATE_SAMPLE_MESSAGES["minimal"]),
+        "campaign_message": TEMPLATE_SAMPLE_MESSAGES.get(
+            template, TEMPLATE_SAMPLE_MESSAGES["minimal"]
+        ),
         "creative_requirements": {
             "aspect_ratios": TEMPLATE_ASPECT_RATIOS.get(template, DEFAULT_ASPECT_RATIOS),
             "variant_types": TEMPLATE_VARIANT_TYPES.get(template, DEFAULT_VARIANT_TYPES),
-        }
+        },
     }
+
 
 # Environment variable prefix
 ENV_PREFIX = "CREATIMATION_"

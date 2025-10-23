@@ -1,0 +1,19 @@
+{
+  "campaign_id": "cleanwave_spring_2025_concise",
+  "campaign_name": "CleanWave Spring 2025 - Concise",
+  "campaign_message": "Spring into freshness",
+  "products": [
+    {
+      "name": "CleanWave Original Liquid Detergent",
+      "description": "Blue liquid laundry detergent in a clear plastic bottle with white cap, curved ergonomic design, ocean wave logo on white label",
+      "image_path": "cache/products/cleanwave-original-liquid-detergent.png"
+    },
+    {
+      "name": "CleanWave Pods Spring Meadow",
+      "description": "Transparent plastic tub container filled with colorful multi-chamber laundry detergent pods - small gel-filled capsules with blue and green swirled liquid inside, spring meadow scent",
+      "image_path": "cache/products/cleanwave-pods-spring-meadow.png"
+    }
+  ],
+  "target_regions": ["US", "EMEA"],
+  "target_audience": "Busy families with active kids"
+}

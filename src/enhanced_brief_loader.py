@@ -300,7 +300,9 @@ class EnhancedBriefLoader:
                     )
 
                     if asset_path:
-                        logger.info(f"   📁 Registering asset from brief: {product_name} -> {asset_path}")
+                        logger.info(
+                            f"   📁 Registering asset from brief: {product_name} -> {asset_path}"
+                        )
 
                         # Register the asset in cache
                         self.cache_manager.register_product(
@@ -310,7 +312,10 @@ class EnhancedBriefLoader:
                         )
                         # Treat as cached since we now have it registered
                         cached_products.append(product)
-                        cache_info[product_name] = {"cache_filename": asset_path, "product_cache_filename": asset_path}
+                        cache_info[product_name] = {
+                            "cache_filename": asset_path,
+                            "product_cache_filename": asset_path,
+                        }
                 else:
                     logger.info(f"   ✗ Cache MISS: {product_name} (will generate)")
                     new_products.append(product)

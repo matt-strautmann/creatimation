@@ -7,6 +7,7 @@ and uses dependency injection for better testability and maintainability.
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +56,7 @@ class CreativePipeline:
         state_tracker: StateTrackerInterface,
         no_cache: bool = False,
         dry_run: bool = False,
+        max_workers: int = 3,
     ):
         """Initialize pipeline with injected dependencies."""
         self.cache_manager = cache_manager
@@ -66,11 +68,14 @@ class CreativePipeline:
 
         self.no_cache = no_cache
         self.dry_run = dry_run
+        self.max_workers = max_workers
 
         # Default aspect ratios (PRD requirement)
         self.default_aspect_ratios = ["1x1", "9x16", "16x9"]
 
-        logger.info("🚀 CreativePipeline initialized with dependency injection")
+        logger.info(
+            f"🚀 CreativePipeline initialized with dependency injection (max_workers={max_workers})"
+        )
 
     def process_campaign(
         self, brief_path: str, brand_guide_path: str | None = None, resume: bool = False
@@ -212,23 +217,37 @@ class CreativePipeline:
             ),
         }
 
-        # Step 2: Generate variants for all regions
+        # Step 2: Collect all creative specifications for parallel generation
+        creative_tasks = []
         for region in campaign_brief.target_regions:
-            logger.info(f"   🌍 Region: {region}")
-
-            # Get regional adaptations
+            # Get campaign message (priority: regional > campaign_message > enhanced_context > default)
             region_config = campaign_brief.regional_adaptations.get(region, None)
-            if region_config:
+
+            # If regional call_to_action exists, use it directly (already region-specific)
+            if (
+                region_config
+                and hasattr(region_config, "call_to_action")
+                and region_config.call_to_action
+            ):
                 region_cta = region_config.call_to_action
             else:
-                region_cta = campaign_brief.enhanced_context.get("call_to_action", "Learn More")
+                # Otherwise, get base message and contextualize for region
+                if campaign_brief.campaign_message:
+                    base_message = campaign_brief.campaign_message
+                else:
+                    base_message = campaign_brief.enhanced_context.get(
+                        "call_to_action", "Learn More"
+                    )
+
+                # Contextualize message for region using Gemini
+                region_cta = self.image_generator.contextualize_message_for_region(
+                    campaign_message=base_message,
+                    region=region,
+                    product_name=product_name,
+                )
 
             for ratio in aspect_ratios:
-                logger.info(f"      🎨 Generating {ratio} creatives...")
-
                 for variant_type in variant_types:
-                    logger.info(f"         📐 {variant_type}...")
-
                     # Create creative specification
                     creative_spec = CreativeSpec(
                         product_name=product_name,
@@ -246,16 +265,56 @@ class CreativePipeline:
                         scene_description=scene_description,
                     )
 
-                    # Generate creative
-                    result = self._generate_single_creative(
-                        creative_spec, product_image, campaign_brief, brand_guide
+                    creative_tasks.append(
+                        (creative_spec, product_image, campaign_brief, brand_guide)
                     )
 
-                    if result.success:
-                        product_results["creatives_generated"] += 1
-                        logger.info(f"            ✓ Saved: {Path(result.output_path).name}")
-                    else:
-                        logger.error(f"            ❌ Failed: {result.error_message}")
+        # Step 3: Generate creatives in parallel
+        total_tasks = len(creative_tasks)
+        logger.info(f"   ⚡ Generating {total_tasks} creatives with {self.max_workers} workers...")
+
+        if self.max_workers == 1:
+            # Sequential execution (backwards compatible)
+            for spec, prod_img, camp_brief, bg in creative_tasks:
+                result = self._generate_single_creative(spec, prod_img, camp_brief, bg)
+                if result.success:
+                    product_results["creatives_generated"] += 1
+                    logger.info(
+                        f"      ✓ {spec.region}/{spec.aspect_ratio}/{spec.variant_type}: {Path(result.output_path).name}"
+                    )
+                else:
+                    logger.error(
+                        f"      ❌ {spec.region}/{spec.aspect_ratio}/{spec.variant_type}: {result.error_message}"
+                    )
+        else:
+            # Parallel execution with ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                # Submit all tasks
+                future_to_spec = {
+                    executor.submit(
+                        self._generate_single_creative, spec, prod_img, camp_brief, bg
+                    ): spec
+                    for spec, prod_img, camp_brief, bg in creative_tasks
+                }
+
+                # Process results as they complete
+                for future in as_completed(future_to_spec):
+                    spec = future_to_spec[future]
+                    try:
+                        result = future.result()
+                        if result.success:
+                            product_results["creatives_generated"] += 1
+                            logger.info(
+                                f"      ✓ {spec.region}/{spec.aspect_ratio}/{spec.variant_type}: {Path(result.output_path).name}"
+                            )
+                        else:
+                            logger.error(
+                                f"      ❌ {spec.region}/{spec.aspect_ratio}/{spec.variant_type}: {result.error_message}"
+                            )
+                    except Exception as e:
+                        logger.error(
+                            f"      ❌ {spec.region}/{spec.aspect_ratio}/{spec.variant_type}: Unexpected error: {e}"
+                        )
 
         return product_results
 
@@ -325,7 +384,7 @@ class CreativePipeline:
                         "variant_type": spec.variant_type,
                         "template": spec.template,
                         "generated_at": metadata["generated_at"],
-                    }
+                    },
                 )
 
             processing_time = time.time() - start_time
@@ -370,7 +429,7 @@ class CreativePipeline:
                         search_paths.append(image_path)
                     else:
                         # Strategy 1: Relative to brief directory
-                        brief_dir = getattr(self, '_brief_dir', Path.cwd())
+                        brief_dir = getattr(self, "_brief_dir", Path.cwd())
                         search_paths.append(brief_dir / image_path)
 
                         # Strategy 2: Relative to project root (cwd)
@@ -398,11 +457,13 @@ class CreativePipeline:
                         return product_image
                     else:
                         logger.warning(f"   ⚠ Provided image not found: {product_image_path}")
-                        logger.warning(f"       Searched locations:")
+                        logger.warning("       Searched locations:")
                         for i, path in enumerate(search_paths, 1):
                             logger.warning(f"         {i}. {path}")
                 except Exception as e:
-                    logger.warning(f"   ⚠ Failed to load provided image '{product_image_path}': {e}")
+                    logger.warning(
+                        f"   ⚠ Failed to load provided image '{product_image_path}': {e}"
+                    )
 
         # 🎯 STEP 2: Check cache for existing product image
         if not self.no_cache:
@@ -523,13 +584,13 @@ class CreativePipeline:
         image.save(cache_path, "PNG", optimize=True)
 
         # Register in cache manager (campaign_id will be tracked)
-        campaign_id = getattr(self, '_current_campaign_id', 'unknown')
+        campaign_id = getattr(self, "_current_campaign_id", "unknown")
         self.cache_manager.register_product(
             product_name=product_name,
             file_path=str(cache_path),
             campaign_id=campaign_id,
             tags=[],
-            metadata={"cached_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+            metadata={"cached_at": time.strftime("%Y-%m-%d %H:%M:%S")},
         )
 
     def _is_cache_hit(self, product_name: str) -> bool:

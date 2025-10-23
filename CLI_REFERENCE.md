@@ -85,6 +85,7 @@ Generate complete campaign assets from a brief.
 | `-r, --ratios TEXT` | Comma-separated aspect ratios | `--ratios 1x1,16x9` |
 | `--regions TEXT` | Comma-separated target regions | `--regions US,EMEA` |
 | `-g, --brand-guide PATH` | Brand guide YAML file | `--brand-guide guides/brand.yml` |
+| `-j, --parallel INT` | Number of parallel workers (default: 3) | `--parallel 5` |
 | `--no-cache` | Disable cache, regenerate everything | |
 | `--resume` | Resume from saved pipeline state | |
 | `--dry-run` | Preview without execution | |
@@ -100,6 +101,10 @@ Generate complete campaign assets from a brief.
 
 # Override defaults
 ./creatimation generate campaign campaign.json --variants 5 --ratios 1x1,16x9
+
+# Control parallelization (default: 3 workers)
+./creatimation generate campaign campaign.json --parallel 5  # Faster with 5 workers
+./creatimation generate campaign campaign.json --parallel 1  # Sequential (debugging)
 
 # Dry run to preview
 ./creatimation generate campaign campaign.json --dry-run
@@ -132,10 +137,24 @@ Batch process multiple campaign briefs.
 ./creatimation generate batch PATTERN [OPTIONS]
 ```
 
+**Options**:
+| Option | Description | Example |
+|--------|-------------|------------|
+| `-j, --parallel INT` | Number of parallel workers per campaign (default: 3) | `--parallel 5` |
+| `-g, --brand-guide PATH` | Brand guide YAML file (applies to all campaigns) | `--brand-guide guides/brand.yml` |
+| `--no-cache` | Disable cache for all campaigns | |
+| `--dry-run` | Preview all campaigns without execution | |
+
 **Examples**:
 ```bash
 # Process all briefs in directory
 ./creatimation generate batch "briefs/*.json"
+
+# Process with parallelization
+./creatimation generate batch "briefs/*.json" --parallel 5
+
+# Process with brand guide
+./creatimation generate batch "briefs/*.json" --brand-guide brand-guides/minimal.yml
 ```
 
 ---
@@ -143,6 +162,20 @@ Batch process multiple campaign briefs.
 ### `validate`
 
 Validate briefs, brand guides, and configuration files.
+
+**Auto-detect Mode** (Recommended):
+```bash
+# Automatically detects file type by extension
+./creatimation validate <file>           # Auto-detect .json (brief) or .yml/.yaml (brand guide)
+./creatimation validate config           # Validate workspace config
+./creatimation validate workspace        # Validate entire workspace
+```
+
+**Explicit Mode** (Advanced):
+```bash
+./creatimation validate brief <file>           # Explicitly validate as brief
+./creatimation validate brand-guide <file>     # Explicitly validate as brand guide
+```
 
 #### `validate brief`
 
@@ -166,6 +199,11 @@ Validate campaign brief JSON file.
 
 **Example**:
 ```bash
+# Auto-detect (recommended)
+./creatimation validate briefs/CleanWaveSpring2025.json
+./creatimation validate campaign.json --fix
+
+# Explicit subcommand
 ./creatimation validate brief briefs/CleanWaveSpring2025.json
 ./creatimation validate brief campaign.json --fix
 ```
@@ -186,6 +224,10 @@ Validate brand guide YAML file.
 
 **Example**:
 ```bash
+# Auto-detect (recommended)
+./creatimation validate brand-guides/minimal_blue.yml
+
+# Explicit subcommand
 ./creatimation validate brand-guide brand-guides/minimal_blue.yml
 ```
 
@@ -711,14 +753,18 @@ generation:
 ### Basic Campaign Generation
 
 ```bash
-# 1. Validate brief first
-./creatimation validate brief briefs/CleanWaveSpring2025.json
+# 1. Validate brief first (auto-detect)
+./creatimation validate briefs/CleanWaveSpring2025.json
 
 # 2. Dry run to preview
 ./creatimation generate campaign briefs/CleanWaveSpring2025.json --dry-run
 
-# 3. Generate creatives
+# 3. Generate creatives (uses 3 parallel workers by default)
 ./creatimation generate campaign briefs/CleanWaveSpring2025.json
+
+# Optional: control parallelization
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --parallel 5  # Faster
+./creatimation generate campaign briefs/CleanWaveSpring2025.json --parallel 1  # Sequential
 
 # 4. Check results
 ./creatimation analytics summary --recent
@@ -741,8 +787,8 @@ generation:
 ### Brand Guide Workflow
 
 ```bash
-# 1. Validate brand guide
-./creatimation validate brand-guide brand-guides/minimal_blue.yml
+# 1. Validate brand guide (auto-detect)
+./creatimation validate brand-guides/minimal_blue.yml
 
 # 2. Generate with brand guide
 ./creatimation generate campaign campaign.json \
@@ -859,5 +905,5 @@ python src/crewai_creative_agent.py --watch --interval 30  # Custom interval
 
 ---
 
-**Version**: 2.1.0
-**Last Updated**: October 2025 (Agent System Completion)
+**Version**: 2.2.0
+**Last Updated**: October 2025 (Parallelization + Agent System)

@@ -18,7 +18,9 @@ pytest>=7.4.0           # Testing framework
 pytest-cov>=4.1.0       # Coverage reporting
 black>=23.9.0           # Code formatting
 flake8>=6.1.0           # Linting
+ruff>=0.1.0             # Fast Python linter
 mypy>=1.6.0             # Type checking
+bandit>=1.7.0           # Security vulnerability scanner
 pre-commit>=3.5.0       # Git hooks
 
 # Agentic system dependencies
