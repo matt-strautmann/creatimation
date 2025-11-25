@@ -52,7 +52,6 @@ custom_cache/
 pipeline.log
 
 # Documentation (internal notes, not deliverables)
-docs/
 PRD.pdf
 takehome.md
 
