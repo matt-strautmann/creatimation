@@ -2,6 +2,10 @@
 
 > AI-powered creative automation pipeline for generating social ad campaigns at scale
 
+**📚 This is an archived reference repository** — A production-ready implementation showcasing AI-powered creative automation, multi-agent systems, and CLI design patterns. Feel free to explore, learn from, and fork for your own projects.
+
+---
+
 Generate professional social ad creatives at scale using Google Gemini 2.5 Flash Image. Built for CPG brands that need hundreds of localized campaigns without the traditional time and cost overhead.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
