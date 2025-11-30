@@ -7,6 +7,7 @@ Generate professional social ad creatives at scale using Google Gemini 2.5 Flash
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Gemini 2.5](https://img.shields.io/badge/Gemini-2.5%20Flash%20Image-blue.svg)](https://ai.google.dev/gemini-api/docs/image-generation)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-412991.svg)](https://platform.openai.com/docs)
 [![Code Quality](https://img.shields.io/badge/code%20quality-production-green.svg)]()
 
 ## Overview
